@@ -379,6 +379,7 @@ Mauvaise réponse 2"></textarea>
     }
 
     let adminMap = null;
+    let dernieresBoundsCarte = null;
     async function chargerCarteVoyage() {
       const lieux = (await getLieux()).filter(l => l.Lat && l.Lng);
       if (!adminMap) {
@@ -390,7 +391,7 @@ Mauvaise réponse 2"></textarea>
       // Retire les anciens marqueurs
       adminMap.eachLayer(layer => { if (layer instanceof L.Marker) adminMap.removeLayer(layer); });
 
-      if (!lieux.length) { adminMap.setView([32.8, 35.5], 8); return; }
+      if (!lieux.length) { dernieresBoundsCarte = null; adminMap.setView([32.8, 35.5], 8); return; }
 
       const bounds = [];
       lieux.forEach(l => {
@@ -410,6 +411,8 @@ Mauvaise réponse 2"></textarea>
           };
         });
       });
+      dernieresBoundsCarte = bounds;
+      adminMap.invalidateSize();
       adminMap.fitBounds(bounds, { padding: [30, 30] });
     }
 
@@ -431,7 +434,10 @@ Mauvaise réponse 2"></textarea>
         t.classList.add('active');
         document.getElementById('p-' + t.dataset.p).classList.add('active');
         if (t.dataset.p === 'voyage' && adminMap) {
-          setTimeout(() => adminMap.invalidateSize(), 50);
+          setTimeout(() => {
+            adminMap.invalidateSize();
+            if (dernieresBoundsCarte) adminMap.fitBounds(dernieresBoundsCarte, { padding: [30, 30] });
+          }, 80);
         }
       };
     });
