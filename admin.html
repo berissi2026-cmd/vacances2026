@@ -70,6 +70,7 @@
       <p class="muted mt-8" style="font-size:12px;">Colle ici le bloc de données préparé (par Claude ou toi-même) au format JSON, puis clique sur Importer. Ça crée tous les lieux d'un coup.</p>
       <textarea id="import-lieux-json" rows="6" style="width:100%; margin-top:10px; font-family:monospace; font-size:12px;" placeholder='[{"nomFr":"Kinneret","nomHe":"כנרת","jour":"Dimanche","heure":"10:00","type":"Plage / mer","lat":32.83,"lng":35.59,"torahFr":"...","torahHe":"...","faitGeoFr":"...","faitGeoHe":"..."}]'></textarea>
       <button class="btn btn--primary btn--block mt-8" id="btn-importer-lieux">📦 Importer tous les lieux</button>
+      <button class="btn btn--ghost btn--block mt-8" id="btn-vider-lieux" style="color:#c0392b;">🗑️ Supprimer TOUS les lieux existants</button>
       <div id="import-lieux-statut" class="muted mt-8" style="font-size:13px;"></div>
 
       <h3 class="mt-24">Ajouter un lieu</h3>
@@ -544,6 +545,21 @@ Mauvaise réponse 2"></textarea>
       ['t-fr','t-he','t-icone'].forEach(id => document.getElementById(id).value = '');
       chargerTypesExcursion();
       chargerTypesListe();
+    };
+
+    document.getElementById('btn-vider-lieux').onclick = async () => {
+      if (!confirm('Supprimer TOUS les lieux existants ? Cette action est irréversible.')) return;
+      const statut = document.getElementById('import-lieux-statut');
+      const lieux = await getLieux();
+      let ok = 0;
+      for (const l of lieux) {
+        await supprimerLieu(l.LieuID);
+        ok++;
+        statut.textContent = `⏳ ${ok}/${lieux.length} supprimés...`;
+      }
+      statut.textContent = `✅ ${ok} lieu(x) supprimé(s).`;
+      chargerLieux();
+      chargerLieuxPourMissions();
     };
 
     // --- IMPORT EN MASSE ---
