@@ -70,9 +70,10 @@
   .voyage-jour-head { text-align:center; }
   .voyage-jour .trail-path { padding: 60px 0 6px; }
 
-  .drive-status { text-align: center; padding: 14px; border-radius: var(--radius-md); font-weight: 700; font-family: var(--font-display); margin-bottom: 16px; }
-  .drive-status.roule { background: var(--jungle-leaf); color: var(--white); }
-  .drive-status.arret { background: var(--sky); color: var(--bark); }
+  .game-tile { background: var(--sand-light); border: 3px solid var(--bark); border-radius: var(--radius-md); padding: 18px 10px; text-align: center; cursor: pointer; position: relative; }
+  .game-tile .emoji { font-size: 30px; display: block; margin-bottom: 6px; }
+  .game-badge { font-size: 11px; margin-top: 6px; color: var(--bark); opacity: .75; line-height:1.4; }
+  .game-badge .neuf { color: var(--sunset); font-weight: 700; }
 
   .games-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
   .album-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
@@ -102,8 +103,6 @@
     #diplome-bg { position: fixed; inset:0; background:#fff; }
     #diplome-carte button { display:none; }
   }
-  .game-tile { background: var(--sand-light); border: 3px solid var(--bark); border-radius: var(--radius-md); padding: 18px 10px; text-align: center; cursor: pointer; }
-  .game-tile .emoji { font-size: 30px; display: block; margin-bottom: 6px; }
 
   .bingo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .bingo-cell { background: var(--sand-light); border: 2px solid var(--bark); border-radius: var(--radius-sm); padding: 10px 6px; font-size: 12px; text-align: center; min-height: 60px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
@@ -149,6 +148,7 @@
   <div id="barre-outils-haut">
     <a href="index.html" class="outil-icone" title="Retour au menu">⬅️</a>
     <div id="switch-profil-row"></div>
+    <button class="outil-icone" id="btn-musique-haut" title="Musique">🎵</button>
     <a href="admin.html" class="outil-icone" id="lien-admin-icone" style="display:none;" title="Admin">⚙️</a>
     <button class="outil-icone" id="btn-changer-langue" title="FR / עברית">🌐</button>
   </div>
@@ -156,7 +156,7 @@
   <div class="tabs">
     <div class="tab active" data-panel="carte">🗺️ Carte</div>
     <div class="tab" data-panel="position">🧭 Position</div>
-    <div class="tab" data-panel="voiture">🚗 En voiture</div>
+    <div class="tab" data-panel="voiture">🎯 Mission</div>
     <div class="tab" data-panel="album">📷 Album</div>
     <div class="tab" data-panel="badges">🎖️ Badges</div>
   </div>
@@ -177,17 +177,10 @@
   </div>
 
   <div class="panel" id="panel-voiture">
-    <div class="drive-status arret" id="drive-status">🅿️ À l'arrêt</div>
-    <div class="row" style="justify-content:center; gap:10px;">
-      <button class="btn btn--primary" id="btn-on-roule">🚗 On roule</button>
-      <button class="btn btn--ghost" id="btn-on-arrete">📍 On est arrivés</button>
-    </div>
-
     <div class="games-grid">
-      <div class="game-tile" onclick="window.ouvrirJeu('bingo')"><span class="emoji">🔲</span>Bingo voiture</div>
-      <div class="game-tile" onclick="window.ouvrirJeu('roue')"><span class="emoji">🎡</span>Roue des défis</div>
-      <div class="game-tile" onclick="window.ouvrirJeu('enigme')"><span class="emoji">❓</span>Énigmes</div>
-      <div class="game-tile" onclick="window.ouvrirJeu('musique')"><span class="emoji">🎵</span>Musique</div>
+      <div class="game-tile" onclick="window.ouvrirJeu('bingo')"><span class="emoji">🔲</span>Bingo<div class="game-badge" id="badge-bingo"></div></div>
+      <div class="game-tile" onclick="window.ouvrirJeu('roue')"><span class="emoji">🎡</span>Roue des défis<div class="game-badge" id="badge-roue"></div></div>
+      <div class="game-tile" onclick="window.ouvrirJeu('enigme')"><span class="emoji">❓</span>Énigmes<div class="game-badge" id="badge-enigme"></div></div>
     </div>
   </div>
 
@@ -233,7 +226,7 @@
       getProfil, getProfils, ecouterScoreFamille, ecouterProfil, getDefisRoute, ecouterLieux,
       getMissionsParLieu, getResultatsProfil, enregistrerResultat, getTypesExcursion,
       ecouterTousResultats, getSettings, ajouterBadgeProfil, getPlaylistPourLieu, ajouterScoreProfil,
-      ecouterPointsLog, updateSettings, ecouterSettings
+      ecouterPointsLog, updateSettings, ecouterSettings, marquerDefiFait, ecouterDefisFaits
     } from './firebase-services.js';
     import { uploaderPhotoMission } from './imagekit-services.js';
 
@@ -251,6 +244,7 @@
     let typesParId = {};
     let profilsCache = {};
     let resultatsPhotoCache = [];
+    let defisFaitsCache = [];
     let settingsVoyage = {};
 
     const JOURS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi'];
@@ -368,10 +362,16 @@
       types.forEach(t => typesParId[t.TypeID] = t);
       profils.forEach(p => profilsCache[p.ProfilID] = p);
       afficherSelecteurProfils(profils);
+      mettreAJourBadgesJeux();
 
       ecouterSettings(settings => {
         settingsVoyage = settings;
         if (lieuxCache.length) afficherPiste(lieuxCache);
+        mettreAJourBadgesJeux();
+      });
+      ecouterDefisFaits(logs => {
+        defisFaitsCache = logs;
+        mettreAJourBadgesJeux();
       });
       ecouterLieux(afficherPiste);
       ecouterTousResultats(tous => {
@@ -1057,21 +1057,44 @@
       calqueLieuxCarte.addTo(carteLeaflet);
     }
 
-    let modeVoiture = false;
-    const SEUIL_VITESSE_MS = 20 / 3.6;
-    function setModeVoiture(actif) {
-      modeVoiture = actif;
-      const el = document.getElementById('drive-status');
-      el.className = 'drive-status ' + (actif ? 'roule' : 'arret');
-      el.textContent = actif ? '🚗 En route !' : "🅿️ À l'arrêt";
+    // ------------------------------------------------------------
+    // DÉBLOCAGE PROGRESSIF DES JEUX (par jour, cumulatif) + suivi des défis faits
+    // ------------------------------------------------------------
+    function joursDebloques() {
+      const idx = calculerJourCalendaireIndex(settingsVoyage);
+      if (idx === -1) return JOURS.slice(); // pas de date de voyage réglée : tout débloqué par défaut
+      return JOURS.slice(0, idx + 1);
     }
-    document.getElementById('btn-on-roule').onclick = () => setModeVoiture(true);
-    document.getElementById('btn-on-arrete').onclick = () => setModeVoiture(false);
-    if ('geolocation' in navigator) {
-      navigator.geolocation.watchPosition(pos => {
-        const vitesse = pos.coords.speed;
-        if (vitesse !== null && !isNaN(vitesse) && vitesse > SEUIL_VITESSE_MS && !modeVoiture) setModeVoiture(true);
-      }, () => {}, { enableHighAccuracy: true, maximumAge: 5000 });
+
+    function estDefiFait(defiId) {
+      return defisFaitsCache.some(d => d.DefiID === defiId && d.ProfilID === PROFIL_ID);
+    }
+
+    function poolsPourType(liste) {
+      const debloques = joursDebloques();
+      const idx = calculerJourCalendaireIndex(settingsVoyage);
+      const jourAuj = idx !== -1 ? JOURS[idx] : null;
+      const disponible = liste.filter(d => !d.Jour || debloques.includes(d.Jour));
+      const restant = disponible.filter(d => !estDefiFait(d.DefiID));
+      const nouveaux = restant.filter(d => !d.Jour || d.Jour === jourAuj);
+      const enRetard = restant.filter(d => d.Jour && d.Jour !== jourAuj);
+      return { disponible, restant, nouveaux, enRetard };
+    }
+
+    function mettreAJourBadgesJeux() {
+      [['bingo', toutLesDefis.bingo], ['roue', toutLesDefis.roue], ['enigme', toutLesDefis.enigme]].forEach(([type, liste]) => {
+        const badge = document.getElementById('badge-' + type);
+        if (!badge) return;
+        const { nouveaux, enRetard } = poolsPourType(liste);
+        if (!nouveaux.length && !enRetard.length) {
+          badge.innerHTML = `<span>✅ ${LANGUE === 'he' ? 'הכל נעשה' : 'Tout fait !'}</span>`;
+        } else {
+          const parts = [];
+          if (nouveaux.length) parts.push(`<span class="neuf">🆕 ${nouveaux.length}</span>`);
+          if (enRetard.length) parts.push(`<span>⏳ ${enRetard.length}</span>`);
+          badge.innerHTML = parts.join(' · ');
+        }
+      });
     }
 
     window.ouvrirJeu = async function(type) {
@@ -1080,10 +1103,17 @@
       const langue = LANGUE;
 
       if (type === 'bingo') {
-        const items = toutLesDefis.bingo.slice(0, 9);
+        const { nouveaux, enRetard } = poolsPourType(toutLesDefis.bingo);
+        const items = [...enRetard, ...nouveaux].slice(0, 9);
+        if (!items.length) {
+          box.innerHTML = `<h3>🔲 Bingo</h3><p class="muted mt-8">${LANGUE === 'he' ? 'אין עוד משימות זמינות היום.' : "Pas de nouvelles cases disponibles aujourd'hui."}</p>${boutonFermer()}`;
+          return;
+        }
         const totalPoints = items.reduce((s, it) => s + (Number(it.Points) || 10), 0);
-        box.innerHTML = `<h3>🔲 Bingo voiture</h3>
-          <p class="muted mt-8" style="font-size:12px;">${LANGUE === 'he' ? `מצאו את כל 9 הפריטים כדי לזכות ב-${totalPoints} נקודות למשפחה!` : `Trouvez les 9 objets pour gagner ${totalPoints} points pour la famille !`}</p>
+        const enteteRetard = enRetard.length ? `<p class="muted mt-8" style="font-size:12px;">⏳ ${LANGUE === 'he' ? `כולל ${enRetard.length} מהימים הקודמים` : `Dont ${enRetard.length} en retard des jours précédents`}</p>` : '';
+        box.innerHTML = `<h3>🔲 Bingo</h3>
+          <p class="muted mt-8" style="font-size:12px;">${LANGUE === 'he' ? `מצאו הכל כדי לזכות ב-${totalPoints} נקודות למשפחה!` : `Trouvez tout pour gagner ${totalPoints} points pour la famille !`}</p>
+          ${enteteRetard}
           <div class="bingo-grid mt-16">` +
           items.map((it, i) => `<div class="bingo-cell" data-i="${i}">${langue === 'he' ? it.Contenu_HE : it.Contenu_FR}</div>`).join('') +
           `</div><div class="muted mt-8" id="bingo-statut" style="text-align:center;"></div>` + boutonFermer();
@@ -1098,6 +1128,7 @@
             if (trouves.size === items.length && !dejaGagne) {
               dejaGagne = true;
               await ajouterScoreProfil(PROFIL_ID, totalPoints);
+              await Promise.all(items.map(it => marquerDefiFait(it.DefiID, PROFIL_ID)));
               document.getElementById('bingo-statut').textContent =
                 LANGUE === 'he' ? `🎉 ביינגו! +${totalPoints} נקודות!` : `🎉 Bingo complet ! +${totalPoints} points !`;
               parler(LANGUE === 'he' ? 'ביינגו! כל הכבוד לכולם!' : 'Bingo ! Bravo à toute la famille !', LANGUE);
@@ -1113,7 +1144,6 @@
         document.getElementById('btn-tourner-roue').onclick = window.tournerRoue;
       }
       if (type === 'enigme') {
-        window.enigmeIndexUtilises = window.enigmeIndexUtilises || new Set();
         afficherProchaineEnigme(box);
       }
       if (type === 'musique') {
@@ -1142,36 +1172,22 @@
       }
     };
 
-    // Détermine quel jour cibler pour les défis "récap" selon le moment :
-    // - le soir (nuit) : récap de la journée qu'on vient de vivre
-    // - le matin : récap de la veille (dernier jour terminé)
-    // - en journée (route) : le jour en cours, ce qu'on vient de faire
-    function calculerJourCible() {
-      const pion = calculerPositionPion(settingsVoyage);
-      if (pion.moment === 'matin') {
-        return pion.jourIndex > 0 ? JOURS[pion.jourIndex - 1] : null;
-      }
-      return JOURS[pion.jourIndex] || null;
-    }
-
-    function filtrerParJourCible(liste) {
-      const cible = calculerJourCible();
-      if (!cible) return liste;
-      const cibles = liste.filter(d => d.Jour === cible);
-      return cibles.length ? cibles : liste; // repli sur tout le pool si rien de spécifique à ce jour
-    }
+    document.getElementById('btn-musique-haut').onclick = () => window.ouvrirJeu('musique');
 
     window.tournerRoue = function() {
-      const r = filtrerParJourCible(toutLesDefis.roue);
+      const { nouveaux, enRetard } = poolsPourType(toutLesDefis.roue);
+      const r = [...enRetard, ...nouveaux];
       const resultEl = document.getElementById('wheel-result');
       const zone = document.getElementById('roue-valider-zone');
-      if (!r.length) { resultEl.textContent = "Pas encore de défis ajoutés."; return; }
+      if (!r.length) { resultEl.textContent = LANGUE === 'he' ? 'אין עוד אתגרים היום.' : "Pas de nouveaux défis aujourd'hui."; return; }
       const defi = r[Math.floor(Math.random() * r.length)];
-      resultEl.textContent = LANGUE === 'he' ? defi.Contenu_HE : defi.Contenu_FR;
+      const enRetardTxt = defi.Jour ? (enRetard.includes(defi) ? ' ⏳' : ' 🆕') : '';
+      resultEl.textContent = (LANGUE === 'he' ? defi.Contenu_HE : defi.Contenu_FR) + enRetardTxt;
       const points = Number(defi.Points) || 10;
       zone.innerHTML = `<button class="btn btn--primary btn--block mt-16" id="btn-valider-roue">✅ ${LANGUE === 'he' ? `בוצע! (+${points})` : `Fait ! (+${points} pts)`}</button>`;
       document.getElementById('btn-valider-roue').onclick = async () => {
         await ajouterScoreProfil(PROFIL_ID, points);
+        await marquerDefiFait(defi.DefiID, PROFIL_ID);
         zone.innerHTML = `<p class="muted mt-8" style="text-align:center;">🎉 +${points} ${LANGUE === 'he' ? 'נקודות!' : 'points !'}</p>`;
         parler(LANGUE === 'he' ? 'כל הכבוד!' : 'Bravo !', LANGUE);
       };
@@ -1181,24 +1197,21 @@
     // ÉNIGMES — QCM avec score, passage automatique à la suivante
     // ------------------------------------------------------------
     function afficherProchaineEnigme(box) {
-      const poolCible = filtrerParJourCible(toutLesDefis.enigme);
-      const dispo = poolCible.filter((e) => !window.enigmeIndexUtilises.has(toutLesDefis.enigme.indexOf(e)));
-      const liste = dispo.length ? dispo : poolCible;
-      if (window.enigmeIndexUtilises.size >= toutLesDefis.enigme.length) window.enigmeIndexUtilises.clear();
+      const { nouveaux, enRetard } = poolsPourType(toutLesDefis.enigme);
+      const liste = [...enRetard, ...nouveaux];
 
       if (!liste.length) {
-        box.innerHTML = `<h3>❓ ${LANGUE === 'he' ? 'חידה' : 'Énigme'}</h3><p class="muted mt-8">${LANGUE === 'he' ? 'עדיין אין חידות.' : "Pas encore d'énigmes ajoutées."}</p>${boutonFermer()}`;
+        box.innerHTML = `<h3>❓ ${LANGUE === 'he' ? 'חידה' : 'Énigme'}</h3><p class="muted mt-8">${LANGUE === 'he' ? 'אין עוד חידות היום.' : "Pas de nouvelles énigmes aujourd'hui."}</p>${boutonFermer()}`;
         return;
       }
       const e = liste[Math.floor(Math.random() * liste.length)];
-      const indexReel = toutLesDefis.enigme.indexOf(e);
-      window.enigmeIndexUtilises.add(indexReel);
+      const estEnRetard = enRetard.includes(e);
 
       const question = LANGUE === 'he' ? e.Contenu_HE : e.Contenu_FR;
       const options = (LANGUE === 'he' ? e.OptionsHE : e.OptionsFR) || [];
       const points = Number(e.Points) || 10;
 
-      box.innerHTML = `<h3>❓ ${LANGUE === 'he' ? 'חידה' : 'Énigme'}</h3>
+      box.innerHTML = `<h3>❓ ${LANGUE === 'he' ? 'חידה' : 'Énigme'} ${estEnRetard ? '⏳' : '🆕'}</h3>
         <div class="enigme-box">${question || ''}</div>
         <div class="col mt-16" id="enigme-options">
           ${options.map((op, i) => `<button class="btn btn--ghost btn--block btn-reponse-enigme" data-i="${i}">${op}</button>`).join('')}
@@ -1211,6 +1224,7 @@
           boutonsRep.forEach(b => b.disabled = true);
           const i = Number(btn.dataset.i);
           const statut = document.getElementById('enigme-statut');
+          await marquerDefiFait(e.DefiID, PROFIL_ID);
           if (i === e.ReponseIndex) {
             await ajouterScoreProfil(PROFIL_ID, points);
             btn.style.background = 'var(--jungle-leaf)';

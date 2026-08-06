@@ -45,10 +45,6 @@
   </div>
 
   <div id="admin-content" style="display:none;">
-    <div class="wrap" style="max-width:480px; padding-top:20px;">
-      <button class="btn btn--ghost btn--block" id="btn-init">🌱 Première utilisation ? Initialiser les données</button>
-      <button class="btn btn--ghost btn--block mt-8" id="btn-corriger">🔧 Corriger les prénoms (Elior)</button>
-    </div>
     <header class="topbar" style="background: var(--jungle-deep); color:#fff; padding:16px 20px; border-radius:0; display:flex; justify-content:space-between; align-items:center;">
       <h2 style="color:#fff;">⚙️ Admin — Vacances Quest</h2>
       <div style="display:flex; gap:8px;">
@@ -268,7 +264,7 @@ Mauvaise réponse 2"></textarea>
     <div class="admin-panel" id="p-progression">
       <h3>Progression de la famille</h3>
       <div id="liste-progression" class="col mt-16"></div>
-      <button class="btn btn--ghost btn--block mt-24" id="btn-reset-points" style="color:#c0392b;">🔄 Réinitialiser tous les points (tests)</button>
+      <button class="btn btn--ghost btn--block mt-24" id="btn-reset-points" style="color:#c0392b;">🔄 Réinitialiser points ET position de la voiture (tests)</button>
     </div>
 
     <!-- VOYAGE -->
@@ -306,19 +302,6 @@ Mauvaise réponse 2"></textarea>
       updateLieuAudio, reinitialiserTousLesPoints
     } from './firebase-services.js';
     import { uploaderAudioLieu } from './imagekit-services.js';
-
-    document.getElementById('btn-init').onclick = async () => {
-      const btn = document.getElementById('btn-init');
-      btn.disabled = true; btn.textContent = 'Initialisation...';
-      const res = await initialiserDonneesSiVide();
-      btn.disabled = false; btn.textContent = "🌱 Première utilisation ? Initialiser les données";
-      alert(res.deja ? 'Les données existent déjà, rien à faire !' : "C'est prêt !");
-    };
-
-    document.getElementById('btn-corriger').onclick = async () => {
-      await corrigerProfilsFamille();
-      alert('Prénoms corrigés (Elior) !');
-    };
 
     // --- Écran de mot de passe ---
     function demarrerAdmin() {
@@ -932,10 +915,12 @@ Mauvaise réponse 2"></textarea>
 
     // --- PROGRESSION ---
     document.getElementById('btn-reset-points').onclick = async () => {
-      if (!confirm('⚠️ Remettre TOUS les scores à 0 (perso, famille, badges, missions faites) ? Utile pour les tests, mais irréversible.')) return;
+      if (!confirm('⚠️ Remettre TOUS les scores à 0 (perso, famille, badges, missions faites) ET remettre la voiture au départ ? Utile pour les tests, mais irréversible.')) return;
       if (!confirm('Vraiment sûr ? Toute la progression actuelle sera perdue.')) return;
       await reinitialiserTousLesPoints();
-      alert('Tous les points ont été réinitialisés.');
+      await updateSettings({ PositionManuelle: '', PositionGeoloc: '' });
+      document.getElementById('v-position-manuelle').value = '';
+      alert('Points et position de la voiture réinitialisés.');
       chargerProgression();
     };
 

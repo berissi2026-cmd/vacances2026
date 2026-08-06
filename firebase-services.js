@@ -117,6 +117,10 @@ export async function reinitialiserTousLesPoints() {
   for (const d of logSnap.docs) {
     await deleteDoc(doc(db, "pointsLog", d.id));
   }
+  const defisFaitsSnap = await getDocs(collection(db, "defisFaits"));
+  for (const d of defisFaitsSnap.docs) {
+    await deleteDoc(doc(db, "defisFaits", d.id));
+  }
   return { success: true };
 }
 
@@ -307,6 +311,18 @@ export async function ajouterDefiRoute(data) {
     Jour: data.jour || ""
   });
   return { success: true, defiId: ref.id };
+}
+
+// Marque un défi de route comme fait par un profil (pour savoir ce qu'il reste à faire)
+export async function marquerDefiFait(defiId, profilId) {
+  await addDoc(collection(db, "defisFaits"), { DefiID: defiId, ProfilID: profilId, Date: new Date().toISOString() });
+  return { success: true };
+}
+
+export function ecouterDefisFaits(callback) {
+  return onSnapshot(collection(db, "defisFaits"), snap => {
+    callback(snap.docs.map(d => d.data()));
+  });
 }
 
 // ============================================================
