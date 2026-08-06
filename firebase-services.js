@@ -303,7 +303,8 @@ export async function ajouterDefiRoute(data) {
     Reponse: data.reponse || "",
     OptionsFR: data.optionsFr || [], OptionsHE: data.optionsHe || [],
     ReponseIndex: (data.reponseIndex !== undefined && data.reponseIndex !== null) ? data.reponseIndex : -1,
-    Points: data.points || 10
+    Points: data.points || 10,
+    Jour: data.jour || ""
   });
   return { success: true, defiId: ref.id };
 }

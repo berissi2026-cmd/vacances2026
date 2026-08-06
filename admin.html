@@ -236,6 +236,16 @@ Mauvaise réponse 2"></textarea>
         <div><label>Contenu / Question (FR)</label><input id="d-fr"></div>
         <div><label>Contenu / Question (HE)</label><input id="d-he"></div>
         <div><label>Points gagnés</label><input type="number" id="d-points" value="10"></div>
+        <div><label>Jour concerné (optionnel — pour un récap ciblé)</label>
+          <select id="d-jour">
+            <option value="">Générique (n'importe quand)</option>
+            <option value="Dimanche">Dimanche</option>
+            <option value="Lundi">Lundi</option>
+            <option value="Mardi">Mardi</option>
+            <option value="Mercredi">Mercredi</option>
+            <option value="Jeudi">Jeudi</option>
+          </select>
+        </div>
 
         <div id="d-qcm-zone" style="display:none;">
           <p class="muted mt-16" style="font-size:12px;">4 réponses possibles — coche la bonne case pour indiquer la bonne réponse.</p>
@@ -700,7 +710,8 @@ Mauvaise réponse 2"></textarea>
             type: entree.type, contenuFr: entree.contenuFr, contenuHe: entree.contenuHe || '',
             reponse: entree.reponse || '',
             optionsFr: entree.optionsFr || [], optionsHe: entree.optionsHe || [],
-            reponseIndex: entree.reponseIndex, points: entree.points || 10
+            reponseIndex: entree.reponseIndex, points: entree.points || 10,
+            jour: entree.jour || ''
           });
           ok++;
         } catch (e) { /* on continue */ }
@@ -898,7 +909,8 @@ Mauvaise réponse 2"></textarea>
       const type = val('d-type');
       const data = {
         type, contenuFr: val('d-fr'), contenuHe: val('d-he'),
-        points: Number(val('d-points')) || 10
+        points: Number(val('d-points')) || 10,
+        jour: val('d-jour')
       };
       if (!data.contenuFr) { alert('Le contenu en français est obligatoire'); return; }
 

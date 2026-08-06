@@ -1076,8 +1076,27 @@
       }
     };
 
+    // Détermine quel jour cibler pour les défis "récap" selon le moment :
+    // - le soir (nuit) : récap de la journée qu'on vient de vivre
+    // - le matin : récap de la veille (dernier jour terminé)
+    // - en journée (route) : le jour en cours, ce qu'on vient de faire
+    function calculerJourCible() {
+      const pion = calculerPositionPion(settingsVoyage);
+      if (pion.moment === 'matin') {
+        return pion.jourIndex > 0 ? JOURS[pion.jourIndex - 1] : null;
+      }
+      return JOURS[pion.jourIndex] || null;
+    }
+
+    function filtrerParJourCible(liste) {
+      const cible = calculerJourCible();
+      if (!cible) return liste;
+      const cibles = liste.filter(d => d.Jour === cible);
+      return cibles.length ? cibles : liste; // repli sur tout le pool si rien de spécifique à ce jour
+    }
+
     window.tournerRoue = function() {
-      const r = toutLesDefis.roue;
+      const r = filtrerParJourCible(toutLesDefis.roue);
       const resultEl = document.getElementById('wheel-result');
       const zone = document.getElementById('roue-valider-zone');
       if (!r.length) { resultEl.textContent = "Pas encore de défis ajoutés."; return; }
@@ -1096,8 +1115,9 @@
     // ÉNIGMES — QCM avec score, passage automatique à la suivante
     // ------------------------------------------------------------
     function afficherProchaineEnigme(box) {
-      const dispo = toutLesDefis.enigme.filter((e, i) => !window.enigmeIndexUtilises.has(i));
-      const liste = dispo.length ? dispo : toutLesDefis.enigme;
+      const poolCible = filtrerParJourCible(toutLesDefis.enigme);
+      const dispo = poolCible.filter((e) => !window.enigmeIndexUtilises.has(toutLesDefis.enigme.indexOf(e)));
+      const liste = dispo.length ? dispo : poolCible;
       if (window.enigmeIndexUtilises.size >= toutLesDefis.enigme.length) window.enigmeIndexUtilises.clear();
 
       if (!liste.length) {
