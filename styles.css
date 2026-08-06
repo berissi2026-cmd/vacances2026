@@ -1,0 +1,128 @@
+@import url('https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap');
+
+:root {
+  /* --- Palette Safari --- */
+  --jungle-deep:   #1F4D2C;
+  --jungle-leaf:   #6FA745;
+  --jungle-leaf-d: #4F7D30;
+  --sand:          #F2E3C1;
+  --sand-light:    #FBF3DF;
+  --sunset:        #EF7B3E;
+  --sunset-d:      #D4622A;
+  --bark:          #5C3D24;
+  --sky:           #6FC3D6;
+  --gold:          #F2B705;
+  --white:         #FFFDF7;
+  --danger:        #C7452C;
+
+  --font-display: 'Rubik', sans-serif;
+  --font-body:    'Rubik', sans-serif;
+
+  --radius-lg: 28px;
+  --radius-md: 18px;
+  --radius-sm: 10px;
+  --border-thick: 4px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--sand);
+  font-family: var(--font-body);
+  color: var(--bark);
+  -webkit-font-smoothing: antialiased;
+}
+
+body[dir="rtl"] { direction: rtl; text-align: right; }
+
+h1, h2, h3, .display {
+  font-family: var(--font-display);
+  font-weight: 900;
+  color: var(--jungle-deep);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+h1 { font-size: 34px; }
+h2 { font-size: 24px; }
+h3 { font-size: 18px; }
+p { line-height: 1.5; margin: 0; }
+
+.bg-jungle {
+  background:
+    radial-gradient(circle at 15% 20%, rgba(111,167,69,0.18) 0, transparent 40%),
+    radial-gradient(circle at 85% 80%, rgba(239,123,62,0.15) 0, transparent 45%),
+    var(--sand);
+  min-height: 100vh;
+}
+
+.card {
+  background: var(--sand-light);
+  border: var(--border-thick) solid var(--bark);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  box-shadow: 6px 6px 0 rgba(92,61,36,0.18);
+}
+
+.btn {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 16px;
+  padding: 14px 24px;
+  border-radius: 999px;
+  border: var(--border-thick) solid var(--bark);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  box-shadow: 4px 4px 0 var(--bark);
+}
+.btn:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--bark); }
+.btn--primary { background: var(--jungle-leaf); color: var(--white); }
+.btn--accent  { background: var(--sunset); color: var(--white); }
+.btn--gold    { background: var(--gold); color: var(--bark); }
+.btn--ghost   { background: var(--sand-light); color: var(--jungle-deep); }
+.btn--block   { width: 100%; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.stamp {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 64px; height: 64px; border-radius: 50%;
+  background: var(--gold); border: 3px dashed var(--bark);
+  font-size: 28px; transform: rotate(-6deg);
+}
+
+.score-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--jungle-deep); color: var(--white);
+  padding: 8px 16px; border-radius: 999px; font-weight: 700; font-size: 14px;
+}
+
+.lang-toggle { display: inline-flex; border: var(--border-thick) solid var(--bark); border-radius: 999px; overflow: hidden; }
+.lang-toggle button { border: none; background: var(--sand-light); padding: 10px 20px; font-family: var(--font-display); font-weight: 700; cursor: pointer; }
+.lang-toggle button.active { background: var(--jungle-leaf); color: var(--white); }
+
+.empty-state { text-align: center; padding: 40px 20px; color: var(--jungle-deep); opacity: 0.75; }
+
+.row { display: flex; align-items: center; gap: 12px; }
+.col { display: flex; flex-direction: column; gap: 12px; }
+.center { display: flex; align-items: center; justify-content: center; }
+.wrap { max-width: 480px; margin: 0 auto; padding: 20px; }
+.muted { opacity: 0.65; font-size: 14px; }
+.mt-8 { margin-top: 8px; } .mt-16 { margin-top: 16px; } .mt-24 { margin-top: 24px; }
+
+input, select, textarea {
+  font-family: var(--font-body);
+  font-size: 15px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--bark);
+  background: var(--white);
+  width: 100%;
+}
+label { font-weight: 700; font-size: 13px; color: var(--jungle-deep); display: block; margin-bottom: 4px; }
+
+::selection { background: var(--sunset); color: var(--white); }

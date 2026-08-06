@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Vacances Quest</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  header.topbar { background: var(--jungle-deep); color: var(--white); padding: 16px 20px; border-radius: 0 0 var(--radius-lg) var(--radius-lg); display: flex; align-items: center; justify-content: space-between; }
+  header.topbar .who { display: flex; align-items: center; gap: 10px; }
+  header.topbar .who .emoji { font-size: 30px; }
+  header.topbar .scores { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+  body[dir="rtl"] header.topbar .scores { align-items: flex-start; }
+
+  .tabs { display: flex; gap: 8px; padding: 16px 20px 0; overflow-x: auto; }
+  .tab { font-family: var(--font-display); font-weight: 700; font-size: 14px; padding: 10px 16px; border-radius: 999px; background: var(--sand-light); border: 3px solid var(--bark); white-space: nowrap; cursor: pointer; }
+  .tab.active { background: var(--sunset); color: var(--white); }
+  .panel { display: none; padding: 20px; }
+  .panel.active { display: block; }
+
+  .trail-stop { display: flex; align-items: center; gap: 14px; background: var(--sand-light); border: 3px solid var(--bark); border-radius: var(--radius-md); padding: 12px 16px; margin-bottom: 10px; }
+  .trail-stop .pin { font-size: 24px; }
+
+  .drive-status { text-align: center; padding: 14px; border-radius: var(--radius-md); font-weight: 700; font-family: var(--font-display); margin-bottom: 16px; }
+  .drive-status.roule { background: var(--jungle-leaf); color: var(--white); }
+  .drive-status.arret { background: var(--sky); color: var(--bark); }
+
+  .games-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+  .game-tile { background: var(--sand-light); border: 3px solid var(--bark); border-radius: var(--radius-md); padding: 18px 10px; text-align: center; cursor: pointer; }
+  .game-tile .emoji { font-size: 30px; display: block; margin-bottom: 6px; }
+
+  .bingo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .bingo-cell { background: var(--sand-light); border: 2px solid var(--bark); border-radius: var(--radius-sm); padding: 10px 6px; font-size: 12px; text-align: center; min-height: 60px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .bingo-cell.found { background: var(--gold); text-decoration: line-through; }
+
+  .wheel-result, .enigme-box { background: var(--sand-light); border: 3px dashed var(--bark); border-radius: var(--radius-md); padding: 20px; text-align: center; margin-top: 14px; min-height: 60px; }
+
+  #modal-bg { display: none; position: fixed; inset: 0; background: rgba(31,77,44,0.6); align-items: center; justify-content: center; padding: 20px; z-index: 50; }
+  #modal-box { background: var(--sand-light); border: var(--border-thick) solid var(--bark); border-radius: var(--radius-lg); padding: 24px; max-width: 420px; width: 100%; text-align: center; }
+</style>
+</head>
+<body class="bg-jungle">
+
+  <header class="topbar">
+    <div class="who">
+      <span class="emoji" id="mon-avatar">🦁</span>
+      <div>
+        <div style="font-family: var(--font-display); font-weight:700;" id="mon-nom">...</div>
+        <div class="muted" style="color:#fff; opacity:0.7; font-size:12px;" id="mon-role"></div>
+      </div>
+    </div>
+    <div class="scores">
+      <span class="score-pill">⭐ <span id="score-perso">0</span></span>
+      <span class="score-pill" style="background: var(--sunset);">🏆 <span id="score-famille">0</span></span>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <div class="tab active" data-panel="carte">🗺️ Carte</div>
+    <div class="tab" data-panel="voiture">🚗 En voiture</div>
+    <div class="tab" data-panel="badges">🎖️ Badges</div>
+  </div>
+
+  <div class="panel active" id="panel-carte">
+    <div class="col" id="trail-container">
+      <div class="empty-state card">
+        <div style="font-size:40px;">🌿</div>
+        <h3 class="mt-16">Aucune étape pour l'instant</h3>
+        <p class="muted mt-8">Papa ajoutera les lieux du voyage depuis l'admin — reviens bientôt !</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-voiture">
+    <div class="drive-status arret" id="drive-status">🅿️ À l'arrêt</div>
+    <div class="row" style="justify-content:center; gap:10px;">
+      <button class="btn btn--primary" id="btn-on-roule">🚗 On roule</button>
+      <button class="btn btn--ghost" id="btn-on-arrete">📍 On est arrivés</button>
+    </div>
+    <p class="muted mt-8" style="text-align:center;">La détection auto peut aussi activer le mode voiture toute seule.</p>
+
+    <div class="games-grid">
+      <div class="game-tile" onclick="window.ouvrirJeu('bingo')"><span class="emoji">🔲</span>Bingo voiture</div>
+      <div class="game-tile" onclick="window.ouvrirJeu('roue')"><span class="emoji">🎡</span>Roue des défis</div>
+      <div class="game-tile" onclick="window.ouvrirJeu('enigme')"><span class="emoji">❓</span>Énigmes</div>
+      <div class="game-tile" onclick="window.ouvrirJeu('musique')"><span class="emoji">🎵</span>Musique</div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-badges">
+    <div class="empty-state card">
+      <div style="font-size:40px;">🏅</div>
+      <h3 class="mt-16">Pas encore de badge</h3>
+      <p class="muted mt-8">Accomplis des missions à chaque étape pour en gagner !</p>
+    </div>
+  </div>
+
+  <div id="modal-bg"><div id="modal-box"></div></div>
+
+  <div class="center mt-24" style="padding-bottom:30px;">
+    <a class="btn btn--ghost" id="lien-admin" href="admin.html" style="display:none;">⚙️ Admin</a>
+  </div>
+
+  <script type="module">
+    import { getProfil, ecouterScoreFamille, ecouterProfil, getDefisRoute, ecouterLieux } from './firebase-services.js';
+
+    const params = new URLSearchParams(window.location.search);
+    const PROFIL_ID = params.get('profil');
+    let monProfil = null;
+    let toutLesDefis = { bingo: [], roue: [], enigme: [] };
+
+    async function init() {
+      if (!PROFIL_ID) { window.location.href = 'index.html'; return; }
+      const p = await getProfil(PROFIL_ID);
+      if (!p) { window.location.href = 'index.html'; return; }
+      monProfil = p;
+      appliquerProfil(p);
+
+      ecouterScoreFamille(s => document.getElementById('score-famille').textContent = s);
+      ecouterProfil(PROFIL_ID, p => { monProfil = p; document.getElementById('score-perso').textContent = p.ScorePerso || 0; });
+      ecouterLieux(afficherLieux);
+
+      const defis = await getDefisRoute();
+      defis.forEach(d => {
+        if (d.Type === 'bingo_item') toutLesDefis.bingo.push(d);
+        if (d.Type === 'roue') toutLesDefis.roue.push(d);
+        if (d.Type === 'enigme') toutLesDefis.enigme.push(d);
+      });
+    }
+
+    function appliquerProfil(p) {
+      document.getElementById('mon-avatar').textContent = p.Avatar || '🦁';
+      document.getElementById('mon-nom').textContent = p.Nom;
+      document.getElementById('mon-role').textContent = p.Role === 'parent' ? "Chef d'expédition" : 'Explorateur';
+      document.getElementById('score-perso').textContent = p.ScorePerso || 0;
+      document.body.setAttribute('dir', p.Langue === 'he' ? 'rtl' : 'ltr');
+      if (p.ProfilID === 'p_papa' || p.ProfilID === 'p_maman') {
+        document.getElementById('lien-admin').style.display = 'inline-flex';
+      }
+      if (Number(p.Age) > 0 && Number(p.Age) <= 4) {
+        parler('Bienvenue ' + p.Nom + " ! Prêt pour l'aventure ?", p.Langue);
+      }
+    }
+
+    function afficherLieux(lieux) {
+      const box = document.getElementById('trail-container');
+      if (!lieux.length) {
+        box.innerHTML = `<div class="empty-state card">
+          <div style="font-size:40px;">🌿</div>
+          <h3 class="mt-16">Aucune étape pour l'instant</h3>
+          <p class="muted mt-8">Papa ajoutera les lieux du voyage depuis l'admin — reviens bientôt !</p>
+        </div>`;
+        return;
+      }
+      box.innerHTML = '';
+      lieux.forEach(l => {
+        const el = document.createElement('div');
+        el.className = 'trail-stop';
+        el.innerHTML = `<span class="pin">📍</span><div><b>${monProfil.Langue === 'he' ? (l.Nom_HE || l.Nom_FR) : l.Nom_FR}</b><div class="muted">${l.Jour} ${l.Heure || ''}</div></div>`;
+        box.appendChild(el);
+      });
+    }
+
+    function parler(texte, langue) {
+      if (!('speechSynthesis' in window)) return;
+      const utter = new SpeechSynthesisUtterance(texte);
+      utter.lang = langue === 'he' ? 'he-IL' : 'fr-FR';
+      speechSynthesis.speak(utter);
+    }
+
+    // --- Onglets ---
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.onclick = () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
+      };
+    });
+
+    // --- Mode voiture ---
+    let modeVoiture = false;
+    const SEUIL_VITESSE_MS = 20 / 3.6;
+
+    function setModeVoiture(actif) {
+      modeVoiture = actif;
+      const el = document.getElementById('drive-status');
+      el.className = 'drive-status ' + (actif ? 'roule' : 'arret');
+      el.textContent = actif ? '🚗 En route !' : "🅿️ À l'arrêt";
+    }
+    document.getElementById('btn-on-roule').onclick = () => setModeVoiture(true);
+    document.getElementById('btn-on-arrete').onclick = () => setModeVoiture(false);
+
+    if ('geolocation' in navigator) {
+      navigator.geolocation.watchPosition(pos => {
+        const vitesse = pos.coords.speed;
+        if (vitesse !== null && !isNaN(vitesse) && vitesse > SEUIL_VITESSE_MS && !modeVoiture) {
+          setModeVoiture(true);
+        }
+      }, () => {}, { enableHighAccuracy: true, maximumAge: 5000 });
+    }
+
+    // --- Jeux ---
+    window.ouvrirJeu = function(type) {
+      const box = document.getElementById('modal-box');
+      document.getElementById('modal-bg').style.display = 'flex';
+      const langue = monProfil.Langue;
+
+      if (type === 'bingo') {
+        const items = toutLesDefis.bingo.slice(0, 9);
+        box.innerHTML = '<h3>🔲 Bingo voiture</h3><p class="muted mt-8">Touche une case quand tu la vois !</p>' +
+          '<div class="bingo-grid mt-16">' +
+          items.map(it => `<div class="bingo-cell" onclick="this.classList.toggle('found')">${langue === 'he' ? it.Contenu_HE : it.Contenu_FR}</div>`).join('') +
+          '</div>' + boutonFermer();
+      }
+      if (type === 'roue') {
+        box.innerHTML = '<h3>🎡 Roue des défis</h3><div class="wheel-result" id="wheel-result">Tourne la roue !</div>' +
+          '<button class="btn btn--accent btn--block mt-16" onclick="window.tournerRoue()">🎡 Tourner</button>' + boutonFermer();
+      }
+      if (type === 'enigme') {
+        const e = toutLesDefis.enigme[Math.floor(Math.random() * toutLesDefis.enigme.length)];
+        box.innerHTML = '<h3>❓ Énigme</h3><div class="enigme-box">' +
+          (e ? (langue === 'he' ? e.Contenu_HE : e.Contenu_FR) : "Pas encore d'énigmes ajoutées.") +
+          '</div>' + boutonFermer();
+      }
+      if (type === 'musique') {
+        box.innerHTML = "<h3>🎵 Musique du voyage</h3><p class=\"muted mt-8\">La playlist sera branchée ici une fois les vidéos ajoutées dans l'admin.</p>" + boutonFermer();
+      }
+    };
+
+    window.tournerRoue = function() {
+      const r = toutLesDefis.roue;
+      const resultEl = document.getElementById('wheel-result');
+      if (!r.length) { resultEl.textContent = 'Pas encore de défis ajoutés.'; return; }
+      const defi = r[Math.floor(Math.random() * r.length)];
+      resultEl.textContent = monProfil.Langue === 'he' ? defi.Contenu_HE : defi.Contenu_FR;
+    };
+
+    function boutonFermer() {
+      return '<button class="btn btn--ghost btn--block mt-16" onclick="window.fermerModal()">Fermer</button>';
+    }
+    window.fermerModal = function() { document.getElementById('modal-bg').style.display = 'none'; };
+
+    init();
+  </script>
+</body>
+</html>

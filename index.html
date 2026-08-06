@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Vacances Quest</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .hero { text-align: center; padding: 40px 20px 20px; }
+  .hero .eyebrow { font-family: var(--font-display); font-weight: 700; color: var(--sunset); letter-spacing: 0.08em; text-transform: uppercase; font-size: 13px; }
+  .hero h1 { margin-top: 6px; }
+  .compass { font-size: 48px; display: inline-block; margin-bottom: 8px; }
+
+  .profil-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; max-width: 480px; margin: 0 auto; padding: 10px 20px 30px; }
+  .profil-tile { background: var(--sand-light); border: var(--border-thick) solid var(--bark); border-radius: var(--radius-md); padding: 16px 8px; text-align: center; cursor: pointer; box-shadow: 4px 4px 0 rgba(92,61,36,0.18); transition: transform 0.1s ease; }
+  .profil-tile:active { transform: scale(0.96); }
+  .profil-tile .emoji { font-size: 34px; display: block; margin-bottom: 6px; }
+  .profil-tile .nom { font-family: var(--font-display); font-weight: 700; font-size: 14px; }
+  .profil-tile .score { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+
+  #onboarding { display: none; max-width: 480px; margin: 0 auto; padding: 20px; }
+  .avatar-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 16px 0 24px; }
+  .avatar-choice { font-size: 30px; text-align: center; padding: 14px 0; border-radius: var(--radius-sm); border: 3px solid var(--bark); background: var(--sand-light); cursor: pointer; }
+  .avatar-choice.selected { background: var(--jungle-leaf); }
+
+  #premier-lancement { display: none; text-align: center; padding: 60px 20px; }
+</style>
+</head>
+<body class="bg-jungle">
+
+  <div id="premier-lancement">
+    <div class="card wrap">
+      <div style="font-size:40px;">🌱</div>
+      <h2 class="mt-16">Premier lancement</h2>
+      <p class="muted mt-8">Aucun profil trouvé. Un chef d'expédition doit d'abord initialiser les données depuis l'admin.</p>
+      <a class="btn btn--primary mt-16" href="admin.html">⚙️ Aller à l'admin</a>
+    </div>
+  </div>
+
+  <div id="screen-profils" style="display:none;">
+    <div class="hero">
+      <span class="compass">🧭</span>
+      <div class="eyebrow">L'aventure commence</div>
+      <h1>Vacances Quest</h1>
+      <p class="muted mt-8">Choisis qui part à l'aventure aujourd'hui</p>
+    </div>
+    <div class="profil-grid" id="profil-grid"></div>
+  </div>
+
+  <div id="onboarding">
+    <div class="card">
+      <h2 id="onboard-title">Bienvenue !</h2>
+      <p class="muted mt-8">Choisis ton animal et ta langue</p>
+
+      <div class="mt-24">
+        <label>Ton animal</label>
+        <div class="avatar-grid" id="avatar-grid"></div>
+      </div>
+
+      <div class="mt-16">
+        <label>Ta langue</label>
+        <div class="lang-toggle mt-8">
+          <button type="button" id="btn-fr" class="active">Français</button>
+          <button type="button" id="btn-he">עברית</button>
+        </div>
+      </div>
+
+      <button class="btn btn--primary btn--block mt-24" id="btn-start">🚀 Commencer l'aventure</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { getProfils, updateProfilPreferences } from './firebase-services.js';
+
+    const AVATARS = ['🦁','🐘','🐒','🦒','🐯','🦓','🐊','🦜','🐢','🦛','🦏','🐆'];
+    let profilSelectionne = null;
+    let avatarChoisi = AVATARS[0];
+    let langueChoisie = 'fr';
+
+    async function init() {
+      const profils = await getProfils();
+      if (profils.length === 0) {
+        document.getElementById('premier-lancement').style.display = 'block';
+        return;
+      }
+      document.getElementById('screen-profils').style.display = 'block';
+      afficherProfils(profils);
+    }
+
+    function afficherProfils(profils) {
+      const grid = document.getElementById('profil-grid');
+      grid.innerHTML = '';
+      profils.forEach(p => {
+        const tile = document.createElement('div');
+        tile.className = 'profil-tile';
+        tile.innerHTML = `
+          <span class="emoji">${p.Avatar || '🧑'}</span>
+          <div class="nom">${p.Nom}</div>
+          <div class="score">⭐ ${p.ScorePerso || 0}</div>
+        `;
+        tile.onclick = () => selectionnerProfil(p);
+        grid.appendChild(tile);
+      });
+    }
+
+    function selectionnerProfil(profil) {
+      profilSelectionne = profil;
+      if (profil.Avatar && profil.Langue) {
+        entrerDansApp(profil.ProfilID);
+      } else {
+        document.getElementById('screen-profils').style.display = 'none';
+        document.getElementById('onboarding').style.display = 'block';
+        document.getElementById('onboard-title').textContent = 'Bienvenue ' + profil.Nom + ' !';
+        construireAvatarGrid();
+      }
+    }
+
+    function construireAvatarGrid() {
+      const grid = document.getElementById('avatar-grid');
+      grid.innerHTML = '';
+      AVATARS.forEach(a => {
+        const el = document.createElement('div');
+        el.className = 'avatar-choice' + (a === avatarChoisi ? ' selected' : '');
+        el.textContent = a;
+        el.onclick = () => {
+          avatarChoisi = a;
+          document.querySelectorAll('.avatar-choice').forEach(x => x.classList.remove('selected'));
+          el.classList.add('selected');
+        };
+        grid.appendChild(el);
+      });
+    }
+
+    document.getElementById('btn-fr').onclick = () => choisirLangue('fr');
+    document.getElementById('btn-he').onclick = () => choisirLangue('he');
+
+    function choisirLangue(langue) {
+      langueChoisie = langue;
+      document.getElementById('btn-fr').classList.toggle('active', langue === 'fr');
+      document.getElementById('btn-he').classList.toggle('active', langue === 'he');
+    }
+
+    document.getElementById('btn-start').onclick = async () => {
+      await updateProfilPreferences(profilSelectionne.ProfilID, avatarChoisi, langueChoisie);
+      entrerDansApp(profilSelectionne.ProfilID);
+    };
+
+    function entrerDansApp(profilId) {
+      window.location.href = 'app.html?profil=' + encodeURIComponent(profilId);
+    }
+
+    init();
+  </script>
+</body>
+</html>
