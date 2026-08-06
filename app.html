@@ -228,7 +228,7 @@
       getProfil, getProfils, ecouterScoreFamille, ecouterProfil, getDefisRoute, ecouterLieux,
       getMissionsParLieu, getResultatsProfil, enregistrerResultat, getTypesExcursion,
       ecouterTousResultats, getSettings, ajouterBadgeProfil, getPlaylistPourLieu, ajouterScoreProfil,
-      ecouterPointsLog
+      ecouterPointsLog, updateSettings, ecouterSettings
     } from './firebase-services.js';
     import { uploaderPhotoMission } from './imagekit-services.js';
 
@@ -303,6 +303,11 @@
         const jourIndex = JOURS.indexOf(j);
         if (jourIndex !== -1 && MOMENTS.includes(m)) return { jourIndex, moment: m };
       }
+      if (settings.PositionGeoloc) {
+        const [j, m] = settings.PositionGeoloc.split('|');
+        const jourIndex = JOURS.indexOf(j);
+        if (jourIndex !== -1 && MOMENTS.includes(m)) return { jourIndex, moment: m };
+      }
       if (settings.DateDebutVoyage) {
         const debut = new Date(settings.DateDebutVoyage + 'T00:00:00');
         const maintenant = new Date();
@@ -341,10 +346,9 @@
         afficherBadges(p2.Badges || []);
       });
 
-      const [defis, resultats, types, profils, settings] = await Promise.all([
-        getDefisRoute(), getResultatsProfil(PROFIL_ID), getTypesExcursion(), getProfils(), getSettings()
+      const [defis, resultats, types, profils] = await Promise.all([
+        getDefisRoute(), getResultatsProfil(PROFIL_ID), getTypesExcursion(), getProfils()
       ]);
-      settingsVoyage = settings;
       defis.forEach(d => {
         if (d.Type === 'bingo_item') toutLesDefis.bingo.push(d);
         if (d.Type === 'roue') toutLesDefis.roue.push(d);
@@ -355,6 +359,10 @@
       profils.forEach(p => profilsCache[p.ProfilID] = p);
       afficherSelecteurProfils(profils);
 
+      ecouterSettings(settings => {
+        settingsVoyage = settings;
+        if (lieuxCache.length) afficherPiste(lieuxCache);
+      });
       ecouterLieux(afficherPiste);
       ecouterTousResultats(tous => {
         resultatsPhotoCache = tous.filter(r => r.MediaURL);
@@ -930,12 +938,39 @@
           } else {
             marqueurMoi.setLatLng([latitude, longitude]);
           }
+          mettreAJourPositionAutoParGeoloc(latitude, longitude);
         },
         () => {
           statut.textContent = LANGUE === 'he' ? 'לא הצלחנו לאתר את המיקום שלכם. בדקו את ההרשאות.' : "Impossible d'accéder à ta position (vérifie l'autorisation de géolocalisation).";
         },
         { enableHighAccuracy: true, maximumAge: 5000 }
       );
+    }
+
+    // Distance à vol d'oiseau en km (formule de Haversine)
+    function distanceKm(lat1, lng1, lat2, lng2) {
+      const R = 6371;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLng = (lng2 - lng1) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    let dernierePositionAutoEnvoyee = null;
+    async function mettreAJourPositionAutoParGeoloc(lat, lng) {
+      const avecCoords = lieuxCache.filter(l => l.Lat && l.Lng);
+      if (!avecCoords.length) return;
+      let plusProche = null, distanceMin = Infinity;
+      avecCoords.forEach(l => {
+        const d = distanceKm(lat, lng, Number(l.Lat), Number(l.Lng));
+        if (d < distanceMin) { distanceMin = d; plusProche = l; }
+      });
+
+      // Hors zone (>10km de tout lieu connu) : on efface la position auto, l'estimation par date/heure prend le relais
+      const valeur = (plusProche && distanceMin <= 10) ? (plusProche.Jour + '|' + momentDepuisHeure(plusProche.Heure)) : '';
+      if (valeur === dernierePositionAutoEnvoyee) return; // pas de changement, pas de nouvelle écriture
+      dernierePositionAutoEnvoyee = valeur;
+      await updateSettings({ PositionGeoloc: valeur });
     }
 
     function rafraichirMarqueursLieuxCarte() {

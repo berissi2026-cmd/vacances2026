@@ -8,6 +8,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Admin — Vacances Quest</title>
 <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
   .admin-tabs { display: flex; gap: 8px; padding: 16px 20px 0; flex-wrap: wrap; }
   .admin-tab { font-family: var(--font-display); font-weight: 700; font-size: 13px; padding: 8px 14px; border-radius: 999px; background: var(--sand-light); border: 2px solid var(--bark); cursor: pointer; }
@@ -256,6 +258,7 @@ Mauvaise réponse 2"></textarea>
     <div class="admin-panel" id="p-progression">
       <h3>Progression de la famille</h3>
       <div id="liste-progression" class="col mt-16"></div>
+      <button class="btn btn--ghost btn--block mt-24" id="btn-reset-points" style="color:#c0392b;">🔄 Réinitialiser tous les points (tests)</button>
     </div>
 
     <!-- VOYAGE -->
@@ -275,6 +278,10 @@ Mauvaise réponse 2"></textarea>
           <p class="muted mt-8" style="font-size:12px;">Utile si vous êtes en retard/avance sur le programme.</p>
         </div>
         <button class="btn btn--primary btn--block mt-16" id="btn-save-voyage">💾 Enregistrer</button>
+
+        <h3 class="mt-24">📍 Ou clique directement sur la carte</h3>
+        <p class="muted mt-8" style="font-size:12px;">Clique sur un lieu pour y placer la voiture immédiatement.</p>
+        <div id="admin-map" style="height:360px; border-radius:12px; border:3px solid var(--bark); margin-top:10px;"></div>
       </div>
     </div>
   </div>
@@ -286,7 +293,7 @@ Mauvaise réponse 2"></textarea>
       getTypesExcursion, ajouterTypeExcursion, seedTypesExcursionSiVide,
       getMissionsParLieu, ajouterMission, supprimerMission,
       getSettings, updateSettings, getPlaylistPourLieu, ajouterVideoPlaylist, supprimerVideoPlaylist,
-      updateLieuAudio
+      updateLieuAudio, reinitialiserTousLesPoints
     } from './firebase-services.js';
     import { uploaderAudioLieu } from './imagekit-services.js';
 
@@ -364,6 +371,52 @@ Mauvaise réponse 2"></textarea>
       const settings = await getSettings();
       if (settings.DateDebutVoyage) document.getElementById('v-date-debut').value = settings.DateDebutVoyage;
       if (settings.PositionManuelle) select.value = settings.PositionManuelle;
+
+      chargerCarteVoyage();
+    }
+
+    function momentDepuisHeureAdmin(heureStr) {
+      if (!heureStr) return 'matin';
+      const h = Number(heureStr.split(':')[0]);
+      if (h >= 6 && h < 12) return 'matin';
+      if (h >= 12 && h < 18) return 'apresmidi';
+      if (h >= 18 && h < 22) return 'soir';
+      return 'nuit';
+    }
+
+    let adminMap = null;
+    async function chargerCarteVoyage() {
+      const lieux = (await getLieux()).filter(l => l.Lat && l.Lng);
+      if (!adminMap) {
+        adminMap = L.map('admin-map');
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap'
+        }).addTo(adminMap);
+      }
+      // Retire les anciens marqueurs
+      adminMap.eachLayer(layer => { if (layer instanceof L.Marker) adminMap.removeLayer(layer); });
+
+      if (!lieux.length) { adminMap.setView([32.8, 35.5], 8); return; }
+
+      const bounds = [];
+      lieux.forEach(l => {
+        const lat = Number(l.Lat), lng = Number(l.Lng);
+        bounds.push([lat, lng]);
+        const marker = L.marker([lat, lng]).addTo(adminMap);
+        const moment = momentDepuisHeureAdmin(l.Heure);
+        marker.bindPopup(`<b>${l.Nom_FR}</b><br>${l.Jour} — ${l.Heure || ''}<br><button id="pos-${l.LieuID}" style="margin-top:6px;padding:6px 10px;border-radius:8px;border:2px solid #5c3d24;background:#e67e22;color:#fff;font-weight:700;">🚗 Placer la voiture ici</button>`);
+        marker.on('popupopen', () => {
+          const btn = document.getElementById('pos-' + l.LieuID);
+          if (btn) btn.onclick = async () => {
+            const valeur = l.Jour + '|' + moment;
+            await updateSettings({ PositionManuelle: valeur });
+            document.getElementById('v-position-manuelle').value = valeur;
+            marker.closePopup();
+            alert(`🚗 Voiture placée à : ${l.Nom_FR} (${l.Jour} — ${moment})`);
+          };
+        });
+      });
+      adminMap.fitBounds(bounds, { padding: [30, 30] });
     }
 
     document.getElementById('btn-save-voyage').onclick = async () => {
@@ -383,6 +436,9 @@ Mauvaise réponse 2"></textarea>
         document.querySelectorAll('.admin-panel').forEach(x => x.classList.remove('active'));
         t.classList.add('active');
         document.getElementById('p-' + t.dataset.p).classList.add('active');
+        if (t.dataset.p === 'voyage' && adminMap) {
+          setTimeout(() => adminMap.invalidateSize(), 50);
+        }
       };
     });
 
@@ -863,6 +919,14 @@ Mauvaise réponse 2"></textarea>
     };
 
     // --- PROGRESSION ---
+    document.getElementById('btn-reset-points').onclick = async () => {
+      if (!confirm('⚠️ Remettre TOUS les scores à 0 (perso, famille, badges, missions faites) ? Utile pour les tests, mais irréversible.')) return;
+      if (!confirm('Vraiment sûr ? Toute la progression actuelle sera perdue.')) return;
+      await reinitialiserTousLesPoints();
+      alert('Tous les points ont été réinitialisés.');
+      chargerProgression();
+    };
+
     async function chargerProgression() {
       const profils = await getProfils();
       const box = document.getElementById('liste-progression');

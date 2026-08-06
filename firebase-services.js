@@ -103,6 +103,23 @@ export function ecouterPointsLog(callback) {
   });
 }
 
+// Remet tous les scores à 0 (profils + résultats + journal de points) — pour les tests
+export async function reinitialiserTousLesPoints() {
+  const profils = await getProfils();
+  for (const p of profils) {
+    await updateDoc(doc(db, "profils", p.ProfilID), { ScorePerso: 0, Badges: [] });
+  }
+  const resultatsSnap = await getDocs(collection(db, "resultats"));
+  for (const d of resultatsSnap.docs) {
+    await deleteDoc(doc(db, "resultats", d.id));
+  }
+  const logSnap = await getDocs(collection(db, "pointsLog"));
+  for (const d of logSnap.docs) {
+    await deleteDoc(doc(db, "pointsLog", d.id));
+  }
+  return { success: true };
+}
+
 // Ajoute un badge au profil (une seule fois par mission, même en cas de double-clic)
 export async function ajouterBadgeProfil(profilId, badge) {
   const snap = await getDoc(doc(db, "profils", profilId));
@@ -298,6 +315,12 @@ export async function ajouterDefiRoute(data) {
 export async function getSettings() {
   const snap = await getDoc(doc(db, "settings", "config"));
   return snap.exists() ? snap.data() : {};
+}
+
+export function ecouterSettings(callback) {
+  return onSnapshot(doc(db, "settings", "config"), snap => {
+    callback(snap.exists() ? snap.data() : {});
+  });
 }
 
 export async function verifierMotDePasseAdmin(motDePasse) {
