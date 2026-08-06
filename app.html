@@ -132,7 +132,8 @@
   <script type="module">
     import {
       getProfil, ecouterScoreFamille, ecouterProfil, getDefisRoute, ecouterLieux,
-      getMissionsParLieu, getResultatsProfil, enregistrerResultat, getTypesExcursion
+      getMissionsParLieu, getResultatsProfil, enregistrerResultat, getTypesExcursion,
+      uploaderPhotoMission
     } from './firebase-services.js';
 
     const params = new URLSearchParams(window.location.search);
@@ -274,6 +275,77 @@
         el.querySelectorAll('.star-picker span').forEach(s => {
           s.onclick = () => validerMission(m, lieuId, s.dataset.note);
         });
+        cablerMissionPhoto(el, m, lieuId);
+      });
+    }
+
+    // ------------------------------------------------------------
+    // Upload photo de mission (capture + compression + envoi Storage)
+    // ------------------------------------------------------------
+    const blobsPhotoEnAttente = {};
+
+    function cablerMissionPhoto(el, m, lieuId) {
+      const input = el.querySelector('.input-photo-mission');
+      if (!input) return;
+      const preview = el.querySelector('.photo-preview');
+      const btnChoisir = el.querySelector('.btn-choisir-photo');
+      const btnEnvoyer = el.querySelector('.btn-envoyer-photo');
+      const statut = el.querySelector('.statut-envoi');
+
+      btnChoisir.onclick = () => input.click();
+
+      input.onchange = async () => {
+        const fichier = input.files[0];
+        if (!fichier) return;
+        statut.textContent = LANGUE === 'he' ? 'מכין תמונה…' : 'Préparation de la photo…';
+        try {
+          const blob = await compresserImage(fichier);
+          blobsPhotoEnAttente[m.MissionID] = blob;
+          preview.src = URL.createObjectURL(blob);
+          preview.style.display = 'block';
+          btnChoisir.textContent = btnChoisir.dataset.txtRefaire;
+          btnEnvoyer.style.display = 'block';
+          statut.textContent = '';
+        } catch (err) {
+          statut.textContent = LANGUE === 'he' ? 'שגיאה בתמונה, נסה שוב' : "Erreur avec la photo, réessaie";
+        }
+      };
+
+      btnEnvoyer.onclick = async () => {
+        const blob = blobsPhotoEnAttente[m.MissionID];
+        if (!blob) return;
+        btnEnvoyer.disabled = true;
+        btnChoisir.disabled = true;
+        statut.textContent = LANGUE === 'he' ? 'שולח…' : 'Envoi en cours…';
+        try {
+          const url = await uploaderPhotoMission(PROFIL_ID, m.MissionID, blob);
+          delete blobsPhotoEnAttente[m.MissionID];
+          await validerMission(m, lieuId, '', url);
+        } catch (err) {
+          statut.textContent = LANGUE === 'he' ? 'השליחה נכשלה, נסה שוב' : "Échec de l'envoi, réessaie (vérifie ta connexion)";
+          btnEnvoyer.disabled = false;
+          btnChoisir.disabled = false;
+        }
+      };
+    }
+
+    function compresserImage(fichier, maxLargeur = 1280, qualite = 0.75) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        const lecteur = new FileReader();
+        lecteur.onload = () => { img.src = lecteur.result; };
+        lecteur.onerror = reject;
+        img.onload = () => {
+          const ratio = Math.min(1, maxLargeur / img.width);
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.width * ratio);
+          canvas.height = Math.round(img.height * ratio);
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob(b => b ? resolve(b) : reject(new Error('toBlob a échoué')), 'image/jpeg', qualite);
+        };
+        img.onerror = reject;
+        lecteur.readAsDataURL(fichier);
       });
     }
 
@@ -281,8 +353,17 @@
       if (fait) return `<div class="muted mt-8">✅ Fait !</div>`;
       const c = m.Contenu || {};
       if (m.Type === 'photo') {
+        const txtPrendre = LANGUE === 'he' ? '📸 צלם תמונה' : '📸 Prendre une photo';
+        const txtEnvoyer = LANGUE === 'he' ? '✅ שלח' : '✅ Envoyer';
+        const txtRefaire = LANGUE === 'he' ? '🔄 תמונה אחרת' : '🔄 Reprendre';
         return `<p class="muted mt-8">${c.consigne || ''}</p>
-          <button class="btn btn--accent btn--block mt-8 btn-valider-mission">📸 Fait !</button>`;
+          <input type="file" accept="image/*" capture="environment" class="input-photo-mission" data-mission="${m.MissionID}" style="display:none">
+          <img class="photo-preview mt-8" style="display:none;max-width:100%;border-radius:12px;">
+          <div class="row-photo-btns mt-8" style="display:flex;gap:8px;">
+            <button class="btn btn--accent btn--block btn-choisir-photo" data-mission="${m.MissionID}" data-txt-prendre="${txtPrendre}" data-txt-refaire="${txtRefaire}">${txtPrendre}</button>
+            <button class="btn btn--ghost btn--block btn-envoyer-photo" data-mission="${m.MissionID}" style="display:none;">${txtEnvoyer}</button>
+          </div>
+          <div class="muted mt-8 statut-envoi" data-mission="${m.MissionID}"></div>`;
       }
       if (m.Type === 'chasse') {
         return `<ul class="mt-8">${(c.indices || []).map(i => `<li>${i}</li>`).join('')}</ul>
@@ -316,10 +397,10 @@
       }
     };
 
-    async function validerMission(mission, lieuId, note) {
+    async function validerMission(mission, lieuId, note, mediaUrl) {
       await enregistrerResultat({
         profilId: PROFIL_ID, missionId: mission.MissionID, statut: 'fait',
-        points: mission.Points || 10, note: note || ''
+        points: mission.Points || 10, note: note || '', mediaUrl: mediaUrl || ''
       });
       missionsFaitesIds.add(mission.MissionID);
       parler(LANGUE === 'he' ? 'כל הכבוד!' : 'Bravo !', LANGUE);
