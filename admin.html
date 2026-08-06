@@ -218,6 +218,7 @@ Mauvaise réponse 2"></textarea>
       <p class="muted mt-8" style="font-size:12px;">Colle le bloc JSON préparé (bingo/roue/énigmes), puis clique sur Importer.</p>
       <textarea id="import-defis-json" rows="5" style="width:100%; margin-top:10px; font-family:monospace; font-size:12px;" placeholder='[{"type":"bingo_item","contenuFr":"Un tracteur","contenuHe":"טרקטור"},{"type":"enigme","contenuFr":"...","contenuHe":"...","reponse":""}]'></textarea>
       <button class="btn btn--primary btn--block mt-8" id="btn-importer-defis">📦 Importer les défis</button>
+      <button class="btn btn--ghost btn--block mt-8" id="btn-vider-defis" style="color:#c0392b;">🗑️ Supprimer TOUS les défis existants</button>
       <div id="import-defis-statut" class="muted mt-8" style="font-size:13px;"></div>
 
       <h3 class="mt-24">Ajouter un défi de route</h3>
@@ -295,7 +296,7 @@ Mauvaise réponse 2"></textarea>
   <script type="module">
     import {
       verifierMotDePasseAdmin, initialiserDonneesSiVide, corrigerProfilsFamille,
-      getLieux, ajouterLieu, supprimerLieu, ajouterDefiRoute, getProfils,
+      getLieux, ajouterLieu, supprimerLieu, ajouterDefiRoute, getDefisRoute, supprimerDefiRoute, getProfils,
       getTypesExcursion, ajouterTypeExcursion, seedTypesExcursionSiVide,
       getMissionsParLieu, ajouterMission, supprimerMission,
       getSettings, updateSettings, getPlaylistPourLieu, ajouterVideoPlaylist, supprimerVideoPlaylist,
@@ -671,6 +672,19 @@ Mauvaise réponse 2"></textarea>
     };
 
     // --- IMPORT EN MASSE DEFIS ---
+    document.getElementById('btn-vider-defis').onclick = async () => {
+      if (!confirm('Supprimer TOUS les défis existants (bingo, roue, énigmes) ?')) return;
+      const statut = document.getElementById('import-defis-statut');
+      const defis = await getDefisRoute();
+      let ok = 0;
+      for (const d of defis) {
+        await supprimerDefiRoute(d.DefiID);
+        ok++;
+        statut.textContent = `⏳ ${ok}/${defis.length} supprimés...`;
+      }
+      statut.textContent = `✅ ${ok} défi(s) supprimé(s).`;
+    };
+
     document.getElementById('btn-importer-defis').onclick = async () => {
       const statut = document.getElementById('import-defis-statut');
       const zone = document.getElementById('import-defis-json');

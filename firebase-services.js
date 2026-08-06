@@ -313,6 +313,11 @@ export async function ajouterDefiRoute(data) {
   return { success: true, defiId: ref.id };
 }
 
+export async function supprimerDefiRoute(defiId) {
+  await deleteDoc(doc(db, "defisRoute", defiId));
+  return { success: true };
+}
+
 // Marque un défi de route comme fait par un profil (pour savoir ce qu'il reste à faire)
 export async function marquerDefiFait(defiId, profilId, correct) {
   await addDoc(collection(db, "defisFaits"), {
