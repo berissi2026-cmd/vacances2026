@@ -275,20 +275,16 @@
       return 'nuit';
     }
 
-    function calculerJourCalendaireIndex(settings) {
-      if (!settings.DateDebutVoyage) return -1;
-      const debut = new Date(settings.DateDebutVoyage + 'T00:00:00');
-      const maintenant = new Date();
-      const diffJours = Math.floor((maintenant - debut) / 86400000);
-      if (diffJours < 0 || diffJours > 4) return -1;
-      return diffJours;
+    // Index du jour "effectif" utilisé pour le déblocage des jeux et le bonus combo :
+    // respecte la position manuelle/géoloc de l'admin en priorité, sinon estime via date/heure.
+    function calculerJourEffectifIndex() {
+      return calculerPositionPion(settingsVoyage).jourIndex;
     }
 
     const BONUS_COMBO_JOURNEE = 20;
 
     function verifierComboJournee() {
-      const jourIndex = calculerJourCalendaireIndex(settingsVoyage);
-      if (jourIndex === -1) return;
+      const jourIndex = calculerJourEffectifIndex();
       const jourNom = JOURS[jourIndex];
       const cle = 'vq_combo_' + jourNom + '_' + PROFIL_ID;
       if (localStorage.getItem(cle)) return;
@@ -1071,8 +1067,7 @@
     // DÉBLOCAGE PROGRESSIF DES JEUX (par jour, cumulatif) + suivi des défis faits
     // ------------------------------------------------------------
     function joursDebloques() {
-      const idx = calculerJourCalendaireIndex(settingsVoyage);
-      if (idx === -1) return JOURS.slice(); // pas de date de voyage réglée : tout débloqué par défaut
+      const idx = calculerJourEffectifIndex();
       return JOURS.slice(0, idx + 1);
     }
 
@@ -1082,8 +1077,7 @@
 
     function poolsPourType(liste) {
       const debloques = joursDebloques();
-      const idx = calculerJourCalendaireIndex(settingsVoyage);
-      const jourAuj = idx !== -1 ? JOURS[idx] : null;
+      const jourAuj = JOURS[calculerJourEffectifIndex()] || null;
       const disponible = liste.filter(d => !d.Jour || debloques.includes(d.Jour));
       const restant = disponible.filter(d => !estDefiFait(d.DefiID));
       const nouveaux = restant.filter(d => !d.Jour || d.Jour === jourAuj);
