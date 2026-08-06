@@ -211,6 +211,10 @@
     <div id="diplome-carte"></div>
   </div>
 
+  <div id="palier-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:260;align-items:center;justify-content:center;padding:16px;">
+    <div id="palier-carte" style="background:var(--sand-light);border:5px solid var(--sunset);border-radius:var(--radius-lg);padding:30px 24px;text-align:center;max-width:340px;box-shadow:6px 6px 0 rgba(0,0,0,.3);"></div>
+  </div>
+
   <div id="modal-bg"><div id="modal-box"></div></div>
 
   <div class="center mt-24" style="padding-bottom:30px;">
@@ -290,6 +294,7 @@
         document.getElementById('progress-fill').style.width = pct + '%';
         document.getElementById('progress-label').textContent =
           (LANGUE === 'he' ? `${s} / ${OBJECTIF} נקודות` : `${s} / ${OBJECTIF} points`) + (s >= OBJECTIF ? ' 🏆' : '');
+        verifierPalier(s);
       });
       ecouterProfil(PROFIL_ID, p2 => {
         monProfil = { ...monProfil, ...p2 };
@@ -735,6 +740,46 @@
       box.appendChild(grid);
     }
 
+    const PALIERS = [250, 500, 750, 1000];
+    const PALIER_MESSAGES = {
+      fr: {
+        250: { titre: "🎉 250 points !", texte: "Premier quart parcouru — continuez comme ça !" },
+        500: { titre: "🎊 500 points !", texte: "La moitié du chemin vers l'objectif !" },
+        750: { titre: "🔥 750 points !", texte: "Plus que 250 points, vous y êtes presque !" },
+        1000: { titre: "🏆 1000 points !", texte: "Objectif atteint ! Toute la famille a gagné, bravo à tous !" }
+      },
+      he: {
+        250: { titre: "🎉 250 נקודות!", texte: "רבע מהדרך — כל הכבוד, תמשיכו כך!" },
+        500: { titre: "🎊 500 נקודות!", texte: "חצי מהדרך ליעד!" },
+        750: { titre: "🔥 750 נקודות!", texte: "עוד 250 נקודות ואתם שם!" },
+        1000: { titre: "🏆 1000 נקודות!", texte: "הגעתם ליעד! כל המשפחה ניצחה, כל הכבוד לכולם!" }
+      }
+    };
+
+    function verifierPalier(score) {
+      for (const p of PALIERS) {
+        const cle = 'vq_palier_' + p;
+        if (score >= p && !localStorage.getItem(cle)) {
+          localStorage.setItem(cle, '1');
+          afficherCelebrationPalier(p);
+          break; // un seul palier célébré à la fois, même si plusieurs sont franchis d'un coup
+        }
+      }
+    }
+
+    function afficherCelebrationPalier(palier) {
+      const msg = (PALIER_MESSAGES[LANGUE] || PALIER_MESSAGES.fr)[palier];
+      document.getElementById('palier-carte').innerHTML = `
+        <div style="font-size:22px; font-family: var(--font-display);">${msg.titre}</div>
+        <p class="mt-16">${msg.texte}</p>
+        <button class="btn btn--primary btn--block mt-16" id="btn-fermer-palier">${LANGUE === 'he' ? 'סגור' : 'Super !'}</button>`;
+      document.getElementById('palier-bg').style.display = 'flex';
+      parler(msg.titre + '. ' + msg.texte, LANGUE);
+      document.getElementById('btn-fermer-palier').onclick = () => {
+        document.getElementById('palier-bg').style.display = 'none';
+      };
+    }
+
     function ouvrirDiplome() {
       const badges = monProfil.Badges || [];
       const nom = LANGUE === 'he' ? (monProfil.Nom_HE || monProfil.Nom_FR) : monProfil.Nom_FR;
@@ -990,8 +1035,10 @@
             statut.textContent = LANGUE === 'he' ? `🎉 נכון! +${points} נקודות` : `🎉 Bonne réponse ! +${points} points`;
             parler(LANGUE === 'he' ? 'כל הכבוד!' : 'Bravo !', LANGUE);
           } else {
+            const consolation = 2;
+            await ajouterScoreProfil(PROFIL_ID, consolation);
             btn.style.background = '#e57373';
-            statut.textContent = LANGUE === 'he' ? 'לא נכון, ננסה את הבאה!' : "Perdu, on passe à la suivante !";
+            statut.textContent = LANGUE === 'he' ? `לא נכון, ננסה את הבאה! (+${consolation})` : `Perdu, on passe à la suivante ! (+${consolation} pts quand même)`;
           }
           const suite = document.createElement('button');
           suite.className = 'btn btn--primary btn--block mt-16';
