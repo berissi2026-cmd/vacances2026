@@ -102,7 +102,13 @@
   .mission-card { text-align: start; background: var(--white); border: 2px solid var(--bark); border-radius: var(--radius-sm); padding: 12px; margin-top: 10px; }
   .mission-card.done { opacity: 0.5; }
   .star-picker { display:flex; gap:6px; justify-content:center; font-size:26px; cursor:pointer; }
+
+  #carte-position { height: 60vh; min-height: 320px; border-radius: var(--radius-md); border: 3px solid var(--bark); }
+  .popup-lieu b { font-family: var(--font-display); }
+  .popup-lieu a { display:inline-block; margin-top:6px; margin-right:8px; }
 </style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 </head>
 <body class="bg-jungle">
 
@@ -124,6 +130,7 @@
 
   <div class="tabs">
     <div class="tab active" data-panel="carte">🗺️ Carte</div>
+    <div class="tab" data-panel="position">🧭 Position</div>
     <div class="tab" data-panel="voiture">🚗 En voiture</div>
     <div class="tab" data-panel="album">📷 Album</div>
     <div class="tab" data-panel="badges">🎖️ Badges</div>
@@ -137,6 +144,11 @@
         <p class="muted mt-8">Papa ajoutera les lieux du voyage depuis l'admin — reviens bientôt !</p>
       </div>
     </div>
+  </div>
+
+  <div class="panel" id="panel-position">
+    <div id="carte-position"></div>
+    <p class="muted mt-8" id="position-statut" style="text-align:center;"></p>
   </div>
 
   <div class="panel" id="panel-voiture">
@@ -323,6 +335,7 @@
 
     async function afficherPiste(lieux) {
       lieuxCache = lieux;
+      rafraichirMarqueursLieuxCarte();
       const box = document.getElementById('trail-container');
 
       // Charge les missions de chaque lieu pour savoir qui est "fait"
@@ -733,8 +746,74 @@
         document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
         tab.classList.add('active');
         document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
+        if (tab.dataset.panel === 'position') initCartePosition();
       };
     });
+
+    // ------------------------------------------------------------
+    // CARTE POSITION EN DIRECT (Leaflet + géolocalisation)
+    // ------------------------------------------------------------
+    let carteLeaflet = null;
+    let calqueLieuxCarte = null;
+    let marqueurMoi = null;
+    let suiviPositionId = null;
+
+    function initCartePosition() {
+      if (carteLeaflet) {
+        setTimeout(() => carteLeaflet.invalidateSize(), 100);
+        rafraichirMarqueursLieuxCarte();
+        return;
+      }
+      carteLeaflet = L.map('carte-position').setView([33.05, 35.55], 9); // vue par défaut : nord d'Israël
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors', maxZoom: 18
+      }).addTo(carteLeaflet);
+
+      rafraichirMarqueursLieuxCarte();
+
+      const statut = document.getElementById('position-statut');
+      if (!('geolocation' in navigator)) {
+        statut.textContent = LANGUE === 'he' ? 'המכשיר לא תומך במיקום.' : "Cet appareil ne supporte pas la géolocalisation.";
+        return;
+      }
+      statut.textContent = LANGUE === 'he' ? 'מאתר את המיקום שלך...' : 'Recherche de ta position...';
+      suiviPositionId = navigator.geolocation.watchPosition(
+        pos => {
+          const { latitude, longitude } = pos.coords;
+          statut.textContent = '';
+          if (!marqueurMoi) {
+            marqueurMoi = L.circleMarker([latitude, longitude], {
+              radius: 9, color: '#fff', weight: 2, fillColor: '#e67e22', fillOpacity: 1
+            }).addTo(carteLeaflet).bindTooltip('🚗', { permanent: true, direction: 'top', offset: [0, -8] });
+            carteLeaflet.setView([latitude, longitude], 11);
+          } else {
+            marqueurMoi.setLatLng([latitude, longitude]);
+          }
+        },
+        () => {
+          statut.textContent = LANGUE === 'he' ? 'לא הצלחנו לאתר את המיקום שלכם. בדקו את ההרשאות.' : "Impossible d'accéder à ta position (vérifie l'autorisation de géolocalisation).";
+        },
+        { enableHighAccuracy: true, maximumAge: 5000 }
+      );
+    }
+
+    function rafraichirMarqueursLieuxCarte() {
+      if (!carteLeaflet) return;
+      if (calqueLieuxCarte) carteLeaflet.removeLayer(calqueLieuxCarte);
+      calqueLieuxCarte = L.layerGroup();
+      lieuxCache.forEach(l => {
+        if (!l.Lat || !l.Lng) return;
+        const nom = LANGUE === 'he' ? (l.Nom_HE || l.Nom_FR) : l.Nom_FR;
+        const lienWaze = `https://waze.com/ul?ll=${l.Lat},${l.Lng}&navigate=yes`;
+        const lienGmaps = `https://www.google.com/maps/dir/?api=1&destination=${l.Lat},${l.Lng}`;
+        const marqueur = L.marker([Number(l.Lat), Number(l.Lng)]);
+        marqueur.bindPopup(`<div class="popup-lieu"><b>📍 ${nom}</b><br>
+          <a href="${lienWaze}" target="_blank" rel="noopener">🧭 Waze</a>
+          <a href="${lienGmaps}" target="_blank" rel="noopener">📍 Google Maps</a></div>`);
+        calqueLieuxCarte.addLayer(marqueur);
+      });
+      calqueLieuxCarte.addTo(carteLeaflet);
+    }
 
     let modeVoiture = false;
     const SEUIL_VITESSE_MS = 20 / 3.6;
