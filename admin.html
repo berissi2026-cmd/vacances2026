@@ -44,8 +44,9 @@
       <button class="btn btn--ghost btn--block" id="btn-init">🌱 Première utilisation ? Initialiser les données</button>
       <button class="btn btn--ghost btn--block mt-8" id="btn-corriger">🔧 Corriger les prénoms (Elior)</button>
     </div>
-    <header class="topbar" style="background: var(--jungle-deep); color:#fff; padding:16px 20px; border-radius:0;">
+    <header class="topbar" style="background: var(--jungle-deep); color:#fff; padding:16px 20px; border-radius:0; display:flex; justify-content:space-between; align-items:center;">
       <h2 style="color:#fff;">⚙️ Admin — Vacances Quest</h2>
+      <button class="btn btn--ghost" id="btn-sortir-admin">🚪 Sortir</button>
     </header>
 
     <div class="admin-tabs">
@@ -316,6 +317,14 @@ Mauvaise réponse 2"></textarea>
     document.getElementById('gate-mdp').addEventListener('keydown', e => {
       if (e.key === 'Enter') tenterEntree();
     });
+
+    document.getElementById('btn-sortir-admin').onclick = () => {
+      localStorage.removeItem('vq_admin_ok');
+      document.getElementById('admin-content').style.display = 'none';
+      document.getElementById('gate-mdp').value = '';
+      document.getElementById('gate-erreur').textContent = '';
+      document.getElementById('gate').style.display = 'block';
+    };
 
     if (localStorage.getItem('vq_admin_ok') === '1') {
       demarrerAdmin();

@@ -18,6 +18,10 @@
   .panel { display: none; padding: 20px; }
   .panel.active { display: block; }
 
+  .switch-profil-row { display: flex; gap: 8px; padding: 10px 20px 0; overflow-x: auto; }
+  .switch-profil-btn { width: 40px; height: 40px; flex-shrink:0; border-radius: 50%; background: var(--sand-light); border: 3px solid var(--bark); font-size: 18px; display:flex; align-items:center; justify-content:center; cursor:pointer; opacity:.55; }
+  .switch-profil-btn.actif { opacity: 1; border-color: var(--sunset); box-shadow: 0 0 0 3px rgba(230,126,34,.3); }
+
   /* --- PISTE FACON JEU DE L'OIE --- */
   .trail-path { position: relative; max-width: 360px; margin: 10px auto; padding: 30px 0; }
   .trail-path::before {
@@ -115,6 +119,8 @@
       <span class="score-pill" style="background: var(--sunset);">🏆 <span id="score-famille">0</span></span>
     </div>
   </header>
+
+  <div id="switch-profil-row"></div>
 
   <div class="tabs">
     <div class="tab active" data-panel="carte">🗺️ Carte</div>
@@ -270,11 +276,29 @@
       resultats.filter(r => r.Statut === 'fait').forEach(r => missionsFaitesIds.add(r.MissionID));
       types.forEach(t => typesParId[t.TypeID] = t);
       profils.forEach(p => profilsCache[p.ProfilID] = p);
+      afficherSelecteurProfils(profils);
 
       ecouterLieux(afficherPiste);
       ecouterTousResultats(tous => {
         resultatsPhotoCache = tous.filter(r => r.MediaURL);
         afficherAlbum();
+      });
+    }
+
+    function afficherSelecteurProfils(profils) {
+      const box = document.getElementById('switch-profil-row');
+      if (!box) return;
+      box.innerHTML = '';
+      profils.forEach(p => {
+        const btn = document.createElement('div');
+        btn.className = 'switch-profil-btn' + (p.ProfilID === PROFIL_ID ? ' actif' : '');
+        btn.textContent = p.Avatar || '🦁';
+        btn.title = LANGUE === 'he' ? (p.Nom_HE || p.Nom_FR) : p.Nom_FR;
+        btn.onclick = () => {
+          if (p.ProfilID === PROFIL_ID) return;
+          window.location.href = 'app.html?profil=' + p.ProfilID;
+        };
+        box.appendChild(btn);
       });
     }
 
