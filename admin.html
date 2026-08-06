@@ -61,7 +61,10 @@
       <div class="col mt-16">
         <div>
           <label>🔎 Rechercher le lieu (nom en hébreu ou français)</label>
-          <input id="l-recherche" placeholder="ex: כנרת ou Kinneret" autocomplete="off">
+          <div class="field-row">
+            <input id="l-recherche" placeholder="ex: כנרת ou Kinneret" autocomplete="off">
+            <button type="button" class="btn btn--ghost" id="btn-ouvrir-maps">🗺️ Ouvrir dans Google Maps</button>
+          </div>
           <div id="l-suggestions" style="margin-top:6px;"></div>
         </div>
 
@@ -90,8 +93,11 @@
 
         <div>
           <label>📋 Ou coller des coordonnées copiées depuis Google Maps</label>
-          <input id="l-coller-coords" placeholder="ex: 31.7767, 35.2345">
-          <p class="muted" style="font-size:12px;">Dans Google Maps : appui long sur le lieu, les coordonnées s'affichent en bas, copie-les et colle-les ici.</p>
+          <div class="field-row">
+            <input id="l-coller-coords" placeholder="ex: 31.7767, 35.2345">
+            <button type="button" class="btn btn--gold" id="btn-coller-presse-papier">📋 Coller en 1 clic</button>
+          </div>
+          <p class="muted" style="font-size:12px;">1) Clique "Ouvrir dans Google Maps" 2) Appui long sur le lieu, tape sur les coordonnées pour les copier 3) Reviens ici et clique "Coller en 1 clic".</p>
         </div>
 
         <div><label>Léa dit Torah (FR)</label><textarea id="l-torahfr" rows="2"></textarea></div>
@@ -264,7 +270,36 @@ Mauvaise réponse 2"></textarea>
       });
     };
 
-    // --- Coller des coordonnées copiées depuis Google Maps ---
+    // --- Ouvrir Google Maps directement avec la recherche ---
+    document.getElementById('btn-ouvrir-maps').onclick = () => {
+      const requete = document.getElementById('l-recherche').value.trim() ||
+                       document.getElementById('l-nomfr').value.trim() ||
+                       document.getElementById('l-nomhe').value.trim();
+      const url = requete
+        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(requete)}`
+        : `https://www.google.com/maps`;
+      window.open(url, '_blank');
+    };
+
+    // --- Coller le presse-papier en un clic ---
+    document.getElementById('btn-coller-presse-papier').onclick = async () => {
+      try {
+        const texte = await navigator.clipboard.readText();
+        document.getElementById('l-coller-coords').value = texte;
+        const m = texte.match(/(-?\d{1,3}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)/);
+        if (m) {
+          document.getElementById('l-lat').value = m[1];
+          document.getElementById('l-lng').value = m[2];
+          alert('Coordonnées collées ✅');
+        } else {
+          alert("Le presse-papier ne contient pas de coordonnées reconnues. Vérifie que tu as bien copié depuis Google Maps.");
+        }
+      } catch (err) {
+        alert("Impossible d'accéder au presse-papier automatiquement sur cet appareil/navigateur. Colle manuellement dans le champ juste au-dessus avec un appui long → Coller.");
+      }
+    };
+
+    // --- Coller des coordonnées copiées depuis Google Maps (collage manuel classique) ---
     document.getElementById('l-coller-coords').addEventListener('input', (e) => {
       const val = e.target.value;
       const m = val.match(/(-?\d{1,3}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)/);
