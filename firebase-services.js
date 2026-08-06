@@ -91,7 +91,16 @@ export async function corrigerProfilsFamille() {
 
 export async function ajouterScoreProfil(profilId, points) {
   await updateDoc(doc(db, "profils", profilId), { ScorePerso: increment(points) });
+  await addDoc(collection(db, "pointsLog"), {
+    ProfilID: profilId, Points: points, Date: new Date().toISOString()
+  });
   return { success: true };
+}
+
+export function ecouterPointsLog(callback) {
+  return onSnapshot(collection(db, "pointsLog"), snap => {
+    callback(snap.docs.map(d => ({ LogID: d.id, ...d.data() })));
+  });
 }
 
 // Ajoute un badge au profil (une seule fois par mission, même en cas de double-clic)
