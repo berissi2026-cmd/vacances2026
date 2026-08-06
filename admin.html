@@ -381,39 +381,43 @@ Mauvaise réponse 2"></textarea>
     let adminMap = null;
     let dernieresBoundsCarte = null;
     async function chargerCarteVoyage() {
-      const lieux = (await getLieux()).filter(l => l.Lat && l.Lng);
-      if (!adminMap) {
-        adminMap = L.map('admin-map');
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '© OpenStreetMap'
-        }).addTo(adminMap);
-      }
-      // Retire les anciens marqueurs
-      adminMap.eachLayer(layer => { if (layer instanceof L.Marker) adminMap.removeLayer(layer); });
+      try {
+        const lieux = (await getLieux()).filter(l => l.Lat && l.Lng && !isNaN(Number(l.Lat)) && !isNaN(Number(l.Lng)));
+        if (!adminMap) {
+          adminMap = L.map('admin-map');
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+          }).addTo(adminMap);
+        }
+        adminMap.invalidateSize();
+        // Retire les anciens marqueurs
+        adminMap.eachLayer(layer => { if (layer instanceof L.Marker) adminMap.removeLayer(layer); });
 
-      if (!lieux.length) { dernieresBoundsCarte = null; adminMap.setView([32.8, 35.5], 8); return; }
+        if (!lieux.length) { dernieresBoundsCarte = null; adminMap.setView([32.8, 35.5], 8); return; }
 
-      const bounds = [];
-      lieux.forEach(l => {
-        const lat = Number(l.Lat), lng = Number(l.Lng);
-        bounds.push([lat, lng]);
-        const marker = L.marker([lat, lng]).addTo(adminMap);
-        const moment = momentDepuisHeureAdmin(l.Heure);
-        marker.bindPopup(`<b>${l.Nom_FR}</b><br>${l.Jour} — ${l.Heure || ''}<br><button id="pos-${l.LieuID}" style="margin-top:6px;padding:6px 10px;border-radius:8px;border:2px solid #5c3d24;background:#e67e22;color:#fff;font-weight:700;">🚗 Placer la voiture ici</button>`);
-        marker.on('popupopen', () => {
-          const btn = document.getElementById('pos-' + l.LieuID);
-          if (btn) btn.onclick = async () => {
-            const valeur = l.Jour + '|' + moment;
-            await updateSettings({ PositionManuelle: valeur });
-            document.getElementById('v-position-manuelle').value = valeur;
-            marker.closePopup();
-            alert(`🚗 Voiture placée à : ${l.Nom_FR} (${l.Jour} — ${moment})`);
-          };
+        const bounds = [];
+        lieux.forEach(l => {
+          const lat = Number(l.Lat), lng = Number(l.Lng);
+          bounds.push([lat, lng]);
+          const marker = L.marker([lat, lng]).addTo(adminMap);
+          const moment = momentDepuisHeureAdmin(l.Heure);
+          marker.bindPopup(`<b>${l.Nom_FR}</b><br>${l.Jour} — ${l.Heure || ''}<br><button id="pos-${l.LieuID}" style="margin-top:6px;padding:6px 10px;border-radius:8px;border:2px solid #5c3d24;background:#e67e22;color:#fff;font-weight:700;">🚗 Placer la voiture ici</button>`);
+          marker.on('popupopen', () => {
+            const btn = document.getElementById('pos-' + l.LieuID);
+            if (btn) btn.onclick = async () => {
+              const valeur = l.Jour + '|' + moment;
+              await updateSettings({ PositionManuelle: valeur });
+              document.getElementById('v-position-manuelle').value = valeur;
+              marker.closePopup();
+              alert(`🚗 Voiture placée à : ${l.Nom_FR} (${l.Jour} — ${moment})`);
+            };
+          });
         });
-      });
-      dernieresBoundsCarte = bounds;
-      adminMap.invalidateSize();
-      adminMap.fitBounds(bounds, { padding: [30, 30] });
+        dernieresBoundsCarte = bounds;
+        adminMap.fitBounds(bounds, { padding: [30, 30] });
+      } catch (err) {
+        console.error('Erreur carte admin voyage:', err);
+      }
     }
 
     document.getElementById('btn-save-voyage').onclick = async () => {
@@ -434,10 +438,7 @@ Mauvaise réponse 2"></textarea>
         t.classList.add('active');
         document.getElementById('p-' + t.dataset.p).classList.add('active');
         if (t.dataset.p === 'voyage' && adminMap) {
-          setTimeout(() => {
-            adminMap.invalidateSize();
-            if (dernieresBoundsCarte) adminMap.fitBounds(dernieresBoundsCarte, { padding: [30, 30] });
-          }, 80);
+          setTimeout(() => { chargerCarteVoyage(); }, 80);
         }
       };
     });
