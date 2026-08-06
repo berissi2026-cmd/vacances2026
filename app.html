@@ -21,7 +21,10 @@
   .panel { display: none; padding: 20px; }
   .panel.active { display: block; }
 
-  #switch-profil-row { display: flex; flex-direction: row; flex-wrap: nowrap; gap: 8px; padding: 8px 20px; overflow-x: auto; align-items: center; }
+  #switch-profil-row { display: flex; flex-direction: row; flex-wrap: nowrap; gap: 8px; overflow-x: auto; align-items: center; flex: 1; }
+  #barre-outils-haut { display: flex; flex-direction: row; align-items: center; gap: 8px; padding: 8px 20px; }
+  .outil-icone { width: 40px; height: 40px; flex: 0 0 40px; border-radius: 50%; background: var(--sand-light); border: 3px solid var(--bark); font-size: 18px; display:flex; align-items:center; justify-content:center; cursor:pointer; text-decoration:none; color: var(--bark); }
+  #barre-outils-haut a.outil-icone:first-child { background: var(--sunset); color: #fff; font-size: 20px; }
   #progress-1000 { padding: 10px 20px 0; text-align: center; }
   .progress-track { background: var(--sand-light); border: 3px solid var(--bark); border-radius: 999px; height: 20px; overflow: hidden; }
   .progress-fill { height: 100%; background: linear-gradient(90deg, var(--jungle-leaf), var(--sunset)); border-radius: 999px; width: 0%; transition: width 0.6s ease; }
@@ -142,7 +145,12 @@
     <div class="explorateur-jour" id="explorateur-jour" style="display:none;"></div>
   </div>
 
-  <div id="switch-profil-row"></div>
+  <div id="barre-outils-haut">
+    <a href="index.html" class="outil-icone" title="Retour au menu">⬅️</a>
+    <div id="switch-profil-row"></div>
+    <a href="admin.html" class="outil-icone" id="lien-admin-icone" style="display:none;" title="Admin">⚙️</a>
+    <button class="outil-icone" id="btn-changer-langue" title="FR / עברית">🌐</button>
+  </div>
 
   <div class="tabs">
     <div class="tab active" data-panel="carte">🗺️ Carte</div>
@@ -219,10 +227,6 @@
 
   <div id="modal-bg"><div id="modal-box"></div></div>
 
-  <div class="center mt-24" style="padding-bottom:30px;">
-    <a class="btn btn--ghost" id="lien-admin" href="admin.html" style="display:none;">⚙️ Admin</a>
-  </div>
-
   <script type="module">
     import {
       getProfil, getProfils, ecouterScoreFamille, ecouterProfil, getDefisRoute, ecouterLieux,
@@ -235,6 +239,11 @@
     const params = new URLSearchParams(window.location.search);
     const PROFIL_ID = params.get('profil');
     const LANGUE = localStorage.getItem('vq_langue') || 'fr';
+
+    document.getElementById('btn-changer-langue').onclick = () => {
+      localStorage.setItem('vq_langue', LANGUE === 'he' ? 'fr' : 'he');
+      window.location.reload();
+    };
     let monProfil = null;
     let toutLesDefis = { bingo: [], roue: [], enigme: [] };
     let missionsFaitesIds = new Set();
@@ -418,7 +427,7 @@
       document.getElementById('score-perso').textContent = p.ScorePerso || 0;
       document.body.setAttribute('dir', LANGUE === 'he' ? 'rtl' : 'ltr');
       if (p.ProfilID === 'p_papa' || p.ProfilID === 'p_maman') {
-        document.getElementById('lien-admin').style.display = 'inline-flex';
+        document.getElementById('lien-admin-icone').style.display = 'flex';
       }
       if (Number(p.Age) > 0 && Number(p.Age) <= 4) {
         parler((LANGUE === 'he' ? 'ברוכים הבאים ' : 'Bienvenue ') + nom, LANGUE);

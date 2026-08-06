@@ -33,7 +33,9 @@
   .photo-profil-preview { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; display: block; margin: 12px auto; border: 3px solid var(--bark); }
 
   #premier-lancement { display: none; text-align: center; padding: 60px 20px; }
-  .lien-changer-langue { display: block; text-align: center; margin-top: 20px; font-size: 13px; opacity: 0.6; cursor: pointer; }
+  .lien-changer-langue { position: fixed; top: 14px; right: 14px; z-index: 50; background: var(--sand-light); border: 3px solid var(--bark); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; }
+  .lien-changer-langue .txt { display: none; }
+  .bouton-retour-profils { position: fixed; top: 14px; left: 14px; z-index: 50; background: var(--sunset); color: #fff; border: 3px solid var(--bark); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 20px; text-decoration: none; }
 </style>
 </head>
 <body class="bg-jungle">
@@ -59,6 +61,7 @@
   </div>
 
   <div id="screen-profils" style="display:none;">
+    <div class="lien-changer-langue" id="lien-changer-langue">🌐</div>
     <div class="hero">
       <span class="compass">🧭</span>
       <div class="eyebrow" id="txt-eyebrow">L'aventure commence</div>
@@ -66,10 +69,11 @@
       <p class="muted mt-8" id="txt-souscription">Choisis qui part à l'aventure aujourd'hui</p>
     </div>
     <div class="profil-grid" id="profil-grid"></div>
-    <div class="lien-changer-langue" id="lien-changer-langue">🌐 Changer la langue</div>
   </div>
 
   <div id="onboarding">
+    <a href="index.html" class="bouton-retour-profils" id="btn-retour-profils">⬅️</a>
+    <div class="lien-changer-langue" id="lien-changer-langue-onboard">🌐</div>
     <div class="card">
       <h2 id="onboard-title">Bienvenue !</h2>
       <p class="muted mt-8" id="txt-choisir">Choisis ton animal, ou prends une photo !</p>
@@ -114,13 +118,16 @@
       document.getElementById('screen-profils').style.display = 'none';
       document.getElementById('screen-langue').style.display = 'block';
     };
+    document.getElementById('lien-changer-langue-onboard').onclick = () => {
+      document.getElementById('onboarding').style.display = 'none';
+      document.getElementById('screen-langue').style.display = 'block';
+    };
 
     async function demarrer() {
       document.body.setAttribute('dir', langue === 'he' ? 'rtl' : 'ltr');
       const t = TEXTES[langue] || TEXTES.fr;
       document.getElementById('txt-eyebrow').textContent = t.eyebrow;
       document.getElementById('txt-souscription').textContent = t.sous;
-      document.getElementById('lien-changer-langue').textContent = t.changerLangue;
 
       const profils = await getProfils();
       if (profils.length === 0) {
