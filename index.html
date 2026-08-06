@@ -11,6 +11,11 @@
   .hero h1 { margin-top: 6px; }
   .compass { font-size: 48px; display: inline-block; margin-bottom: 8px; }
 
+  #screen-langue { text-align: center; padding: 60px 20px; }
+  .langue-grand-choix { display: flex; flex-direction: column; gap: 16px; max-width: 320px; margin: 30px auto 0; }
+  .langue-btn { font-family: var(--font-display); font-weight: 900; font-size: 22px; padding: 22px; border-radius: var(--radius-md); border: var(--border-thick) solid var(--bark); background: var(--sand-light); cursor: pointer; box-shadow: 5px 5px 0 var(--bark); }
+  .langue-btn:active { transform: translate(3px,3px); box-shadow: 2px 2px 0 var(--bark); }
+
   .profil-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; max-width: 480px; margin: 0 auto; padding: 10px 20px 30px; }
   .profil-tile { background: var(--sand-light); border: var(--border-thick) solid var(--bark); border-radius: var(--radius-md); padding: 16px 8px; text-align: center; cursor: pointer; box-shadow: 4px 4px 0 rgba(92,61,36,0.18); transition: transform 0.1s ease; }
   .profil-tile:active { transform: scale(0.96); }
@@ -24,9 +29,21 @@
   .avatar-choice.selected { background: var(--jungle-leaf); }
 
   #premier-lancement { display: none; text-align: center; padding: 60px 20px; }
+  .lien-changer-langue { display: block; text-align: center; margin-top: 20px; font-size: 13px; opacity: 0.6; cursor: pointer; }
 </style>
 </head>
 <body class="bg-jungle">
+
+  <!-- ÉTAPE 0 : CHOIX DE LA LANGUE (avant tout) -->
+  <div id="screen-langue">
+    <span class="compass">🧭</span>
+    <h1>Vacances Quest</h1>
+    <p class="muted mt-16" id="langue-question">Choisis ta langue / בחר שפה</p>
+    <div class="langue-grand-choix">
+      <button class="langue-btn" id="choix-fr">🇫🇷 Français</button>
+      <button class="langue-btn" id="choix-he">🇮🇱 עברית</button>
+    </div>
+  </div>
 
   <div id="premier-lancement">
     <div class="card wrap">
@@ -40,44 +57,60 @@
   <div id="screen-profils" style="display:none;">
     <div class="hero">
       <span class="compass">🧭</span>
-      <div class="eyebrow">L'aventure commence</div>
+      <div class="eyebrow" id="txt-eyebrow">L'aventure commence</div>
       <h1>Vacances Quest</h1>
-      <p class="muted mt-8">Choisis qui part à l'aventure aujourd'hui</p>
+      <p class="muted mt-8" id="txt-souscription">Choisis qui part à l'aventure aujourd'hui</p>
     </div>
     <div class="profil-grid" id="profil-grid"></div>
+    <div class="lien-changer-langue" id="lien-changer-langue">🌐 Changer la langue</div>
   </div>
 
   <div id="onboarding">
     <div class="card">
       <h2 id="onboard-title">Bienvenue !</h2>
-      <p class="muted mt-8">Choisis ton animal et ta langue</p>
-
+      <p class="muted mt-8">Choisis ton animal</p>
       <div class="mt-24">
-        <label>Ton animal</label>
         <div class="avatar-grid" id="avatar-grid"></div>
       </div>
-
-      <div class="mt-16">
-        <label>Ta langue</label>
-        <div class="lang-toggle mt-8">
-          <button type="button" id="btn-fr" class="active">Français</button>
-          <button type="button" id="btn-he">עברית</button>
-        </div>
-      </div>
-
       <button class="btn btn--primary btn--block mt-24" id="btn-start">🚀 Commencer l'aventure</button>
     </div>
   </div>
 
   <script type="module">
-    import { getProfils, updateProfilPreferences } from './firebase-services.js';
+    import { getProfils, updateProfilAvatar } from './firebase-services.js';
 
     const AVATARS = ['🦁','🐘','🐒','🦒','🐯','🦓','🐊','🦜','🐢','🦛','🦏','🐆'];
     let profilSelectionne = null;
     let avatarChoisi = AVATARS[0];
-    let langueChoisie = 'fr';
+    let langue = localStorage.getItem('vq_langue');
 
-    async function init() {
+    const TEXTES = {
+      fr: { eyebrow: "L'aventure commence", sous: "Choisis qui part à l'aventure aujourd'hui", changerLangue: "🌐 Changer la langue", bienvenue: "Bienvenue " },
+      he: { eyebrow: "ההרפתקה מתחילה", sous: "בחרו מי יוצא להרפתקה היום", changerLangue: "🌐 החלף שפה", bienvenue: "ברוכים הבאים " }
+    };
+
+    document.getElementById('choix-fr').onclick = () => choisirLangue('fr');
+    document.getElementById('choix-he').onclick = () => choisirLangue('he');
+
+    function choisirLangue(l) {
+      langue = l;
+      localStorage.setItem('vq_langue', l);
+      document.getElementById('screen-langue').style.display = 'none';
+      demarrer();
+    }
+
+    document.getElementById('lien-changer-langue').onclick = () => {
+      document.getElementById('screen-profils').style.display = 'none';
+      document.getElementById('screen-langue').style.display = 'block';
+    };
+
+    async function demarrer() {
+      document.body.setAttribute('dir', langue === 'he' ? 'rtl' : 'ltr');
+      const t = TEXTES[langue] || TEXTES.fr;
+      document.getElementById('txt-eyebrow').textContent = t.eyebrow;
+      document.getElementById('txt-souscription').textContent = t.sous;
+      document.getElementById('lien-changer-langue').textContent = t.changerLangue;
+
       const profils = await getProfils();
       if (profils.length === 0) {
         document.getElementById('premier-lancement').style.display = 'block';
@@ -91,11 +124,12 @@
       const grid = document.getElementById('profil-grid');
       grid.innerHTML = '';
       profils.forEach(p => {
+        const nomAffiche = langue === 'he' ? (p.Nom_HE || p.Nom_FR) : p.Nom_FR;
         const tile = document.createElement('div');
         tile.className = 'profil-tile';
         tile.innerHTML = `
           <span class="emoji">${p.Avatar || '🧑'}</span>
-          <div class="nom">${p.Nom}</div>
+          <div class="nom">${nomAffiche}</div>
           <div class="score">⭐ ${p.ScorePerso || 0}</div>
         `;
         tile.onclick = () => selectionnerProfil(p);
@@ -105,12 +139,14 @@
 
     function selectionnerProfil(profil) {
       profilSelectionne = profil;
-      if (profil.Avatar && profil.Langue) {
+      if (profil.Avatar) {
         entrerDansApp(profil.ProfilID);
       } else {
         document.getElementById('screen-profils').style.display = 'none';
         document.getElementById('onboarding').style.display = 'block';
-        document.getElementById('onboard-title').textContent = 'Bienvenue ' + profil.Nom + ' !';
+        const t = TEXTES[langue] || TEXTES.fr;
+        const nomAffiche = langue === 'he' ? (profil.Nom_HE || profil.Nom_FR) : profil.Nom_FR;
+        document.getElementById('onboard-title').textContent = t.bienvenue + nomAffiche + ' !';
         construireAvatarGrid();
       }
     }
@@ -131,17 +167,8 @@
       });
     }
 
-    document.getElementById('btn-fr').onclick = () => choisirLangue('fr');
-    document.getElementById('btn-he').onclick = () => choisirLangue('he');
-
-    function choisirLangue(langue) {
-      langueChoisie = langue;
-      document.getElementById('btn-fr').classList.toggle('active', langue === 'fr');
-      document.getElementById('btn-he').classList.toggle('active', langue === 'he');
-    }
-
     document.getElementById('btn-start').onclick = async () => {
-      await updateProfilPreferences(profilSelectionne.ProfilID, avatarChoisi, langueChoisie);
+      await updateProfilAvatar(profilSelectionne.ProfilID, avatarChoisi);
       entrerDansApp(profilSelectionne.ProfilID);
     };
 
@@ -149,7 +176,10 @@
       window.location.href = 'app.html?profil=' + encodeURIComponent(profilId);
     }
 
-    init();
+    if (langue) {
+      document.getElementById('screen-langue').style.display = 'none';
+      demarrer();
+    }
   </script>
 </body>
 </html>
