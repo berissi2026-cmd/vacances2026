@@ -9,8 +9,8 @@
 // ⚠️ À REMPLIR :
 // - IMAGEKIT_PUBLIC_KEY : ImageKit dashboard > Developer options > Public key
 // - AUTH_ENDPOINT : l'URL de ton Cloudflare Worker (ex: https://xxxx.workers.dev)
-const IMAGEKIT_PUBLIC_KEY = "COLLE_TA_PUBLIC_KEY_ICI";
-const AUTH_ENDPOINT = "COLLE_URL_DE_TON_WORKER_ICI";
+const IMAGEKIT_PUBLIC_KEY = "public_YxpIbmKQ9kSTFflGa1DK5vUO0eU=";
+const AUTH_ENDPOINT = "https://fancy-wave-d762.berissi2026.workers.dev";
 
 // Upload d'une photo de mission vers ImageKit, renvoie l'URL publique
 export async function uploaderPhotoMission(profilId, missionId, blob) {
