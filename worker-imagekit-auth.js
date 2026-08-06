@@ -12,12 +12,14 @@
 //    imagekit-services.js (AUTH_ENDPOINT)
 // ============================================================
 
-const ALLOWED_ORIGIN = "https://berissi2026-cmd.github.io";
+const ALLOWED_ORIGINS = ["https://berissi2026-cmd.github.io", "https://vacances2026.pages.dev"];
 
 export default {
   async fetch(request, env) {
+    const origin = request.headers.get("Origin");
+    const origineAutorisee = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
     const corsHeaders = {
-      "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+      "Access-Control-Allow-Origin": origineAutorisee,
       "Access-Control-Allow-Methods": "GET,OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type"
     };
