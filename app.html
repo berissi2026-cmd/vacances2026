@@ -179,7 +179,7 @@
   <div class="tabs">
     <div class="tab active" data-panel="carte">🗺️ Carte</div>
     <div class="tab" data-panel="position">🧭 Position</div>
-    <div class="tab" data-panel="voiture">🎯 Mission</div>
+    <div class="tab" data-panel="voiture">🎮 Jeux</div>
     <div class="tab" data-panel="album">📷 Album</div>
     <div class="tab" data-panel="badges">🎖️ Badges</div>
   </div>
@@ -585,9 +585,21 @@
       box.innerHTML = `<h2>🌿 ${titre}</h2><p class="muted mt-8">${texte}</p>${boutonFermer()}`;
     }
 
+    // Détermine les niveaux de difficulté adaptés à l'âge d'un profil
+    function tranchesDifficultePourAge(age) {
+      const a = Number(age);
+      if (!a) return null; // âge non renseigné : on montre tout
+      if (a <= 4) return ['facile'];
+      if (a <= 10) return ['facile', 'moyen'];
+      return ['moyen', 'difficile'];
+    }
+
     async function ouvrirLieu(lieuId) {
       const lieu = lieuxCache.find(l => l.LieuID === lieuId);
-      const missions = missionsParLieuCache[lieuId] || [];
+      const missionsToutes = missionsParLieuCache[lieuId] || [];
+      const tranches = tranchesDifficultePourAge(monProfil.Age);
+      const missionsFiltrees = tranches ? missionsToutes.filter(m => tranches.includes(m.Difficulte || 'moyen')) : missionsToutes;
+      const missions = missionsFiltrees.length ? missionsFiltrees : missionsToutes;
       const box = document.getElementById('modal-box');
       document.getElementById('modal-bg').style.display = 'flex';
 
@@ -1235,10 +1247,26 @@
       return defisFaitsCache.some(d => d.DefiID === defiId && d.ProfilID === PROFIL_ID);
     }
 
+    // Estime une difficulté à partir des points d'un défi (facile ≤10, moyen ≤25, difficile plus)
+    function difficulteDepuisPoints(points) {
+      const p = Number(points) || 10;
+      if (p <= 10) return 'facile';
+      if (p <= 25) return 'moyen';
+      return 'difficile';
+    }
+
     function poolsPourType(liste) {
       const debloques = joursDebloques();
       const jourAuj = JOURS[calculerJourEffectifIndex()] || null;
-      const disponible = liste.filter(d => !d.Jour || debloques.includes(d.Jour));
+      let disponible = liste.filter(d => !d.Jour || debloques.includes(d.Jour));
+
+      // Adapter à l'âge du profil actuel, avec repli sur tout si rien ne correspond
+      const tranches = tranchesDifficultePourAge(monProfil.Age);
+      if (tranches) {
+        const filtres = disponible.filter(d => tranches.includes(difficulteDepuisPoints(d.Points)));
+        if (filtres.length) disponible = filtres;
+      }
+
       const restant = disponible.filter(d => !estDefiFait(d.DefiID));
       const nouveaux = restant.filter(d => !d.Jour || d.Jour === jourAuj);
       const enRetard = restant.filter(d => d.Jour && d.Jour !== jourAuj);
