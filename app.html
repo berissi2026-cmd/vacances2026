@@ -847,14 +847,42 @@
 
     function afficherCelebrationPalier(palier) {
       const msg = (PALIER_MESSAGES[LANGUE] || PALIER_MESSAGES.fr)[palier];
+      const txtPhoto = LANGUE === 'he' ? '📸 תמונת זיכרון!' : '📸 Photo souvenir !';
       document.getElementById('palier-carte').innerHTML = `
         <div style="font-size:22px; font-family: var(--font-display);">${msg.titre}</div>
         <p class="mt-16">${msg.texte}</p>
+        <input type="file" accept="image/*" capture="environment" id="input-photo-palier" style="display:none;">
+        <img id="preview-photo-palier" style="display:none;max-width:100%;border-radius:12px;margin-top:10px;">
+        <button class="btn btn--accent btn--block mt-16" id="btn-photo-palier">${txtPhoto}</button>
+        <div class="muted mt-8" id="statut-photo-palier" style="font-size:12px;"></div>
         <button class="btn btn--primary btn--block mt-16" id="btn-fermer-palier">${LANGUE === 'he' ? 'סגור' : 'Super !'}</button>`;
       document.getElementById('palier-bg').style.display = 'flex';
       parler(msg.titre + '. ' + msg.texte, LANGUE);
       document.getElementById('btn-fermer-palier').onclick = () => {
         document.getElementById('palier-bg').style.display = 'none';
+      };
+
+      const input = document.getElementById('input-photo-palier');
+      const preview = document.getElementById('preview-photo-palier');
+      const statut = document.getElementById('statut-photo-palier');
+      document.getElementById('btn-photo-palier').onclick = () => input.click();
+      input.onchange = async () => {
+        const fichier = input.files[0];
+        if (!fichier) return;
+        statut.textContent = LANGUE === 'he' ? 'שולח תמונה...' : 'Envoi de la photo...';
+        try {
+          const blob = await compresserImage(fichier);
+          preview.src = URL.createObjectURL(blob);
+          preview.style.display = 'block';
+          const url = await uploaderPhotoMission(PROFIL_ID, 'palier_' + palier, blob);
+          await enregistrerResultat({
+            profilId: PROFIL_ID, missionId: 'palier_' + palier + '_' + Date.now(),
+            statut: 'fait', points: 0, note: '', mediaUrl: url
+          });
+          statut.textContent = LANGUE === 'he' ? '✅ נשמר באלבום!' : '✅ Ajoutée à l\'album !';
+        } catch (e) {
+          statut.textContent = LANGUE === 'he' ? '❌ שגיאה בשליחה' : "❌ Échec de l'envoi, réessaie.";
+        }
       };
     }
 
