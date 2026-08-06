@@ -39,8 +39,48 @@ export async function getProfil(profilId) {
   return snap.exists() ? { ProfilID: snap.id, ...snap.data() } : null;
 }
 
-export async function updateProfilPreferences(profilId, avatar, langue) {
-  await updateDoc(doc(db, "profils", profilId), { Avatar: avatar, Langue: langue });
+export async function updateProfilAvatar(profilId, avatar) {
+  await updateDoc(doc(db, "profils", profilId), { Avatar: avatar });
+  return { success: true };
+}
+
+// Migration : corrige les profils déjà créés avec l'ancienne orthographe / structure
+export async function corrigerProfilsFamille() {
+  const corrections = {
+    p_eliro: null, // sera supprimé si présent, remplacé par p_elior
+  };
+  const famille = [
+    ["p_elior",      "Elior",       "אליאור", 13, "enfant"],
+    ["p_shaitsion",  "Shai Tsion",  "שי ציון", 10, "enfant"],
+    ["p_nava",       "Nava",        "נאוה",    7,  "enfant"],
+    ["p_benaya",     "Benaya",      "בניה",    3,  "enfant"],
+    ["p_papa",       "Papa",        "אבא",     0,  "parent"],
+    ["p_maman",      "Maman",       "אמא",     0,  "parent"]
+  ];
+
+  // Récupère l'ancien score/avatar de p_eliro si il existe, pour ne pas perdre la progression
+  const ancien = await getDoc(doc(db, "profils", "p_eliro"));
+  const ancienneDonnee = ancien.exists() ? ancien.data() : null;
+
+  for (const [id, nomFr, nomHe, age, role] of famille) {
+    const existant = await getDoc(doc(db, "profils", id));
+    const base = existant.exists() ? existant.data() : {};
+    let scorePerso = base.ScorePerso || 0;
+    let avatar = base.Avatar || "";
+    if (id === "p_elior" && ancienneDonnee) {
+      scorePerso = ancienneDonnee.ScorePerso || scorePerso;
+      avatar = ancienneDonnee.Avatar || avatar;
+    }
+    await setDoc(doc(db, "profils", id), {
+      Nom_FR: nomFr, Nom_HE: nomHe, Age: age, Role: role,
+      Avatar: avatar, ScorePerso: scorePerso, Badges: base.Badges || []
+    });
+  }
+
+  if (ancien.exists()) {
+    await deleteDoc(doc(db, "profils", "p_eliro"));
+  }
+
   return { success: true };
 }
 
@@ -103,6 +143,40 @@ export async function supprimerLieu(lieuId) {
 }
 
 // ============================================================
+// TYPES D'EXCURSION (personnalisables)
+// ============================================================
+
+export async function getTypesExcursion() {
+  const snap = await getDocs(collection(db, "typesExcursion"));
+  return snap.docs.map(d => ({ TypeID: d.id, ...d.data() }));
+}
+
+export async function ajouterTypeExcursion(data) {
+  const ref = await addDoc(collection(db, "typesExcursion"), {
+    LabelFR: data.labelFr, LabelHE: data.labelHe, Icone: data.icone || "📍"
+  });
+  return { success: true, typeId: ref.id };
+}
+
+export async function seedTypesExcursionSiVide() {
+  const snap = await getDocs(collection(db, "typesExcursion"));
+  if (!snap.empty) return { success: true, deja: true };
+  const defauts = [
+    ["Mayan / source", "מעיין", "💧"],
+    ["Parc / nature", "פארק", "🌳"],
+    ["Visite / musée", "סיור/מוזיאון", "🏛️"],
+    ["Site historique", "אתר היסטורי", "🏺"],
+    ["Plage / mer", "חוף ים", "🏖️"],
+    ["Randonnée", "טיול רגלי", "🥾"],
+    ["Autre", "אחר", "⭐"]
+  ];
+  for (const [labelFr, labelHe, icone] of defauts) {
+    await addDoc(collection(db, "typesExcursion"), { LabelFR: labelFr, LabelHE: labelHe, Icone: icone });
+  }
+  return { success: true, deja: false };
+}
+
+// ============================================================
 // MISSIONS
 // ============================================================
 
@@ -122,6 +196,11 @@ export async function ajouterMission(data) {
     BadgeVisuel: data.badgeVisuel || ""
   });
   return { success: true, missionId: ref.id };
+}
+
+export async function getToutesMissions() {
+  const snap = await getDocs(collection(db, "missions"));
+  return snap.docs.map(d => ({ MissionID: d.id, ...d.data() }));
 }
 
 export async function supprimerMission(missionId) {
@@ -211,16 +290,16 @@ export async function initialiserDonneesSiVide() {
   if (!profils.empty) return { success: true, deja: true };
 
   const famille = [
-    ["p_eliro",      "Éliro",       13, "enfant"],
-    ["p_shaitsion",  "Shai Tsion",  10, "enfant"],
-    ["p_nava",       "Nava",        7,  "enfant"],
-    ["p_benaya",     "Benaya",      3,  "enfant"],
-    ["p_papa",       "Papa",        0,  "parent"],
-    ["p_maman",      "Maman",       0,  "parent"]
+    ["p_elior",      "Elior",       "אליאור", 13, "enfant"],
+    ["p_shaitsion",  "Shai Tsion",  "שי ציון", 10, "enfant"],
+    ["p_nava",       "Nava",        "נאוה",    7,  "enfant"],
+    ["p_benaya",     "Benaya",      "בניה",    3,  "enfant"],
+    ["p_papa",       "Papa",        "אבא",     0,  "parent"],
+    ["p_maman",      "Maman",       "אמא",     0,  "parent"]
   ];
-  for (const [id, nom, age, role] of famille) {
+  for (const [id, nomFr, nomHe, age, role] of famille) {
     await setDoc(doc(db, "profils", id), {
-      Nom: nom, Age: age, Role: role, Avatar: "", Langue: "", ScorePerso: 0, Badges: []
+      Nom_FR: nomFr, Nom_HE: nomHe, Age: age, Role: role, Avatar: "", ScorePerso: 0, Badges: []
     });
   }
 
@@ -247,6 +326,8 @@ export async function initialiserDonneesSiVide() {
     seuilVitesseKmh: 20,
     nomVoyage: "Explorateur du Nord"
   });
+
+  await seedTypesExcursionSiVide();
 
   return { success: true, deja: false };
 }
