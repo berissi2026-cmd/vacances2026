@@ -222,7 +222,7 @@ Mauvaise réponse 2"></textarea>
     import {
       verifierMotDePasseAdmin, initialiserDonneesSiVide, corrigerProfilsFamille,
       getLieux, ajouterLieu, supprimerLieu, ajouterDefiRoute, getProfils,
-      getTypesExcursion, ajouterTypeExcursion,
+      getTypesExcursion, ajouterTypeExcursion, seedTypesExcursionSiVide,
       getMissionsParLieu, ajouterMission, supprimerMission
     } from './firebase-services.js';
 
@@ -361,7 +361,11 @@ Mauvaise réponse 2"></textarea>
 
     // --- TYPES D'EXCURSION ---
     async function chargerTypesExcursion() {
-      const types = await getTypesExcursion();
+      let types = await getTypesExcursion();
+      if (types.length === 0) {
+        await seedTypesExcursionSiVide();
+        types = await getTypesExcursion();
+      }
       const sel = document.getElementById('l-type');
       sel.innerHTML = types.map(t => `<option value="${t.TypeID}">${t.Icone} ${t.LabelFR}</option>`).join('');
     }
