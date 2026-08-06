@@ -42,15 +42,15 @@
   .trail-node .num { position:absolute; top:-8px; left:-8px; background: var(--bark); color:#fff; font-size:11px; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family: var(--font-display); }
   .trail-node .check { position:absolute; bottom:-6px; right:-6px; font-size:18px; }
   .trail-node.vide { opacity: 0.5; box-shadow: none; }
-  .trail-node.ici { border-color: var(--sunset); box-shadow: 0 0 0 5px rgba(230,126,34,.35), 4px 4px 0 rgba(92,61,36,0.25); animation: pulse 1.6s infinite; }
-  .trail-node .pion { position:absolute; top:-34px; left:50%; transform: translateX(-50%); font-size:40px; filter: drop-shadow(1px 3px 2px rgba(0,0,0,.35)); }
+  .trail-node.ici { border-color: var(--sunset); box-shadow: 0 0 0 5px rgba(230,126,34,.35), 4px 4px 0 rgba(92,61,36,0.25); animation: pulse 1.6s infinite; transform: scale(1.12); }
+  .trail-node .pion { position:absolute; top:-46px; left:50%; transform: translateX(-50%); font-size:60px; line-height:1; filter: drop-shadow(1px 3px 2px rgba(0,0,0,.4)); }
   @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.07); } }
   .trail-label { font-family: var(--font-display); font-weight:700; font-size:12px; text-align:center; margin-top:6px; max-width:90px; }
   .trail-node-col { display:flex; flex-direction:column; align-items:center; }
   .voyage-jour { max-width: 360px; margin: 0 auto 8px; }
   .voyage-jour-titre { font-family: var(--font-display); text-align:center; background: var(--jungle-deep); color:#fff; border-radius: 999px; padding: 6px 14px; display:inline-block; margin: 0 auto; font-size: 14px; }
   .voyage-jour-head { text-align:center; }
-  .voyage-jour .trail-path { padding: 44px 0 6px; }
+  .voyage-jour .trail-path { padding: 60px 0 6px; }
 
   .drive-status { text-align: center; padding: 14px; border-radius: var(--radius-md); font-weight: 700; font-family: var(--font-display); margin-bottom: 16px; }
   .drive-status.roule { background: var(--jungle-leaf); color: var(--white); }
