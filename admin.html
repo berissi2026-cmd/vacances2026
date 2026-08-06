@@ -29,20 +29,11 @@
 </head>
 <body class="bg-jungle">
 
-  <div id="gate">
-    <div class="card center col">
-      <div style="font-size:40px;">🔐</div>
-      <h2>Espace admin</h2>
-      <p class="muted">Réservé aux chefs d'expédition</p>
-      <input type="password" id="mdp" placeholder="Mot de passe (safari2026 par défaut)" class="mt-16">
-      <button class="btn btn--primary btn--block mt-16" id="btn-entrer">Entrer</button>
-      <div id="mdp-erreur" class="muted" style="color: var(--danger); display:none;">Mot de passe incorrect</div>
-      <button class="btn btn--ghost btn--block mt-16" id="btn-init">🌱 Première utilisation ? Initialiser les données</button>
+  <div id="admin-content">
+    <div class="wrap" style="max-width:480px; padding-top:20px;">
+      <button class="btn btn--ghost btn--block" id="btn-init">🌱 Première utilisation ? Initialiser les données</button>
       <button class="btn btn--ghost btn--block mt-8" id="btn-corriger">🔧 Corriger les prénoms (Elior)</button>
     </div>
-  </div>
-
-  <div id="admin-content" style="display:none;">
     <header class="topbar" style="background: var(--jungle-deep); color:#fff; padding:16px 20px; border-radius:0;">
       <h2 style="color:#fff;">⚙️ Admin — Vacances Quest</h2>
     </header>
@@ -98,6 +89,8 @@
             <button type="button" class="btn btn--gold" id="btn-coller-presse-papier">📋 Coller en 1 clic</button>
           </div>
           <p class="muted" style="font-size:12px;">1) Clique "Ouvrir dans Google Maps" 2) Appui long sur le lieu, tape sur les coordonnées pour les copier 3) Reviens ici et clique "Coller en 1 clic".</p>
+          <button type="button" class="btn btn--accent btn--block mt-8" id="btn-activites-proximite">🔍 Voir le nom et les activités proposées ici</button>
+          <div id="activites-suggestions" class="mt-8"></div>
         </div>
 
         <div><label>Léa dit Torah (FR)</label><textarea id="l-torahfr" rows="2"></textarea></div>
@@ -239,20 +232,11 @@ Mauvaise réponse 2"></textarea>
       alert('Prénoms corrigés (Elior) !');
     };
 
-    document.getElementById('btn-entrer').onclick = async () => {
-      const mdp = document.getElementById('mdp').value;
-      const ok = await verifierMotDePasseAdmin(mdp);
-      if (ok) {
-        document.getElementById('gate').style.display = 'none';
-        document.getElementById('admin-content').style.display = 'block';
-        chargerTypesExcursion();
-        chargerLieux();
-        chargerProgression();
-        chargerTypesListe();
-      } else {
-        document.getElementById('mdp-erreur').style.display = 'block';
-      }
-    };
+    // Chargement direct, plus de mot de passe pour l'instant
+    chargerTypesExcursion();
+    chargerLieux();
+    chargerProgression();
+    chargerTypesListe();
 
     document.querySelectorAll('.admin-tab').forEach(t => {
       t.onclick = () => {
@@ -268,6 +252,53 @@ Mauvaise réponse 2"></textarea>
         document.getElementById('l-lat').value = pos.coords.latitude.toFixed(5);
         document.getElementById('l-lng').value = pos.coords.longitude.toFixed(5);
       });
+    };
+
+    // --- Nom automatique + activités à proximité des coordonnées ---
+    document.getElementById('btn-activites-proximite').onclick = async () => {
+      const lat = document.getElementById('l-lat').value;
+      const lng = document.getElementById('l-lng').value;
+      if (!lat || !lng) { alert('Renseigne d\'abord la latitude et la longitude (position, collage, ou recherche).'); return; }
+
+      const box = document.getElementById('activites-suggestions');
+      box.innerHTML = '<p class="muted" style="font-size:12px;">Recherche du nom et des activités...</p>';
+
+      try {
+        // 1) Nom du lieu par géocodage inverse (FR + HE)
+        const [revHe, revFr] = await Promise.all([
+          fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=he`).then(r => r.json()),
+          fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=fr`).then(r => r.json())
+        ]);
+        if (!document.getElementById('l-nomhe').value && revHe?.name) document.getElementById('l-nomhe').value = revHe.name;
+        if (!document.getElementById('l-nomfr').value && revFr?.name) document.getElementById('l-nomfr').value = revFr.name;
+
+        // 2) Activités / points d'intérêt à proximité (rayon 800m)
+        const query = `[out:json][timeout:15];(node(around:800,${lat},${lng})[tourism];node(around:800,${lat},${lng})[leisure];node(around:800,${lat},${lng})[historic];node(around:800,${lat},${lng})[natural=spring];);out body 15;`;
+        const res = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: 'data=' + encodeURIComponent(query) });
+        const data = await res.json();
+        const activites = (data.elements || []).filter(e => e.tags && e.tags.name);
+
+        if (!activites.length) {
+          box.innerHTML = '<p class="muted" style="font-size:12px;">Nom rempli, mais aucune activité trouvée à proximité — remplis le nom manuellement si besoin.</p>';
+          return;
+        }
+
+        box.innerHTML = '<label>Activités trouvées à proximité — clique celle que vous faites :</label>';
+        activites.slice(0, 10).forEach(a => {
+          const chip = document.createElement('span');
+          chip.className = 'type-chip';
+          chip.style.cursor = 'pointer';
+          const icone = a.tags.tourism === 'museum' ? '🏛️' : a.tags.natural === 'spring' ? '💧' : a.tags.leisure ? '🌳' : a.tags.historic ? '🏺' : '📍';
+          chip.textContent = `${icone} ${a.tags.name}`;
+          chip.onclick = () => {
+            document.getElementById('l-nomfr').value = a.tags['name:fr'] || a.tags.name;
+            document.getElementById('l-nomhe').value = a.tags['name:he'] || a.tags.name;
+          };
+          box.appendChild(chip);
+        });
+      } catch (err) {
+        box.innerHTML = '<p class="muted" style="font-size:12px;">Service temporairement indisponible, remplis le nom manuellement.</p>';
+      }
     };
 
     // --- Ouvrir Google Maps directement avec la recherche ---
