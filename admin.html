@@ -44,6 +44,7 @@
       <div class="admin-tab" data-p="types">🏷️ Types d'excursion</div>
       <div class="admin-tab" data-p="defis">🚗 Défis route</div>
       <div class="admin-tab" data-p="progression">📊 Progression</div>
+      <div class="admin-tab" data-p="voyage">🗺️ Voyage</div>
     </div>
 
     <!-- LIEUX -->
@@ -209,6 +210,26 @@ Mauvaise réponse 2"></textarea>
       <h3>Progression de la famille</h3>
       <div id="liste-progression" class="col mt-16"></div>
     </div>
+
+    <!-- VOYAGE -->
+    <div class="admin-panel" id="p-voyage">
+      <h3>🗺️ Plateau du voyage (pion voiture)</h3>
+      <div class="col mt-16">
+        <div>
+          <label>Date du dimanche de départ</label>
+          <input type="date" id="v-date-debut">
+          <p class="muted mt-8" style="font-size:12px;">Le pion avance automatiquement sur la carte (Matin/Après-midi/Soir/Nuit) selon la date et l'heure réelles, à partir de ce jour.</p>
+        </div>
+        <div class="mt-16">
+          <label>Forcer la position du pion (optionnel)</label>
+          <select id="v-position-manuelle">
+            <option value="">🔄 Automatique (selon la date/heure)</option>
+          </select>
+          <p class="muted mt-8" style="font-size:12px;">Utile si vous êtes en retard/avance sur le programme.</p>
+        </div>
+        <button class="btn btn--primary btn--block mt-16" id="btn-save-voyage">💾 Enregistrer</button>
+      </div>
+    </div>
   </div>
 
   <script type="module">
@@ -216,7 +237,8 @@ Mauvaise réponse 2"></textarea>
       verifierMotDePasseAdmin, initialiserDonneesSiVide, corrigerProfilsFamille,
       getLieux, ajouterLieu, supprimerLieu, ajouterDefiRoute, getProfils,
       getTypesExcursion, ajouterTypeExcursion, seedTypesExcursionSiVide,
-      getMissionsParLieu, ajouterMission, supprimerMission
+      getMissionsParLieu, ajouterMission, supprimerMission,
+      getSettings, updateSettings
     } from './firebase-services.js';
 
     document.getElementById('btn-init').onclick = async () => {
@@ -237,6 +259,39 @@ Mauvaise réponse 2"></textarea>
     chargerLieux();
     chargerProgression();
     chargerTypesListe();
+    chargerReglagesVoyage();
+
+    const JOURS_ADMIN = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi'];
+    const MOMENTS_ADMIN = [
+      ['matin', 'Matin'], ['apresmidi', 'Après-midi'], ['soir', 'Soir'], ['nuit', 'Nuit']
+    ];
+
+    async function chargerReglagesVoyage() {
+      const select = document.getElementById('v-position-manuelle');
+      JOURS_ADMIN.forEach(jour => {
+        MOMENTS_ADMIN.forEach(([val, label]) => {
+          const opt = document.createElement('option');
+          opt.value = jour + '|' + val;
+          opt.textContent = jour + ' — ' + label;
+          select.appendChild(opt);
+        });
+      });
+
+      const settings = await getSettings();
+      if (settings.DateDebutVoyage) document.getElementById('v-date-debut').value = settings.DateDebutVoyage;
+      if (settings.PositionManuelle) select.value = settings.PositionManuelle;
+    }
+
+    document.getElementById('btn-save-voyage').onclick = async () => {
+      const btn = document.getElementById('btn-save-voyage');
+      btn.disabled = true; btn.textContent = 'Enregistrement...';
+      await updateSettings({
+        DateDebutVoyage: document.getElementById('v-date-debut').value || '',
+        PositionManuelle: document.getElementById('v-position-manuelle').value || ''
+      });
+      btn.disabled = false; btn.textContent = '💾 Enregistrer';
+      alert('Réglages du voyage enregistrés !');
+    };
 
     document.querySelectorAll('.admin-tab').forEach(t => {
       t.onclick = () => {

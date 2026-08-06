@@ -41,9 +41,16 @@
   .trail-node.a-venir { opacity: 0.55; }
   .trail-node .num { position:absolute; top:-8px; left:-8px; background: var(--bark); color:#fff; font-size:11px; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family: var(--font-display); }
   .trail-node .check { position:absolute; bottom:-6px; right:-6px; font-size:18px; }
+  .trail-node.vide { opacity: 0.5; cursor: default; box-shadow: none; }
+  .trail-node.ici { border-color: var(--sunset); box-shadow: 0 0 0 5px rgba(230,126,34,.35), 4px 4px 0 rgba(92,61,36,0.25); animation: pulse 1.6s infinite; }
+  .trail-node .pion { position:absolute; top:-22px; left:50%; transform: translateX(-50%); font-size:24px; filter: drop-shadow(1px 2px 1px rgba(0,0,0,.3)); }
   @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.07); } }
   .trail-label { font-family: var(--font-display); font-weight:700; font-size:12px; text-align:center; margin-top:6px; max-width:90px; }
   .trail-node-col { display:flex; flex-direction:column; align-items:center; }
+  .voyage-jour { max-width: 360px; margin: 0 auto 8px; }
+  .voyage-jour-titre { font-family: var(--font-display); text-align:center; background: var(--jungle-deep); color:#fff; border-radius: 999px; padding: 6px 14px; display:inline-block; margin: 0 auto; font-size: 14px; }
+  .voyage-jour-head { text-align:center; }
+  .voyage-jour .trail-path { padding: 24px 0 6px; }
 
   .drive-status { text-align: center; padding: 14px; border-radius: var(--radius-md); font-weight: 700; font-family: var(--font-display); margin-bottom: 16px; }
   .drive-status.roule { background: var(--jungle-leaf); color: var(--white); }
@@ -154,7 +161,7 @@
     import {
       getProfil, getProfils, ecouterScoreFamille, ecouterProfil, getDefisRoute, ecouterLieux,
       getMissionsParLieu, getResultatsProfil, enregistrerResultat, getTypesExcursion,
-      ecouterTousResultats
+      ecouterTousResultats, getSettings
     } from './firebase-services.js';
     import { uploaderPhotoMission } from './imagekit-services.js';
 
@@ -167,6 +174,47 @@
     let typesParId = {};
     let profilsCache = {};
     let resultatsPhotoCache = [];
+    let settingsVoyage = {};
+
+    const JOURS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi'];
+    const JOURS_HE = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי'];
+    const MOMENTS = ['matin', 'apresmidi', 'soir', 'nuit'];
+    const MOMENT_LABELS = {
+      fr: { matin: 'Matin', apresmidi: 'Après-midi', soir: 'Soir', nuit: 'Nuit' },
+      he: { matin: 'בוקר', apresmidi: 'צהריים', soir: 'ערב', nuit: 'לילה' }
+    };
+    const MOMENT_ICONES = { matin: '☀️', apresmidi: '🌤️', soir: '🌇', nuit: '🌙' };
+
+    function momentDepuisHeure(heureStr) {
+      if (!heureStr) return 'matin';
+      const h = Number(heureStr.split(':')[0]);
+      if (h >= 6 && h < 12) return 'matin';
+      if (h >= 12 && h < 18) return 'apresmidi';
+      if (h >= 18 && h < 22) return 'soir';
+      return 'nuit';
+    }
+
+    function calculerPositionPion(settings) {
+      if (settings.PositionManuelle) {
+        const [j, m] = settings.PositionManuelle.split('|');
+        const jourIndex = JOURS.indexOf(j);
+        if (jourIndex !== -1 && MOMENTS.includes(m)) return { jourIndex, moment: m };
+      }
+      if (settings.DateDebutVoyage) {
+        const debut = new Date(settings.DateDebutVoyage + 'T00:00:00');
+        const maintenant = new Date();
+        const diffJours = Math.floor((maintenant - debut) / 86400000);
+        if (diffJours < 0) return { jourIndex: 0, moment: 'matin' };
+        if (diffJours > 4) return { jourIndex: 4, moment: 'nuit' };
+        const h = maintenant.getHours();
+        let moment = 'nuit';
+        if (h >= 6 && h < 12) moment = 'matin';
+        else if (h >= 12 && h < 18) moment = 'apresmidi';
+        else if (h >= 18 && h < 22) moment = 'soir';
+        return { jourIndex: diffJours, moment };
+      }
+      return { jourIndex: 0, moment: 'matin' };
+    }
 
     async function init() {
       if (!PROFIL_ID) { window.location.href = 'index.html'; return; }
@@ -178,9 +226,10 @@
       ecouterScoreFamille(s => document.getElementById('score-famille').textContent = s);
       ecouterProfil(PROFIL_ID, p2 => { monProfil = { ...monProfil, ...p2 }; document.getElementById('score-perso').textContent = p2.ScorePerso || 0; });
 
-      const [defis, resultats, types, profils] = await Promise.all([
-        getDefisRoute(), getResultatsProfil(PROFIL_ID), getTypesExcursion(), getProfils()
+      const [defis, resultats, types, profils, settings] = await Promise.all([
+        getDefisRoute(), getResultatsProfil(PROFIL_ID), getTypesExcursion(), getProfils(), getSettings()
       ]);
+      settingsVoyage = settings;
       defis.forEach(d => {
         if (d.Type === 'bingo_item') toutLesDefis.bingo.push(d);
         if (d.Type === 'roue') toutLesDefis.roue.push(d);
@@ -219,52 +268,75 @@
     async function afficherPiste(lieux) {
       lieuxCache = lieux;
       const box = document.getElementById('trail-container');
-      if (!lieux.length) {
-        box.innerHTML = `<div class="empty-state card">
-          <div style="font-size:40px;">🌿</div>
-          <h3 class="mt-16">Aucune étape pour l'instant</h3>
-          <p class="muted mt-8">Papa ajoutera les lieux du voyage depuis l'admin — reviens bientôt !</p>
-        </div>`;
-        return;
-      }
 
       // Charge les missions de chaque lieu pour savoir qui est "fait"
       const toutes = await Promise.all(lieux.map(l => getMissionsParLieu(l.LieuID)));
       lieux.forEach((l, i) => missionsParLieuCache[l.LieuID] = toutes[i]);
       afficherAlbum();
 
-      let premierNonFaitTrouve = false;
-      const path = document.createElement('div');
-      path.className = 'trail-path';
-
-      lieux.forEach((l, index) => {
-        const missions = missionsParLieuCache[l.LieuID] || [];
-        const toutesFaites = missions.length > 0 && missions.every(m => missionsFaitesIds.has(m.MissionID));
-        let etat = 'a-venir';
-        if (toutesFaites) etat = 'fait';
-        else if (!premierNonFaitTrouve) { etat = 'courant'; premierNonFaitTrouve = true; }
-
-        const type = typesParId[l.Type];
-        const icone = type ? type.Icone : '📍';
-        const nom = LANGUE === 'he' ? (l.Nom_HE || l.Nom_FR) : l.Nom_FR;
-
-        const wrap = document.createElement('div');
-        wrap.className = 'trail-node-wrap';
-        wrap.innerHTML = `
-          <div class="trail-node-col">
-            <div class="trail-node ${etat}" data-id="${l.LieuID}">
-              <span class="num">${index + 1}</span>
-              ${icone}
-              ${etat === 'fait' ? '<span class="check">✅</span>' : ''}
-            </div>
-            <div class="trail-label">${nom}</div>
-          </div>`;
-        wrap.querySelector('.trail-node').onclick = () => ouvrirLieu(l.LieuID);
-        path.appendChild(wrap);
+      // Regroupe les lieux par case (jour + moment de la journée)
+      const lieuxParCase = {};
+      lieux.forEach(l => {
+        const jourIndex = JOURS.indexOf(l.Jour);
+        if (jourIndex === -1) return;
+        const moment = momentDepuisHeure(l.Heure);
+        const cle = jourIndex + '-' + moment;
+        (lieuxParCase[cle] = lieuxParCase[cle] || []).push(l);
       });
 
+      const pion = calculerPositionPion(settingsVoyage);
+      const momentLabels = MOMENT_LABELS[LANGUE] || MOMENT_LABELS.fr;
+
       box.innerHTML = '';
-      box.appendChild(path);
+      JOURS.forEach((jourFr, jourIndex) => {
+        const jourNom = LANGUE === 'he' ? JOURS_HE[jourIndex] : jourFr;
+        const jourSection = document.createElement('div');
+        jourSection.className = 'voyage-jour';
+        jourSection.innerHTML = `<div class="voyage-jour-head"><span class="voyage-jour-titre">🗓️ ${jourNom}</span></div>`;
+
+        const path = document.createElement('div');
+        path.className = 'trail-path';
+
+        MOMENTS.forEach(moment => {
+          const cle = jourIndex + '-' + moment;
+          const casesLieux = lieuxParCase[cle] || [];
+          const lieuPrincipal = casesLieux[0] || null;
+          const estIci = pion.jourIndex === jourIndex && pion.moment === moment;
+
+          let etatClasse = 'vide';
+          let icone = MOMENT_ICONES[moment];
+          let label = momentLabels[moment];
+
+          if (lieuPrincipal) {
+            const missions = missionsParLieuCache[lieuPrincipal.LieuID] || [];
+            const toutesFaites = missions.length > 0 && missions.every(m => missionsFaitesIds.has(m.MissionID));
+            etatClasse = toutesFaites ? 'fait' : '';
+            const type = typesParId[lieuPrincipal.Type];
+            icone = type ? type.Icone : '📍';
+            label = LANGUE === 'he' ? (lieuPrincipal.Nom_HE || lieuPrincipal.Nom_FR) : lieuPrincipal.Nom_FR;
+          }
+
+          const wrap = document.createElement('div');
+          wrap.className = 'trail-node-wrap';
+          wrap.innerHTML = `
+            <div class="trail-node-col">
+              <div class="trail-node ${etatClasse} ${estIci ? 'ici' : ''}">
+                ${estIci ? '<span class="pion">🚗</span>' : ''}
+                ${icone}
+                ${etatClasse === 'fait' ? '<span class="check">✅</span>' : ''}
+                ${casesLieux.length > 1 ? `<span class="num">+${casesLieux.length - 1}</span>` : ''}
+              </div>
+              <div class="trail-label">${label}</div>
+            </div>`;
+          if (lieuPrincipal) {
+            wrap.querySelector('.trail-node').onclick = () => ouvrirLieu(lieuPrincipal.LieuID);
+          }
+          path.appendChild(wrap);
+        });
+
+        jourSection.appendChild(path);
+        box.appendChild(jourSection);
+      });
     }
 
     async function ouvrirLieu(lieuId) {

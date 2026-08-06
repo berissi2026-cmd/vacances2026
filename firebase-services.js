@@ -272,6 +272,11 @@ export async function verifierMotDePasseAdmin(motDePasse) {
   return motDePasse === (settings.motDePasseAdmin || "safari2026");
 }
 
+export async function updateSettings(data) {
+  await setDoc(doc(db, "settings", "config"), data, { merge: true });
+  return { success: true };
+}
+
 // ============================================================
 // PLAYLISTS
 // ============================================================
