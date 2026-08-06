@@ -155,7 +155,13 @@
 
     <!-- MISSIONS -->
     <div class="admin-panel" id="p-missions">
-      <h3>Missions par lieu</h3>
+      <h3>📦 Import en masse (missions)</h3>
+      <p class="muted mt-8" style="font-size:12px;">Colle le bloc JSON (le nom du lieu doit correspondre exactement au nom déjà importé), puis Importer.</p>
+      <textarea id="import-missions-json" rows="5" style="width:100%; margin-top:10px; font-family:monospace; font-size:12px;" placeholder='[{"lieuNom":"Ein Harod (עין חרוד)","type":"photo","titreFr":"...","titreHe":"...","contenu":{"consigne":"..."},"difficulte":"facile","points":5}]'></textarea>
+      <button class="btn btn--primary btn--block mt-8" id="btn-importer-missions">📦 Importer les missions</button>
+      <div id="import-missions-statut" class="muted mt-8" style="font-size:13px;"></div>
+
+      <h3 class="mt-24">Missions par lieu</h3>
       <select class="lieu-picker mt-16" id="m-lieu-picker"></select>
 
       <div id="m-form" style="display:none;">
@@ -925,6 +931,47 @@ Mauvaise réponse 2"></textarea>
         box.appendChild(item);
       });
     }
+
+    // --- IMPORT EN MASSE MISSIONS ---
+    document.getElementById('btn-importer-missions').onclick = async () => {
+      const statut = document.getElementById('import-missions-statut');
+      const zone = document.getElementById('import-missions-json');
+      let liste;
+      try {
+        liste = JSON.parse(zone.value);
+        if (!Array.isArray(liste)) throw new Error('doit être un tableau []');
+      } catch (e) {
+        statut.textContent = '❌ JSON invalide : ' + e.message;
+        return;
+      }
+      if (!liste.length) { statut.textContent = '❌ La liste est vide.'; return; }
+
+      const btn = document.getElementById('btn-importer-missions');
+      btn.disabled = true;
+      const lieux = await getLieux();
+
+      let ok = 0, erreurs = [];
+      for (const entree of liste) {
+        try {
+          const lieu = lieux.find(l => l.Nom_FR === entree.lieuNom);
+          if (!lieu) throw new Error('lieu introuvable: ' + entree.lieuNom);
+          await ajouterMission({
+            lieuId: lieu.LieuID, type: entree.type,
+            titreFr: entree.titreFr, titreHe: entree.titreHe,
+            contenu: entree.contenu || {}, difficulte: entree.difficulte || 'moyen',
+            points: entree.points || 10,
+            badgeNomFr: entree.badgeNomFr || '', badgeNomHe: entree.badgeNomHe || '', badgeVisuel: entree.badgeVisuel || ''
+          });
+          ok++;
+        } catch (e) {
+          erreurs.push((entree.titreFr || '?') + ' : ' + e.message);
+        }
+        statut.textContent = `⏳ ${ok}/${liste.length} importées...`;
+      }
+      btn.disabled = false;
+      statut.textContent = `✅ ${ok} mission(s) importée(s).` + (erreurs.length ? ` ⚠️ Erreurs : ${erreurs.join(', ')}` : '');
+      if (ok > 0) zone.value = '';
+    };
 
     // --- MISSIONS ---
     async function chargerLieuxPourMissions() {
