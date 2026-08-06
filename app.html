@@ -134,7 +134,7 @@
       getProfil, ecouterScoreFamille, ecouterProfil, getDefisRoute, ecouterLieux,
       getMissionsParLieu, getResultatsProfil, enregistrerResultat, getTypesExcursion
     } from './firebase-services.js';
-    import { uploaderPhotoMission } from './cloudinary-services.js';
+    import { uploaderPhotoMission } from './imagekit-services.js';
 
     const params = new URLSearchParams(window.location.search);
     const PROFIL_ID = params.get('profil');
