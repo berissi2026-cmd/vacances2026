@@ -74,7 +74,7 @@
     <header class="topbar" style="background: var(--jungle-deep); color:#fff; padding:16px 20px; border-radius:0; display:flex; justify-content:space-between; align-items:center;">
       <h2 style="color:#fff;">⚙️ Admin — Vacances Quest</h2>
       <div style="display:flex; gap:8px;">
-        <button class="btn btn--ghost" id="btn-sortir-admin">🚪 Sortir</button>
+        <a class="btn btn--ghost" href="app.html">🏠 Retour</a>
       </div>
     </header>
 
@@ -314,6 +314,7 @@ Mauvaise réponse 2"></textarea>
 
         <h3 class="mt-24">🗺️ Ou clique directement sur le plateau</h3>
         <p class="muted mt-8" style="font-size:12px;">Clique sur une étape pour y placer la voiture immédiatement.</p>
+        <button class="btn btn--accent btn--block mt-8" id="btn-en-route">🚗💨 Marquer : En route (entre deux étapes)</button>
         <div id="plateau-admin" class="mt-16"></div>
       </div>
     </div>
@@ -360,14 +361,6 @@ Mauvaise réponse 2"></textarea>
       if (e.key === 'Enter') tenterEntree();
     });
 
-    document.getElementById('btn-sortir-admin').onclick = () => {
-      localStorage.removeItem('vq_admin_ok');
-      document.getElementById('admin-content').style.display = 'none';
-      document.getElementById('gate-mdp').value = '';
-      document.getElementById('gate-erreur').textContent = '';
-      document.getElementById('gate').style.display = 'block';
-    };
-
     if (localStorage.getItem('vq_admin_ok') === '1') {
       demarrerAdmin();
     }
@@ -405,6 +398,13 @@ Mauvaise réponse 2"></textarea>
     }
 
     const MOMENT_ICONES_ADMIN = { matin: '☀️', apresmidi: '🌤️', soir: '🌇', nuit: '🌙' };
+
+    document.getElementById('btn-en-route').onclick = async () => {
+      await appliquerPositionAvecRembobinage('route');
+      document.getElementById('v-position-manuelle').value = 'route';
+      afficherPlateauAdmin();
+      alert('🚗💨 Voiture marquée "en route" (entre deux étapes) !');
+    };
 
     async function afficherPlateauAdmin() {
       const box = document.getElementById('plateau-admin');

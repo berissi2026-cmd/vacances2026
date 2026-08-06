@@ -25,6 +25,7 @@
   #barre-outils-haut { display: flex; flex-direction: row; align-items: center; gap: 8px; padding: 8px 20px; }
   .outil-icone { width: 40px; height: 40px; flex: 0 0 40px; border-radius: 50%; background: var(--sand-light); border: 3px solid var(--bark); font-size: 18px; display:flex; align-items:center; justify-content:center; cursor:pointer; text-decoration:none; color: var(--bark); }
   #barre-outils-haut a.outil-icone:first-child { background: var(--sunset); color: #fff; font-size: 20px; }
+  .outil-icone-mini { width: 26px; height: 26px; border-radius: 50%; background: rgba(255,255,255,.15); border: 2px solid rgba(255,255,255,.5); font-size: 13px; display:flex; align-items:center; justify-content:center; cursor:pointer; text-decoration:none; color: #fff; }
   #progress-1000 { padding: 10px 20px 0; text-align: center; }
   .progress-track { background: var(--sand-light); border: 3px solid var(--bark); border-radius: 999px; height: 20px; overflow: hidden; }
   .progress-fill { height: 100%; background: linear-gradient(90deg, var(--jungle-leaf), var(--sunset)); border-radius: 999px; width: 0%; transition: width 0.6s ease; }
@@ -74,6 +75,8 @@
   .game-tile .emoji { font-size: 30px; display: block; margin-bottom: 6px; }
   .game-badge { font-size: 11px; margin-top: 6px; color: var(--bark); opacity: .75; line-height:1.4; }
   .game-badge .neuf { color: var(--sunset); font-weight: 700; }
+  .game-tile.tuile-active { background: #dbeeff; border-color: #3d7fc4; }
+  .game-tile.tuile-grise { opacity: .5; cursor: default; }
   .stats-jeu { margin-bottom: 16px; }
   .stats-jeu h4 { font-family: var(--font-display); margin-bottom: 8px; }
   .stats-grid-enigmes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; margin-bottom: 12px; }
@@ -138,13 +141,15 @@
     <div class="who">
       <span class="emoji" id="mon-avatar" style="cursor:pointer; border-radius:50%; overflow:hidden; display:inline-flex; align-items:center; justify-content:center;" title="Changer ma photo/avatar">🦁</span>
       <div>
-        <div style="font-family: var(--font-display); font-weight:700;" id="mon-nom">...</div>
-        <div class="muted" style="color:#fff; opacity:0.7; font-size:12px;" id="mon-role"></div>
+        <div style="font-family: var(--font-display); font-weight:700; font-size:14px;" id="mon-nom">...</div>
+        <div class="muted" style="color:#fff; opacity:0.7; font-size:11px;" id="mon-role"></div>
+        <div id="mini-outils-haut" style="display:flex; gap:6px; margin-top:6px;">
+          <button class="outil-icone-mini" id="btn-musique-haut" title="Musique">🎵</button>
+          <a href="admin.html" class="outil-icone-mini" id="lien-admin-icone" style="display:none;" title="Admin">⚙️</a>
+          <button class="outil-icone-mini" id="btn-tfilot" title="Tfilot">✡️</button>
+          <button class="outil-icone-mini" id="btn-changer-langue" title="FR / עברית">🌐</button>
+        </div>
       </div>
-    </div>
-    <div class="scores">
-      <span class="score-pill">⭐ <span id="score-perso">0</span></span>
-      <span class="score-pill" style="background: var(--sunset);">🏆 <span id="score-famille">0</span></span>
     </div>
   </header>
 
@@ -152,14 +157,13 @@
     <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
     <div class="progress-label" id="progress-label">0 / 1000 points</div>
     <div class="explorateur-jour" id="explorateur-jour" style="display:none;"></div>
+    <span id="score-perso" style="display:none;">0</span>
+    <span id="score-famille" style="display:none;">0</span>
   </div>
 
   <div id="barre-outils-haut">
     <a href="index.html" class="outil-icone" title="Retour au menu">⬅️</a>
     <div id="switch-profil-row"></div>
-    <button class="outil-icone" id="btn-musique-haut" title="Musique">🎵</button>
-    <a href="admin.html" class="outil-icone" id="lien-admin-icone" style="display:none;" title="Admin">⚙️</a>
-    <button class="outil-icone" id="btn-changer-langue" title="FR / עברית">🌐</button>
   </div>
 
   <div class="tabs">
@@ -310,10 +314,13 @@
     }
 
     function calculerPositionPion(settings) {
-      if (settings.PositionManuelle === 'route') {
+      if (settings.PositionManuelle && settings.PositionManuelle !== 'route') {
+        return calculerPositionPionBase(settings);
+      }
+      if (settings.PositionManuelle === 'route' || (!settings.PositionManuelle && settings.PositionGeoloc === 'route')) {
         // "En route" : pas d'étape précise en surbrillance, mais on garde le bon jour
-        // (basé sur la date/heure ou la géoloc) pour continuer à débloquer les jeux normalement.
-        const base = calculerPositionPionBase(settings);
+        // (basé sur la date/heure) pour continuer à débloquer les jeux normalement.
+        const base = calculerPositionPionBase({ ...settings, PositionGeoloc: settings.PositionGeoloc === 'route' ? '' : settings.PositionGeoloc });
         return { jourIndex: base.jourIndex, moment: null, enRoute: true };
       }
       return calculerPositionPionBase(settings);
@@ -482,6 +489,12 @@
       let numeroEtape = 0;
 
       box.innerHTML = '';
+      if (pion.enRoute) {
+        const bandeau = document.createElement('div');
+        bandeau.style.cssText = 'text-align:center;background:var(--sunset);color:#fff;border-radius:999px;padding:8px 16px;margin:0 auto 16px;max-width:260px;font-family:var(--font-display);animation:pulse 1.6s infinite;';
+        bandeau.textContent = '🚗💨 ' + (LANGUE === 'he' ? 'בדרכים...' : 'En route...');
+        box.appendChild(bandeau);
+      }
       JOURS.forEach((jourFr, jourIndex) => {
         const jourNom = LANGUE === 'he' ? JOURS_HE[jourIndex] : jourFr;
         const jourSection = document.createElement('div');
@@ -1034,7 +1047,7 @@
       }
 
       // Hors zone (>10km de tout lieu connu) : on efface la position auto, l'estimation par date/heure prend le relais
-      const valeur = (plusProche && distanceMin <= 10) ? (plusProche.Jour + '|' + momentDepuisHeure(plusProche.Heure)) : '';
+      const valeur = (plusProche && distanceMin <= 5) ? (plusProche.Jour + '|' + momentDepuisHeure(plusProche.Heure)) : 'route';
 
       // Si une position manuelle est réglée dans l'admin et diffère nettement de ce que voit la géoloc, on prévient plutôt que d'écraser en silence
       if (settingsVoyage.PositionManuelle && settingsVoyage.PositionManuelle !== 'route' && valeur && valeur !== settingsVoyage.PositionManuelle) {
@@ -1126,18 +1139,44 @@
       return { disponible, restant, nouveaux, enRetard };
     }
 
+    // Quota journalier par personne pour certains jeux (roue/bingo). Cumulatif comme les jours débloqués,
+    // pour permettre de rattraper les jours manqués tout en limitant le nombre par jour.
+    const QUOTAS_JOUR = { bingo: 2, roue: 1 };
+
+    function poolAvecQuota(type, liste) {
+      const pools = poolsPourType(liste);
+      const quota = QUOTAS_JOUR[type];
+      if (!quota) return { ...pools, jouable: [...pools.enRetard, ...pools.nouveaux], quotaAtteint: false, restantQuota: Infinity };
+      const maxAutorise = quota * joursDebloques().length;
+      const dejaFaitParMoi = pools.disponible.length - pools.restant.length;
+      const restantQuota = Math.max(0, maxAutorise - dejaFaitParMoi);
+      const jouable = [...pools.enRetard, ...pools.nouveaux].slice(0, restantQuota);
+      return { ...pools, jouable, quotaAtteint: restantQuota <= 0, restantQuota, maxAutorise };
+    }
+
     function mettreAJourBadgesJeux() {
       [['bingo', toutLesDefis.bingo], ['roue', toutLesDefis.roue], ['enigme', toutLesDefis.enigme]].forEach(([type, liste]) => {
         const badge = document.getElementById('badge-' + type);
+        const tuile = badge ? badge.closest('.game-tile') : null;
         if (!badge) return;
-        const { nouveaux, enRetard } = poolsPourType(liste);
-        if (!nouveaux.length && !enRetard.length) {
-          badge.innerHTML = `<span>✅ ${LANGUE === 'he' ? 'הכל נעשה' : 'Tout fait !'}</span>`;
+        const p = poolAvecQuota(type, liste);
+        const jouable = p.jouable;
+        if (!jouable.length) {
+          const texte = QUOTAS_JOUR[type]
+            ? (LANGUE === 'he' ? '😴 אין עוד היום' : "😴 Rien de plus aujourd'hui")
+            : (LANGUE === 'he' ? '✅ הכל נעשה' : 'Tout fait !');
+          badge.innerHTML = `<span>${texte}</span>`;
+          if (tuile) { tuile.classList.add('tuile-grise'); tuile.classList.remove('tuile-active'); }
         } else {
           const parts = [];
-          if (nouveaux.length) parts.push(`<span class="neuf">🆕 ${nouveaux.length}</span>`);
-          if (enRetard.length) parts.push(`<span>⏳ ${enRetard.length}</span>`);
+          if (QUOTAS_JOUR[type]) {
+            parts.push(`<span class="neuf">🎮 ${jouable.length}</span>`);
+          } else {
+            if (p.nouveaux.length) parts.push(`<span class="neuf">🆕 ${p.nouveaux.length}</span>`);
+            if (p.enRetard.length) parts.push(`<span>⏳ ${p.enRetard.length}</span>`);
+          }
           badge.innerHTML = parts.join(' · ');
+          if (tuile) { tuile.classList.remove('tuile-grise'); tuile.classList.add('tuile-active'); }
         }
       });
       afficherStatsJeu('enigme', toutLesDefis.enigme, 'stats-enigmes', true);
@@ -1201,45 +1240,10 @@
       const langue = LANGUE;
 
       if (type === 'bingo') {
-        const { nouveaux, enRetard } = poolsPourType(toutLesDefis.bingo);
-        const items = [...enRetard, ...nouveaux].slice(0, 9);
-        if (!items.length) {
-          box.innerHTML = `<h3>🔲 Bingo</h3><p class="muted mt-8">${LANGUE === 'he' ? 'אין עוד משימות זמינות היום.' : "Pas de nouvelles cases disponibles aujourd'hui."}</p>${boutonFermer()}`;
-          return;
-        }
-        const totalPoints = items.reduce((s, it) => s + (Number(it.Points) || 10), 0);
-        const enteteRetard = enRetard.length ? `<p class="muted mt-8" style="font-size:12px;">⏳ ${LANGUE === 'he' ? `כולל ${enRetard.length} מהימים הקודמים` : `Dont ${enRetard.length} en retard des jours précédents`}</p>` : '';
-        box.innerHTML = `<h3>🔲 Bingo</h3>
-          <p class="muted mt-8" style="font-size:12px;">${LANGUE === 'he' ? `מצאו הכל כדי לזכות ב-${totalPoints} נקודות למשפחה!` : `Trouvez tout pour gagner ${totalPoints} points pour la famille !`}</p>
-          ${enteteRetard}
-          <div class="bingo-grid mt-16">` +
-          items.map((it, i) => `<div class="bingo-cell" data-i="${i}">${langue === 'he' ? it.Contenu_HE : it.Contenu_FR}</div>`).join('') +
-          `</div><div class="muted mt-8" id="bingo-statut" style="text-align:center;"></div>` + boutonFermer();
-
-        let trouves = new Set();
-        let dejaGagne = false;
-        box.querySelectorAll('.bingo-cell').forEach(cell => {
-          cell.onclick = async () => {
-            cell.classList.toggle('found');
-            const i = Number(cell.dataset.i);
-            if (cell.classList.contains('found')) trouves.add(i); else trouves.delete(i);
-            if (trouves.size === items.length && !dejaGagne) {
-              dejaGagne = true;
-              await ajouterScoreProfil(PROFIL_ID, totalPoints);
-              await Promise.all(items.map(it => marquerDefiFait(it.DefiID, PROFIL_ID)));
-              document.getElementById('bingo-statut').textContent =
-                LANGUE === 'he' ? `🎉 ביינגו! +${totalPoints} נקודות!` : `🎉 Bingo complet ! +${totalPoints} points !`;
-              parler(LANGUE === 'he' ? 'ביינגו! כל הכבוד לכולם!' : 'Bingo ! Bravo à toute la famille !', LANGUE);
-            }
-          };
-        });
+        afficherProchainDefiSimple('bingo', toutLesDefis.bingo, box, '🔲', LANGUE === 'he' ? 'ביינגו' : 'Bingo', LANGUE === 'he' ? 'מצאתי!' : "Trouvé !");
       }
       if (type === 'roue') {
-        box.innerHTML = '<h3>🎡 Roue des défis</h3><div class="wheel-result" id="wheel-result">' +
-          (LANGUE === 'he' ? 'סובבו את הגלגל!' : 'Tourne la roue !') + '</div>' +
-          '<button class="btn btn--accent btn--block mt-16" id="btn-tourner-roue">🎡 ' + (LANGUE === 'he' ? 'סובבו' : 'Tourner') + '</button>' +
-          '<div id="roue-valider-zone"></div>' + boutonFermer();
-        document.getElementById('btn-tourner-roue').onclick = window.tournerRoue;
+        afficherProchainDefiSimple('roue', toutLesDefis.roue, box, '🎡', LANGUE === 'he' ? 'גלגל האתגרים' : 'Roue des défis', LANGUE === 'he' ? 'בוצע!' : 'Fait !');
       }
       if (type === 'enigme') {
         afficherProchaineEnigme(box);
@@ -1272,24 +1276,59 @@
 
     document.getElementById('btn-musique-haut').onclick = () => window.ouvrirJeu('musique');
 
-    window.tournerRoue = function() {
-      const { nouveaux, enRetard } = poolsPourType(toutLesDefis.roue);
-      const r = [...enRetard, ...nouveaux];
-      const resultEl = document.getElementById('wheel-result');
-      const zone = document.getElementById('roue-valider-zone');
-      if (!r.length) { resultEl.textContent = LANGUE === 'he' ? 'אין עוד אתגרים היום.' : "Pas de nouveaux défis aujourd'hui."; return; }
-      const defi = r[Math.floor(Math.random() * r.length)];
-      const enRetardTxt = defi.Jour ? (enRetard.includes(defi) ? ' ⏳' : ' 🆕') : '';
-      resultEl.textContent = (LANGUE === 'he' ? defi.Contenu_HE : defi.Contenu_FR) + enRetardTxt;
+    // ------------------------------------------------------------
+    // TFILOT — structure prête, textes à compléter (Harish/Netanya donnés par l'utilisateur,
+    // Tibériade calculé selon la shkia du jour)
+    // ------------------------------------------------------------
+    const TFILOT_TEXTES = {
+      // Clé = lieu ("Harish", "Netanya", "Tiberiade"), puis "chaharit"/"minha"/"arvit"
+      // À compléter avec les vrais textes fournis
+    };
+
+    function determinerMomentTfila() {
+      const h = new Date().getHours();
+      if (h < 11) return 'chaharit';
+      if (h < 18) return 'minha';
+      return 'arvit';
+    }
+
+    document.getElementById('btn-tfilot').onclick = () => {
+      const box = document.getElementById('modal-box');
+      document.getElementById('modal-bg').style.display = 'flex';
+      const moment = determinerMomentTfila();
+      const labels = { chaharit: 'שחרית / Chaharit', minha: 'מנחה / Minha', arvit: 'ערבית / Arvit' };
+      box.innerHTML = `<h2>✡️ ${labels[moment]}</h2>
+        <p class="muted mt-8">${LANGUE === 'he' ? 'הטקסטים יתווספו בקרוב לפי המיקום שלכם' : "Les textes des tefilot seront ajoutés bientôt, adaptés à ton lieu actuel"}</p>
+        ${boutonFermer()}`;
+    };
+
+    function afficherProchainDefiSimple(type, liste, box, emoji, titre, verbeFait) {
+      const p = poolAvecQuota(type, liste);
+      if (!p.jouable.length) {
+        const msg = p.quotaAtteint
+          ? (LANGUE === 'he' ? `😴 השלמתם את המכסה היומית (${p.maxAutorise}). חזרו מחר!` : `😴 Quota du jour atteint (${p.maxAutorise} max). Reviens demain !`)
+          : (LANGUE === 'he' ? 'אין עוד אתגרים זמינים.' : "Pas de nouveaux défis disponibles.");
+        box.innerHTML = `<h3>${emoji} ${titre}</h3><p class="muted mt-8">${msg}</p>${boutonFermer()}`;
+        return;
+      }
+      const defi = p.jouable[Math.floor(Math.random() * p.jouable.length)];
+      const enRetardTxt = p.enRetard.includes(defi) ? ' ⏳' : ' 🆕';
       const points = Number(defi.Points) || 10;
-      zone.innerHTML = `<button class="btn btn--primary btn--block mt-16" id="btn-valider-roue">✅ ${LANGUE === 'he' ? `בוצע! (+${points})` : `Fait ! (+${points} pts)`}</button>`;
-      document.getElementById('btn-valider-roue').onclick = async () => {
+      box.innerHTML = `<h3>${emoji} ${titre}</h3>
+        <div class="wheel-result">${(LANGUE === 'he' ? defi.Contenu_HE : defi.Contenu_FR) + enRetardTxt}</div>
+        <p class="muted mt-8" style="font-size:12px; text-align:center;">${LANGUE === 'he' ? `נותרו היום: ${p.restantQuota}` : `Restant aujourd'hui : ${p.restantQuota}`}</p>
+        <button class="btn btn--primary btn--block mt-16" id="btn-valider-defi-simple">✅ ${verbeFait} (+${points} pts)</button>
+        <div id="defi-simple-statut" class="muted mt-8" style="text-align:center;"></div>
+        ${boutonFermer()}`;
+      document.getElementById('btn-valider-defi-simple').onclick = async () => {
+        document.getElementById('btn-valider-defi-simple').disabled = true;
         await ajouterScoreProfil(PROFIL_ID, points);
         await marquerDefiFait(defi.DefiID, PROFIL_ID);
-        zone.innerHTML = `<p class="muted mt-8" style="text-align:center;">🎉 +${points} ${LANGUE === 'he' ? 'נקודות!' : 'points !'}</p>`;
+        document.getElementById('defi-simple-statut').textContent = `🎉 +${points} ${LANGUE === 'he' ? 'נקודות!' : 'points !'}`;
         parler(LANGUE === 'he' ? 'כל הכבוד!' : 'Bravo !', LANGUE);
+        setTimeout(() => afficherProchainDefiSimple(type, liste, box, emoji, titre, verbeFait), 1200);
       };
-    };
+    }
 
     // ------------------------------------------------------------
     // ÉNIGMES — QCM avec score, passage automatique à la suivante
