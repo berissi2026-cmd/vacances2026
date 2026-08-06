@@ -89,6 +89,17 @@ export async function ajouterScoreProfil(profilId, points) {
   return { success: true };
 }
 
+// Ajoute un badge au profil (une seule fois par mission, même en cas de double-clic)
+export async function ajouterBadgeProfil(profilId, badge) {
+  const snap = await getDoc(doc(db, "profils", profilId));
+  if (!snap.exists()) return { success: false };
+  const badges = snap.data().Badges || [];
+  if (badges.some(b => b.missionId === badge.missionId)) return { success: true, deja: true };
+  badges.push(badge);
+  await updateDoc(doc(db, "profils", profilId), { Badges: badges });
+  return { success: true };
+}
+
 // Écoute en temps réel du score famille (somme de tous les scores perso)
 export function ecouterScoreFamille(callback) {
   return onSnapshot(collection(db, "profils"), snap => {

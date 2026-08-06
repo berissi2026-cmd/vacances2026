@@ -167,6 +167,9 @@ Mauvaise réponse 2"></textarea>
 
           <div class="field-row">
             <div><label>Badge gagné (FR)</label><input id="m-badgefr" placeholder="ex: Explorateur d'eau"></div>
+            <div><label>Badge gagné (HE)</label><input id="m-badgehe" placeholder="חוקר מים"></div>
+          </div>
+          <div class="field-row">
             <div><label>Emoji du badge</label><input id="m-badgeemoji" placeholder="🏆"></div>
           </div>
 
@@ -599,11 +602,11 @@ Mauvaise réponse 2"></textarea>
         lieuId, type,
         titreFr: val('m-titrefr'), titreHe: val('m-titrehe'),
         contenu, difficulte: val('m-difficulte'), points: Number(val('m-points')) || 10,
-        badgeNomFr: val('m-badgefr'), badgeVisuel: val('m-badgeemoji')
+        badgeNomFr: val('m-badgefr'), badgeNomHe: val('m-badgehe'), badgeVisuel: val('m-badgeemoji')
       });
 
       ['m-titrefr','m-titrehe','m-photo-consigne','m-chasse-indices','m-animaux-liste',
-       'm-quiz-question','m-quiz-reponses','m-badgefr','m-badgeemoji']
+       'm-quiz-question','m-quiz-reponses','m-badgefr','m-badgehe','m-badgeemoji']
         .forEach(id => document.getElementById(id).value = '');
       chargerMissions(lieuId);
     };

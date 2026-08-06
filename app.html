@@ -61,6 +61,29 @@
   .album-photo { position: relative; border-radius: 12px; overflow: hidden; border: 3px solid var(--bark); cursor: pointer; aspect-ratio: 1/1; background: var(--sand-light); }
   .album-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .album-photo .avatar-badge { position: absolute; bottom: 4px; left: 4px; font-size: 18px; background: rgba(255,255,255,.9); border-radius: 999px; padding: 2px 5px; }
+  .badges-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px; }
+  .badge-item { background: var(--sand-light); border: 3px solid var(--bark); border-radius: var(--radius-md); padding: 14px 8px; text-align:center; box-shadow: 3px 3px 0 rgba(92,61,36,0.2); }
+  .badge-item .visuel { font-size: 34px; display:block; }
+  .badge-item .nom { font-family: var(--font-display); font-weight:700; font-size:12px; margin-top:6px; }
+  .badge-item .lieu { font-size:11px; color: var(--bark); opacity:.7; margin-top:2px; }
+
+  #diplome-carte {
+    background: var(--sand-light); border: 6px double var(--jungle-deep); border-radius: var(--radius-lg);
+    max-width: 420px; width:100%; padding: 30px 24px; text-align:center; position:relative;
+    box-shadow: 8px 8px 0 rgba(0,0,0,.3);
+  }
+  #diplome-carte .diplome-titre { font-family: var(--font-display); font-size:22px; color: var(--jungle-deep); }
+  #diplome-carte .diplome-avatar { font-size: 60px; margin: 10px 0; }
+  #diplome-carte .diplome-nom { font-family: var(--font-display); font-size:26px; margin: 6px 0; }
+  #diplome-carte .diplome-stats { display:flex; justify-content:center; gap:20px; margin: 16px 0; }
+  #diplome-carte .diplome-stat b { display:block; font-size:20px; font-family: var(--font-display); }
+  #diplome-carte .diplome-badges { font-size: 28px; margin: 10px 0; letter-spacing: 4px; }
+  @media print {
+    body * { visibility: hidden; }
+    #diplome-bg, #diplome-bg * { visibility: visible; }
+    #diplome-bg { position: fixed; inset:0; background:#fff; }
+    #diplome-carte button { display:none; }
+  }
   .game-tile { background: var(--sand-light); border: 3px solid var(--bark); border-radius: var(--radius-md); padding: 18px 10px; text-align: center; cursor: pointer; }
   .game-tile .emoji { font-size: 30px; display: block; margin-bottom: 6px; }
 
@@ -142,13 +165,18 @@
   </div>
 
   <div class="panel" id="panel-badges">
-    <div id="badges-container">
+    <button class="btn btn--primary btn--block" id="btn-voir-diplome">🏆 Voir mon diplôme</button>
+    <div id="badges-container" class="mt-16">
       <div class="empty-state card">
         <div style="font-size:40px;">🏅</div>
         <h3 class="mt-16">Pas encore de badge</h3>
         <p class="muted mt-8">Accomplis des missions à chaque étape pour en gagner !</p>
       </div>
     </div>
+  </div>
+
+  <div id="diplome-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:250;align-items:center;justify-content:center;padding:16px;">
+    <div id="diplome-carte"></div>
   </div>
 
   <div id="modal-bg"><div id="modal-box"></div></div>
@@ -161,7 +189,7 @@
     import {
       getProfil, getProfils, ecouterScoreFamille, ecouterProfil, getDefisRoute, ecouterLieux,
       getMissionsParLieu, getResultatsProfil, enregistrerResultat, getTypesExcursion,
-      ecouterTousResultats, getSettings
+      ecouterTousResultats, getSettings, ajouterBadgeProfil
     } from './firebase-services.js';
     import { uploaderPhotoMission } from './imagekit-services.js';
 
@@ -224,7 +252,11 @@
       appliquerProfil(p);
 
       ecouterScoreFamille(s => document.getElementById('score-famille').textContent = s);
-      ecouterProfil(PROFIL_ID, p2 => { monProfil = { ...monProfil, ...p2 }; document.getElementById('score-perso').textContent = p2.ScorePerso || 0; });
+      ecouterProfil(PROFIL_ID, p2 => {
+        monProfil = { ...monProfil, ...p2 };
+        document.getElementById('score-perso').textContent = p2.ScorePerso || 0;
+        afficherBadges(p2.Badges || []);
+      });
 
       const [defis, resultats, types, profils, settings] = await Promise.all([
         getDefisRoute(), getResultatsProfil(PROFIL_ID), getTypesExcursion(), getProfils(), getSettings()
@@ -516,7 +548,21 @@
         points: mission.Points || 10, note: note || '', mediaUrl: mediaUrl || ''
       });
       missionsFaitesIds.add(mission.MissionID);
-      parler(LANGUE === 'he' ? 'כל הכבוד!' : 'Bravo !', LANGUE);
+
+      if (mission.BadgeNom_FR) {
+        const lieu = lieuxCache.find(l => l.LieuID === lieuId);
+        await ajouterBadgeProfil(PROFIL_ID, {
+          missionId: mission.MissionID,
+          nomFr: mission.BadgeNom_FR, nomHe: mission.BadgeNom_HE || '',
+          visuel: mission.BadgeVisuel || '🏅',
+          lieuNomFr: lieu ? lieu.Nom_FR : '', lieuNomHe: lieu ? (lieu.Nom_HE || lieu.Nom_FR) : '',
+          date: new Date().toISOString()
+        });
+        parler(LANGUE === 'he' ? 'קיבלת תג חדש!' : 'Tu as gagné un nouveau badge !', LANGUE);
+      } else {
+        parler(LANGUE === 'he' ? 'כל הכבוד!' : 'Bravo !', LANGUE);
+      }
+
       fermerModal();
       afficherPiste(lieuxCache);
     }
@@ -575,6 +621,69 @@
     document.getElementById('lightbox-bg').onclick = (e) => {
       if (e.target.id === 'lightbox-bg') document.getElementById('lightbox-bg').style.display = 'none';
     };
+
+    // ------------------------------------------------------------
+    // BADGES + DIPLÔME
+    // ------------------------------------------------------------
+    function afficherBadges(badges) {
+      const box = document.getElementById('badges-container');
+      if (!box) return;
+      if (!badges.length) {
+        box.innerHTML = `<div class="empty-state card">
+          <div style="font-size:40px;">🏅</div>
+          <h3 class="mt-16">${LANGUE === 'he' ? 'עדיין אין תג' : 'Pas encore de badge'}</h3>
+          <p class="muted mt-8">${LANGUE === 'he' ? 'השלימו משימות בכל תחנה כדי לזכות בתגים!' : 'Accomplis des missions à chaque étape pour en gagner !'}</p>
+        </div>`;
+        return;
+      }
+      const grid = document.createElement('div');
+      grid.className = 'badges-grid';
+      [...badges].reverse().forEach(b => {
+        const nom = LANGUE === 'he' ? (b.nomHe || b.nomFr) : b.nomFr;
+        const lieuNom = LANGUE === 'he' ? (b.lieuNomHe || b.lieuNomFr) : b.lieuNomFr;
+        const div = document.createElement('div');
+        div.className = 'badge-item';
+        div.innerHTML = `<span class="visuel">${b.visuel || '🏅'}</span>
+          <div class="nom">${nom}</div>
+          ${lieuNom ? `<div class="lieu">📍 ${lieuNom}</div>` : ''}`;
+        grid.appendChild(div);
+      });
+      box.innerHTML = '';
+      box.appendChild(grid);
+    }
+
+    function ouvrirDiplome() {
+      const badges = monProfil.Badges || [];
+      const nom = LANGUE === 'he' ? (monProfil.Nom_HE || monProfil.Nom_FR) : monProfil.Nom_FR;
+      const titre = LANGUE === 'he' ? 'תעודת חוקר הצפון' : "Diplôme d'Explorateur du Nord";
+      const sousTitre = LANGUE === 'he' ? 'משפחת בריסי — קיץ 2026' : 'Famille Berissi — Été 2026';
+      const labelScore = LANGUE === 'he' ? 'נקודות' : 'Points';
+      const labelBadges = LANGUE === 'he' ? 'תגים' : 'Badges';
+      const labelMissions = LANGUE === 'he' ? 'משימות' : 'Missions';
+      const nbMissions = missionsFaitesIds.size;
+
+      document.getElementById('diplome-carte').innerHTML = `
+        <div class="diplome-titre">🏆 ${titre} 🏆</div>
+        <div class="muted mt-8" style="font-size:12px;">${sousTitre}</div>
+        <div class="diplome-avatar">${monProfil.Avatar || '🦁'}</div>
+        <div class="diplome-nom">${nom}</div>
+        <div class="diplome-stats">
+          <div class="diplome-stat"><b>${monProfil.ScorePerso || 0}</b>${labelScore}</div>
+          <div class="diplome-stat"><b>${nbMissions}</b>${labelMissions}</div>
+          <div class="diplome-stat"><b>${badges.length}</b>${labelBadges}</div>
+        </div>
+        <div class="diplome-badges">${badges.map(b => b.visuel || '🏅').join(' ') || '—'}</div>
+        <button class="btn btn--primary btn--block mt-16" id="btn-imprimer-diplome">🖨️ ${LANGUE === 'he' ? 'הדפס / שמור' : 'Imprimer / Enregistrer'}</button>
+        <button class="btn btn--ghost btn--block mt-8" id="btn-fermer-diplome">${LANGUE === 'he' ? 'סגור' : 'Fermer'}</button>
+      `;
+      document.getElementById('diplome-bg').style.display = 'flex';
+      document.getElementById('btn-imprimer-diplome').onclick = () => window.print();
+      document.getElementById('btn-fermer-diplome').onclick = () => {
+        document.getElementById('diplome-bg').style.display = 'none';
+      };
+    }
+
+    document.getElementById('btn-voir-diplome').onclick = ouvrirDiplome;
 
     function parler(texte, langue) {
       if (!('speechSynthesis' in window)) return;
