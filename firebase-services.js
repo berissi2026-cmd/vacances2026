@@ -333,6 +333,16 @@ export function ecouterDefisFaits(callback) {
   });
 }
 
+export async function getDefisFaits() {
+  const snap = await getDocs(collection(db, "defisFaits"));
+  return snap.docs.map(d => ({ LogID: d.id, ...d.data() }));
+}
+
+export async function supprimerDefiFait(logId) {
+  await deleteDoc(doc(db, "defisFaits", logId));
+  return { success: true };
+}
+
 // ============================================================
 // SETTINGS
 // ============================================================

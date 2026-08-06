@@ -308,7 +308,17 @@
     }
 
     function calculerPositionPion(settings) {
-      if (settings.PositionManuelle) {
+      if (settings.PositionManuelle === 'route') {
+        // "En route" : pas d'étape précise en surbrillance, mais on garde le bon jour
+        // (basé sur la date/heure ou la géoloc) pour continuer à débloquer les jeux normalement.
+        const base = calculerPositionPionBase(settings);
+        return { jourIndex: base.jourIndex, moment: null, enRoute: true };
+      }
+      return calculerPositionPionBase(settings);
+    }
+
+    function calculerPositionPionBase(settings) {
+      if (settings.PositionManuelle && settings.PositionManuelle !== 'route') {
         const [j, m] = settings.PositionManuelle.split('|');
         const jourIndex = JOURS.indexOf(j);
         if (jourIndex !== -1 && MOMENTS.includes(m)) return { jourIndex, moment: m };
@@ -1001,17 +1011,46 @@
     }
 
     let dernierePositionAutoEnvoyee = null;
+    let dernierConflitSignale = null;
     async function mettreAJourPositionAutoParGeoloc(lat, lng) {
       const avecCoords = lieuxCache.filter(l => l.Lat && l.Lng);
       if (!avecCoords.length) return;
-      let plusProche = null, distanceMin = Infinity;
+
+      let distanceMin = Infinity;
       avecCoords.forEach(l => {
         const d = distanceKm(lat, lng, Number(l.Lat), Number(l.Lng));
-        if (d < distanceMin) { distanceMin = d; plusProche = l; }
+        if (d < distanceMin) distanceMin = d;
       });
+
+      // Plusieurs lieux au même endroit (ex: "Nuit à Harish" plusieurs soirs) : on les départage par la date/heure du téléphone
+      const candidats = avecCoords.filter(l => distanceKm(lat, lng, Number(l.Lat), Number(l.Lng)) <= distanceMin + 0.5);
+      let plusProche = candidats[0] || null;
+      if (candidats.length > 1) {
+        const jourEstime = calculerJourEffectifIndex();
+        const jourNom = JOURS[jourEstime];
+        plusProche = candidats.find(l => l.Jour === jourNom) || candidats[0];
+      }
 
       // Hors zone (>10km de tout lieu connu) : on efface la position auto, l'estimation par date/heure prend le relais
       const valeur = (plusProche && distanceMin <= 10) ? (plusProche.Jour + '|' + momentDepuisHeure(plusProche.Heure)) : '';
+
+      // Si une position manuelle est réglée dans l'admin et diffère nettement de ce que voit la géoloc, on prévient plutôt que d'écraser en silence
+      if (settingsVoyage.PositionManuelle && settingsVoyage.PositionManuelle !== 'route' && valeur && valeur !== settingsVoyage.PositionManuelle) {
+        if (dernierConflitSignale !== valeur) {
+          dernierConflitSignale = valeur;
+          const [jManuel] = settingsVoyage.PositionManuelle.split('|');
+          const [jDetecte] = valeur.split('|');
+          const nomManuel = lieuxCache.find(l => (l.Jour + '|' + momentDepuisHeure(l.Heure)) === settingsVoyage.PositionManuelle);
+          const msg = LANGUE === 'he'
+            ? `שימו לב: הרכב מוגדר ידנית ב"${jManuel}", אבל המיקום שלכם נראה קרוב יותר ל"${jDetecte}" (${plusProche.Nom_HE || plusProche.Nom_FR}). למי להאמין?`
+            : `⚠️ La voiture est réglée manuellement sur "${jManuel}", mais ta position réelle semble plus proche de "${jDetecte}" (${plusProche.Nom_FR}). À quoi veux-tu te fier ?`;
+          if (confirm(msg + (LANGUE === 'he' ? '\n\nOK = לעדכן למיקום שזוהה, ביטול = להשאיר ידני' : '\n\nOK = utiliser la position détectée, Annuler = garder le réglage manuel'))) {
+            await updateSettings({ PositionManuelle: valeur });
+          }
+        }
+        return;
+      }
+
       if (valeur === dernierePositionAutoEnvoyee) return; // pas de changement, pas de nouvelle écriture
       dernierePositionAutoEnvoyee = valeur;
       await updateSettings({ PositionGeoloc: valeur });

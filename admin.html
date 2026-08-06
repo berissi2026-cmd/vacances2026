@@ -48,7 +48,6 @@
     <header class="topbar" style="background: var(--jungle-deep); color:#fff; padding:16px 20px; border-radius:0; display:flex; justify-content:space-between; align-items:center;">
       <h2 style="color:#fff;">⚙️ Admin — Vacances Quest</h2>
       <div style="display:flex; gap:8px;">
-        <a class="btn btn--ghost" href="index.html">🏠 Retour</a>
         <button class="btn btn--ghost" id="btn-sortir-admin">🚪 Sortir</button>
       </div>
     </header>
@@ -281,6 +280,7 @@ Mauvaise réponse 2"></textarea>
           <label>Forcer la position du pion (optionnel)</label>
           <select id="v-position-manuelle">
             <option value="">🔄 Automatique (selon la date/heure)</option>
+            <option value="route">🚗 En route (entre deux étapes)</option>
           </select>
           <p class="muted mt-8" style="font-size:12px;">Utile si vous êtes en retard/avance sur le programme.</p>
         </div>
@@ -300,7 +300,7 @@ Mauvaise réponse 2"></textarea>
       getTypesExcursion, ajouterTypeExcursion, seedTypesExcursionSiVide,
       getMissionsParLieu, ajouterMission, supprimerMission,
       getSettings, updateSettings, getPlaylistPourLieu, ajouterVideoPlaylist, supprimerVideoPlaylist,
-      updateLieuAudio, reinitialiserTousLesPoints
+      updateLieuAudio, reinitialiserTousLesPoints, getDefisFaits, supprimerDefiFait
     } from './firebase-services.js';
     import { uploaderAudioLieu } from './imagekit-services.js';
 
@@ -406,7 +406,7 @@ Mauvaise réponse 2"></textarea>
             const btn = document.getElementById('pos-' + l.LieuID);
             if (btn) btn.onclick = async () => {
               const valeur = l.Jour + '|' + moment;
-              await updateSettings({ PositionManuelle: valeur });
+              await appliquerPositionAvecRembobinage(valeur);
               document.getElementById('v-position-manuelle').value = valeur;
               marker.closePopup();
               alert(`🚗 Voiture placée à : ${l.Nom_FR} (${l.Jour} — ${moment})`);
@@ -420,13 +420,58 @@ Mauvaise réponse 2"></textarea>
       }
     }
 
+    function jourIndexDepuisValeur(valeur) {
+      if (!valeur || valeur === 'route') return null;
+      const [j] = valeur.split('|');
+      const idx = JOURS_ADMIN.indexOf(j);
+      return idx === -1 ? null : idx;
+    }
+
+    function calculerJourDateAdmin(dateDebut) {
+      if (!dateDebut) return null;
+      const debut = new Date(dateDebut + 'T00:00:00');
+      const diff = Math.floor((new Date() - debut) / 86400000);
+      if (diff < 0) return 0;
+      if (diff > 4) return 4;
+      return diff;
+    }
+
+    // Si on recule dans le temps, on "oublie" les réponses données aux jours qu'on redépasse,
+    // pour que le jeu redevienne cohérent avec la nouvelle position.
+    async function rembobinerDefisApresJour(jourIndexLimite) {
+      const [defis, faits] = await Promise.all([getDefisRoute(), getDefisFaits()]);
+      const defisParId = {};
+      defis.forEach(d => defisParId[d.DefiID] = d);
+      let supprimes = 0;
+      for (const f of faits) {
+        const d = defisParId[f.DefiID];
+        if (!d || !d.Jour) continue;
+        const idxDefi = JOURS_ADMIN.indexOf(d.Jour);
+        if (idxDefi > jourIndexLimite) {
+          await supprimerDefiFait(f.LogID);
+          supprimes++;
+        }
+      }
+      return supprimes;
+    }
+
+    async function appliquerPositionAvecRembobinage(valeur) {
+      const settingsActuelles = await getSettings();
+      const ancienIndex = jourIndexDepuisValeur(settingsActuelles.PositionManuelle) ??
+        calculerJourDateAdmin(settingsActuelles.DateDebutVoyage);
+      const nouvelIndex = jourIndexDepuisValeur(valeur);
+      await updateSettings({ PositionManuelle: valeur });
+      if (nouvelIndex !== null && ancienIndex !== null && nouvelIndex < ancienIndex) {
+        const n = await rembobinerDefisApresJour(nouvelIndex);
+        if (n > 0) alert(`⏪ ${n} réponse(s) donnée(s) après ce jour ont été remises en attente, pour rester cohérent avec le recul dans le temps.`);
+      }
+    }
+
     document.getElementById('btn-save-voyage').onclick = async () => {
       const btn = document.getElementById('btn-save-voyage');
       btn.disabled = true; btn.textContent = 'Enregistrement...';
-      await updateSettings({
-        DateDebutVoyage: document.getElementById('v-date-debut').value || '',
-        PositionManuelle: document.getElementById('v-position-manuelle').value || ''
-      });
+      await updateSettings({ DateDebutVoyage: document.getElementById('v-date-debut').value || '' });
+      await appliquerPositionAvecRembobinage(document.getElementById('v-position-manuelle').value || '');
       btn.disabled = false; btn.textContent = '💾 Enregistrer';
       alert('Réglages du voyage enregistrés !');
     };
