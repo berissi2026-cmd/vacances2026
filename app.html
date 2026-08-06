@@ -189,7 +189,7 @@
     import {
       getProfil, getProfils, ecouterScoreFamille, ecouterProfil, getDefisRoute, ecouterLieux,
       getMissionsParLieu, getResultatsProfil, enregistrerResultat, getTypesExcursion,
-      ecouterTousResultats, getSettings, ajouterBadgeProfil
+      ecouterTousResultats, getSettings, ajouterBadgeProfil, getPlaylistPourLieu
     } from './firebase-services.js';
     import { uploaderPhotoMission } from './imagekit-services.js';
 
@@ -718,7 +718,7 @@
       }, () => {}, { enableHighAccuracy: true, maximumAge: 5000 });
     }
 
-    window.ouvrirJeu = function(type) {
+    window.ouvrirJeu = async function(type) {
       const box = document.getElementById('modal-box');
       document.getElementById('modal-bg').style.display = 'flex';
       const langue = LANGUE;
@@ -739,7 +739,28 @@
           (e ? (langue === 'he' ? e.Contenu_HE : e.Contenu_FR) : "Pas encore d'énigmes ajoutées.") + '</div>' + boutonFermer();
       }
       if (type === 'musique') {
-        box.innerHTML = "<h3>🎵 Musique du voyage</h3><p class=\"muted mt-8\">Playlist à venir.</p>" + boutonFermer();
+        const chargement = LANGUE === 'he' ? 'טוען...' : 'Chargement...';
+        box.innerHTML = `<h3>🎵 ${LANGUE === 'he' ? 'מוזיקה לדרך' : 'Musique du voyage'}</h3><div id="musique-contenu" class="mt-8">${chargement}</div>${boutonFermer()}`;
+        const videos = await getPlaylistPourLieu('route');
+        const contenu = document.getElementById('musique-contenu');
+        if (!contenu) return; // la modale a été fermée entre temps
+        if (!videos.length) {
+          contenu.innerHTML = `<p class="muted mt-8">${LANGUE === 'he' ? 'עדיין אין שירים ברשימה.' : 'Pas encore de chansons dans la playlist.'}</p>`;
+        } else {
+          contenu.innerHTML = `
+            <div id="musique-player"></div>
+            <div class="col mt-16">
+              ${videos.map((v, i) => `<button class="btn btn--ghost btn--block btn-jouer-video" data-i="${i}">▶️ ${v.Titre || ('🎵 ' + (i + 1))}</button>`).join('')}
+            </div>`;
+          const jouerVideo = (i) => {
+            document.getElementById('musique-player').innerHTML =
+              `<iframe width="100%" height="200" src="https://www.youtube.com/embed/${videos[i].YoutubeVideoID}?autoplay=1" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen style="border-radius:12px;"></iframe>`;
+          };
+          contenu.querySelectorAll('.btn-jouer-video').forEach(btn => {
+            btn.onclick = () => jouerVideo(Number(btn.dataset.i));
+          });
+          jouerVideo(0);
+        }
       }
     };
 

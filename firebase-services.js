@@ -305,6 +305,11 @@ export async function ajouterVideoPlaylist(data) {
   return { success: true };
 }
 
+export async function supprimerVideoPlaylist(playlistId) {
+  await deleteDoc(doc(db, "playlists", playlistId));
+  return { success: true };
+}
+
 // ============================================================
 // INITIALISATION DES DONNÉES DE DÉMARRAGE
 // (à appeler une seule fois — un bouton dans l'admin s'en charge)

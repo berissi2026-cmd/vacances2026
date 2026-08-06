@@ -212,6 +212,14 @@ Mauvaise réponse 2"></textarea>
         <div><label>Réponse (optionnel)</label><input id="d-reponse"></div>
         <button class="btn btn--primary btn--block mt-16" id="btn-ajouter-defi">➕ Ajouter</button>
       </div>
+
+      <h3 class="mt-24">🎵 Playlist musique de la route</h3>
+      <div class="col mt-16">
+        <div><label>Titre de la chanson</label><input id="pl-titre" placeholder="ex: Chansons pour la route"></div>
+        <div><label>Lien YouTube (ou juste l'ID de la vidéo)</label><input id="pl-video" placeholder="https://www.youtube.com/watch?v=..."></div>
+        <button class="btn btn--primary btn--block mt-16" id="btn-ajouter-video">➕ Ajouter à la playlist</button>
+      </div>
+      <div id="liste-playlist" class="col mt-16"></div>
     </div>
 
     <!-- PROGRESSION -->
@@ -247,7 +255,7 @@ Mauvaise réponse 2"></textarea>
       getLieux, ajouterLieu, supprimerLieu, ajouterDefiRoute, getProfils,
       getTypesExcursion, ajouterTypeExcursion, seedTypesExcursionSiVide,
       getMissionsParLieu, ajouterMission, supprimerMission,
-      getSettings, updateSettings
+      getSettings, updateSettings, getPlaylistPourLieu, ajouterVideoPlaylist, supprimerVideoPlaylist
     } from './firebase-services.js';
 
     document.getElementById('btn-init').onclick = async () => {
@@ -269,6 +277,7 @@ Mauvaise réponse 2"></textarea>
     chargerProgression();
     chargerTypesListe();
     chargerReglagesVoyage();
+    chargerPlaylistRoute();
 
     const JOURS_ADMIN = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi'];
     const MOMENTS_ADMIN = [
@@ -530,6 +539,49 @@ Mauvaise réponse 2"></textarea>
         chargerLieuxPourMissions();
       }
     };
+
+    // --- PLAYLIST MUSIQUE DE LA ROUTE ---
+    function extraireIdYoutube(lien) {
+      if (!lien) return '';
+      const propre = lien.trim();
+      if (/^[a-zA-Z0-9_-]{11}$/.test(propre)) return propre; // déjà juste un ID
+      const patterns = [
+        /(?:youtube\.com\/watch\?v=|youtube\.com\/shorts\/|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/
+      ];
+      for (const re of patterns) {
+        const m = propre.match(re);
+        if (m) return m[1];
+      }
+      return '';
+    }
+
+    document.getElementById('btn-ajouter-video').onclick = async () => {
+      const videoId = extraireIdYoutube(val('pl-video'));
+      if (!videoId) { alert("Lien YouTube invalide, vérifie l'URL ou l'ID."); return; }
+      await ajouterVideoPlaylist({ lieuId: 'route', videoId, titre: val('pl-titre') });
+      ['pl-titre', 'pl-video'].forEach(id => document.getElementById(id).value = '');
+      chargerPlaylistRoute();
+    };
+
+    async function chargerPlaylistRoute() {
+      const videos = await getPlaylistPourLieu('route');
+      const box = document.getElementById('liste-playlist');
+      box.innerHTML = videos.length ? '' : '<p class="muted">Aucune vidéo ajoutée pour l\'instant.</p>';
+      videos.forEach(v => {
+        const item = document.createElement('div');
+        item.className = 'lieu-item';
+        item.innerHTML = `<div class="top-row">
+            <span>🎵 <b>${v.Titre || v.YoutubeVideoID}</b></span>
+            <div class="actions"><button data-id="${v.PlaylistID}">🗑️</button></div>
+          </div>`;
+        item.querySelector('button').onclick = async () => {
+          if (!confirm('Retirer cette vidéo de la playlist ?')) return;
+          await supprimerVideoPlaylist(v.PlaylistID);
+          chargerPlaylistRoute();
+        };
+        box.appendChild(item);
+      });
+    }
 
     // --- LIEUX ---
     document.getElementById('btn-ajouter-lieu').onclick = async () => {
