@@ -280,7 +280,7 @@ export async function getSettings() {
 
 export async function verifierMotDePasseAdmin(motDePasse) {
   const settings = await getSettings();
-  return motDePasse === (settings.motDePasseAdmin || "safari2026");
+  return motDePasse === (settings.motDePasseAdmin || "2612");
 }
 
 export async function updateSettings(data) {

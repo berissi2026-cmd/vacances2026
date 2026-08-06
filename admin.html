@@ -29,7 +29,17 @@
 </head>
 <body class="bg-jungle">
 
-  <div id="admin-content">
+  <div id="gate">
+    <div class="card">
+      <h2 style="text-align:center;">🔒 Accès Admin</h2>
+      <p class="muted mt-8" style="text-align:center;">Réservé à Papa et Maman</p>
+      <input type="password" id="gate-mdp" placeholder="Mot de passe" class="mt-16" style="width:100%;">
+      <button class="btn btn--primary btn--block mt-16" id="btn-gate-entrer">Entrer</button>
+      <p class="muted mt-8" id="gate-erreur" style="text-align:center; color:#c0392b;"></p>
+    </div>
+  </div>
+
+  <div id="admin-content" style="display:none;">
     <div class="wrap" style="max-width:480px; padding-top:20px;">
       <button class="btn btn--ghost btn--block" id="btn-init">🌱 Première utilisation ? Initialiser les données</button>
       <button class="btn btn--ghost btn--block mt-8" id="btn-corriger">🔧 Corriger les prénoms (Elior)</button>
@@ -271,13 +281,39 @@ Mauvaise réponse 2"></textarea>
       alert('Prénoms corrigés (Elior) !');
     };
 
-    // Chargement direct, plus de mot de passe pour l'instant
-    chargerTypesExcursion();
-    chargerLieux();
-    chargerProgression();
-    chargerTypesListe();
-    chargerReglagesVoyage();
-    chargerPlaylistRoute();
+    // --- Écran de mot de passe ---
+    function demarrerAdmin() {
+      document.getElementById('gate').style.display = 'none';
+      document.getElementById('admin-content').style.display = 'block';
+      chargerTypesExcursion();
+      chargerLieux();
+      chargerProgression();
+      chargerTypesListe();
+      chargerReglagesVoyage();
+      chargerPlaylistRoute();
+    }
+
+    async function tenterEntree() {
+      const saisie = document.getElementById('gate-mdp').value;
+      const okDirect = saisie === '2612';
+      const ok = okDirect || await verifierMotDePasseAdmin(saisie);
+      if (!ok) {
+        document.getElementById('gate-erreur').textContent = 'Mot de passe incorrect.';
+        return;
+      }
+      if (okDirect) await updateSettings({ motDePasseAdmin: '2612' });
+      localStorage.setItem('vq_admin_ok', '1');
+      demarrerAdmin();
+    }
+
+    document.getElementById('btn-gate-entrer').onclick = tenterEntree;
+    document.getElementById('gate-mdp').addEventListener('keydown', e => {
+      if (e.key === 'Enter') tenterEntree();
+    });
+
+    if (localStorage.getItem('vq_admin_ok') === '1') {
+      demarrerAdmin();
+    }
 
     const JOURS_ADMIN = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi'];
     const MOMENTS_ADMIN = [
