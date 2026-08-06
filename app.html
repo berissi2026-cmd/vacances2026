@@ -30,6 +30,7 @@
   .progress-fill { height: 100%; background: linear-gradient(90deg, var(--jungle-leaf), var(--sunset)); border-radius: 999px; width: 0%; transition: width 0.6s ease; }
   .progress-label { text-align: center; font-family: var(--font-display); font-size: 12px; margin-top: 4px; font-weight: 700; }
   .explorateur-jour { text-align: center; font-size: 12px; margin-top: 4px; background: var(--jungle-deep); color:#fff; border-radius: 999px; padding: 4px 10px; display:inline-block; }
+  .marqueur-numero-badge { width:28px; height:28px; border-radius:50%; background: var(--sunset); color:#fff; border: 3px solid var(--bark); display:flex; align-items:center; justify-content:center; font-family: var(--font-display); font-size:13px; font-weight:700; box-shadow: 2px 2px 0 rgba(0,0,0,.25); }
   .switch-profil-btn { width: 46px; height: 46px; flex: 0 0 46px; border-radius: 50%; background: var(--sand-light); border: 3px solid var(--bark); font-size: 22px; display:flex; align-items:center; justify-content:center; cursor:pointer; opacity:.55; overflow:hidden; }
   .switch-profil-btn img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
   .switch-profil-btn.actif { opacity: 1; border-color: var(--sunset); box-shadow: 0 0 0 3px rgba(230,126,34,.3); }
@@ -1010,16 +1011,44 @@
       await updateSettings({ PositionGeoloc: valeur });
     }
 
+    function calculerNumerosLieux() {
+      const avecCoords = lieuxCache.filter(l => l.Lat && l.Lng);
+      const tries = [...avecCoords].sort((a, b) => {
+        const ja = JOURS.indexOf(a.Jour), jb = JOURS.indexOf(b.Jour);
+        if (ja !== jb) return ja - jb;
+        return (a.Heure || '').localeCompare(b.Heure || '');
+      });
+      const map = {};
+      let numero = 0;
+      tries.forEach(l => {
+        if (momentDepuisHeure(l.Heure) === 'nuit') {
+          map[l.LieuID] = { numero: null, estNuit: true };
+        } else {
+          numero++;
+          map[l.LieuID] = { numero, estNuit: false };
+        }
+      });
+      return map;
+    }
+
     function rafraichirMarqueursLieuxCarte() {
       if (!carteLeaflet) return;
       if (calqueLieuxCarte) carteLeaflet.removeLayer(calqueLieuxCarte);
       calqueLieuxCarte = L.layerGroup();
+      const numeros = calculerNumerosLieux();
       lieuxCache.forEach(l => {
         if (!l.Lat || !l.Lng) return;
         const nom = LANGUE === 'he' ? (l.Nom_HE || l.Nom_FR) : l.Nom_FR;
         const lienWaze = `https://waze.com/ul?ll=${l.Lat},${l.Lng}&navigate=yes`;
         const lienGmaps = `https://www.google.com/maps/dir/?api=1&destination=${l.Lat},${l.Lng}`;
-        const marqueur = L.marker([Number(l.Lat), Number(l.Lng)]);
+        const info = numeros[l.LieuID] || {};
+        const contenuBadge = info.estNuit ? '🏠' : (info.numero || '📍');
+        const icone = L.divIcon({
+          className: 'marqueur-numero',
+          html: `<div class="marqueur-numero-badge">${contenuBadge}</div>`,
+          iconSize: [30, 30], iconAnchor: [15, 15]
+        });
+        const marqueur = L.marker([Number(l.Lat), Number(l.Lng)], { icon: icone });
         marqueur.bindPopup(`<div class="popup-lieu"><b>📍 ${nom}</b><br>
           <a href="${lienWaze}" target="_blank" rel="noopener">🧭 Waze</a>
           <a href="${lienGmaps}" target="_blank" rel="noopener">📍 Google Maps</a></div>`);
