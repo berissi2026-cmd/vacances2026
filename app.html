@@ -1277,29 +1277,83 @@
     document.getElementById('btn-musique-haut').onclick = () => window.ouvrirJeu('musique');
 
     // ------------------------------------------------------------
-    // TFILOT — structure prête, textes à compléter (Harish/Netanya donnés par l'utilisateur,
-    // Tibériade calculé selon la shkia du jour)
+    // TFILOT — horaires réels des minianim (Harish, Netanya) + estimation par shkia (Tibériade)
     // ------------------------------------------------------------
     const TFILOT_TEXTES = {
-      // Clé = lieu ("Harish", "Netanya", "Tiberiade"), puis "chaharit"/"minha"/"arvit"
-      // À compléter avec les vrais textes fournis
+      Netanya: {
+        nom_fr: 'Torat Hessed — Netanya', nom_he: 'תורת חסד — נתניה',
+        chaharit: ['08:00 (קורבנות)'],
+        minha: ['15 דקות לפני השקיעה'],
+        arvit: ['20 דקות אחרי השקיעה']
+      },
+      Harish: {
+        nom_fr: 'Mikdash Chlomo — Harish', nom_he: 'מקדש שלמה — חריש',
+        chaharit: ['06:30', '07:00', '07:30', '08:00', '08:30'],
+        minha: ['12:20', '13:00', '16:00', '20 דקות לפני השקיעה', '30 דקות לפני השקיעה (פלג מנחה גדולה)'],
+        arvit: ['20 דקות אחרי השקיעה', '20:00', '21:00']
+      },
+      Tiberiade: {
+        nom_fr: 'Tibériade (estimé selon la shkia locale)', nom_he: 'טבריה (משוער לפי השקיעה המקומית)',
+        // Début août 2026 à Tibériade : shkia ≈ 19:25-19:28
+        chaharit: ['07:00 (משוער)'],
+        minha: ['כ-20 דקות לפני השקיעה (~19:05-19:08)'],
+        arvit: ['כ-20 דקות אחרי השקיעה (~19:45-19:48)']
+      }
     };
 
     function determinerMomentTfila() {
       const h = new Date().getHours();
       if (h < 11) return 'chaharit';
-      if (h < 18) return 'minha';
+      if (h < 17) return 'minha';
       return 'arvit';
+    }
+
+    // Détermine la "ville" tfilot en fonction du lieu actuel sur le plateau
+    function determinerVilleTfila() {
+      const pion = calculerPositionPion(settingsVoyage);
+      const lieuActuel = lieuxCache.find(l => {
+        const jourIndex = JOURS.indexOf(l.Jour);
+        return jourIndex === pion.jourIndex && momentDepuisHeure(l.Heure) === pion.moment;
+      });
+      const nom = lieuActuel ? lieuActuel.Nom_FR : '';
+      if (nom.includes('Harish')) return 'Harish';
+      if (nom.includes('Netanya')) return 'Netanya';
+      if (nom.includes('Tibériade') || nom.includes('Tiberiade')) return 'Tiberiade';
+      return 'Harish'; // par défaut, notre camp de base
     }
 
     document.getElementById('btn-tfilot').onclick = () => {
       const box = document.getElementById('modal-box');
       document.getElementById('modal-bg').style.display = 'flex';
       const moment = determinerMomentTfila();
+      const ville = determinerVilleTfila();
+      const data = TFILOT_TEXTES[ville];
       const labels = { chaharit: 'שחרית / Chaharit', minha: 'מנחה / Minha', arvit: 'ערבית / Arvit' };
+      const nomVille = LANGUE === 'he' ? data.nom_he : data.nom_fr;
+      const horaires = data[moment] || [];
+
       box.innerHTML = `<h2>✡️ ${labels[moment]}</h2>
-        <p class="muted mt-8">${LANGUE === 'he' ? 'הטקסטים יתווספו בקרוב לפי המיקום שלכם' : "Les textes des tefilot seront ajoutés bientôt, adaptés à ton lieu actuel"}</p>
+        <p class="muted mt-8">📍 ${nomVille}</p>
+        <div class="col mt-16">
+          ${horaires.map(h => `<div class="mission-card" style="text-align:center; font-size:16px;">${h}</div>`).join('')}
+        </div>
+        <div class="col mt-16" style="flex-direction:row; gap:8px;">
+          ${Object.keys(labels).map(m => `<button class="btn ${m === moment ? 'btn--primary' : 'btn--ghost'} btn-choix-tfila" data-m="${m}" style="flex:1;">${labels[m].split(' / ')[LANGUE === 'he' ? 0 : 1]}</button>`).join('')}
+        </div>
         ${boutonFermer()}`;
+
+      box.querySelectorAll('.btn-choix-tfila').forEach(btn => {
+        btn.onclick = () => {
+          const m = btn.dataset.m;
+          const h2 = box.querySelector('h2');
+          const p = box.querySelector('p');
+          const colHoraires = box.querySelector('.col');
+          h2.textContent = '✡️ ' + labels[m];
+          colHoraires.innerHTML = (data[m] || []).map(h => `<div class="mission-card" style="text-align:center; font-size:16px;">${h}</div>`).join('');
+          box.querySelectorAll('.btn-choix-tfila').forEach(b => b.className = 'btn btn--ghost btn-choix-tfila');
+          btn.className = 'btn btn--primary btn-choix-tfila';
+        };
+      });
     };
 
     function afficherProchainDefiSimple(type, liste, box, emoji, titre, verbeFait) {
