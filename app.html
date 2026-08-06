@@ -50,6 +50,10 @@
   .drive-status.arret { background: var(--sky); color: var(--bark); }
 
   .games-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+  .album-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
+  .album-photo { position: relative; border-radius: 12px; overflow: hidden; border: 3px solid var(--bark); cursor: pointer; aspect-ratio: 1/1; background: var(--sand-light); }
+  .album-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .album-photo .avatar-badge { position: absolute; bottom: 4px; left: 4px; font-size: 18px; background: rgba(255,255,255,.9); border-radius: 999px; padding: 2px 5px; }
   .game-tile { background: var(--sand-light); border: 3px solid var(--bark); border-radius: var(--radius-md); padding: 18px 10px; text-align: center; cursor: pointer; }
   .game-tile .emoji { font-size: 30px; display: block; margin-bottom: 6px; }
 
@@ -85,6 +89,7 @@
   <div class="tabs">
     <div class="tab active" data-panel="carte">🗺️ Carte</div>
     <div class="tab" data-panel="voiture">🚗 En voiture</div>
+    <div class="tab" data-panel="album">📷 Album</div>
     <div class="tab" data-panel="badges">🎖️ Badges</div>
   </div>
 
@@ -113,6 +118,22 @@
     </div>
   </div>
 
+  <div class="panel" id="panel-album">
+    <div id="album-container">
+      <div class="empty-state card">
+        <div style="font-size:40px;">📷</div>
+        <h3 class="mt-16" id="album-vide-titre">Aucune photo pour l'instant</h3>
+        <p class="muted mt-8" id="album-vide-txt">Les photos de mission de toute la famille apparaîtront ici !</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="lightbox-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;align-items:center;justify-content:center;flex-direction:column;padding:20px;">
+    <img id="lightbox-img" style="max-width:100%;max-height:80vh;border-radius:12px;">
+    <div id="lightbox-legende" class="mt-16" style="color:#fff;text-align:center;"></div>
+    <button class="btn btn--ghost mt-16" id="lightbox-fermer">✕</button>
+  </div>
+
   <div class="panel" id="panel-badges">
     <div id="badges-container">
       <div class="empty-state card">
@@ -131,8 +152,9 @@
 
   <script type="module">
     import {
-      getProfil, ecouterScoreFamille, ecouterProfil, getDefisRoute, ecouterLieux,
-      getMissionsParLieu, getResultatsProfil, enregistrerResultat, getTypesExcursion
+      getProfil, getProfils, ecouterScoreFamille, ecouterProfil, getDefisRoute, ecouterLieux,
+      getMissionsParLieu, getResultatsProfil, enregistrerResultat, getTypesExcursion,
+      ecouterTousResultats
     } from './firebase-services.js';
     import { uploaderPhotoMission } from './imagekit-services.js';
 
@@ -143,6 +165,8 @@
     let toutLesDefis = { bingo: [], roue: [], enigme: [] };
     let missionsFaitesIds = new Set();
     let typesParId = {};
+    let profilsCache = {};
+    let resultatsPhotoCache = [];
 
     async function init() {
       if (!PROFIL_ID) { window.location.href = 'index.html'; return; }
@@ -154,8 +178,8 @@
       ecouterScoreFamille(s => document.getElementById('score-famille').textContent = s);
       ecouterProfil(PROFIL_ID, p2 => { monProfil = { ...monProfil, ...p2 }; document.getElementById('score-perso').textContent = p2.ScorePerso || 0; });
 
-      const [defis, resultats, types] = await Promise.all([
-        getDefisRoute(), getResultatsProfil(PROFIL_ID), getTypesExcursion()
+      const [defis, resultats, types, profils] = await Promise.all([
+        getDefisRoute(), getResultatsProfil(PROFIL_ID), getTypesExcursion(), getProfils()
       ]);
       defis.forEach(d => {
         if (d.Type === 'bingo_item') toutLesDefis.bingo.push(d);
@@ -164,8 +188,13 @@
       });
       resultats.filter(r => r.Statut === 'fait').forEach(r => missionsFaitesIds.add(r.MissionID));
       types.forEach(t => typesParId[t.TypeID] = t);
+      profils.forEach(p => profilsCache[p.ProfilID] = p);
 
       ecouterLieux(afficherPiste);
+      ecouterTousResultats(tous => {
+        resultatsPhotoCache = tous.filter(r => r.MediaURL);
+        afficherAlbum();
+      });
     }
 
     function appliquerProfil(p) {
@@ -202,6 +231,7 @@
       // Charge les missions de chaque lieu pour savoir qui est "fait"
       const toutes = await Promise.all(lieux.map(l => getMissionsParLieu(l.LieuID)));
       lieux.forEach((l, i) => missionsParLieuCache[l.LieuID] = toutes[i]);
+      afficherAlbum();
 
       let premierNonFaitTrouve = false;
       const path = document.createElement('div');
@@ -407,6 +437,61 @@
       fermerModal();
       afficherPiste(lieuxCache);
     }
+
+    // ------------------------------------------------------------
+    // ALBUM PHOTO — regroupe toutes les photos de mission de la famille
+    // ------------------------------------------------------------
+    function trouverMission(missionId) {
+      for (const missions of Object.values(missionsParLieuCache)) {
+        const m = missions.find(x => x.MissionID === missionId);
+        if (m) return m;
+      }
+      return null;
+    }
+
+    function afficherAlbum() {
+      const box = document.getElementById('album-container');
+      if (!box) return;
+      if (!resultatsPhotoCache.length) {
+        box.innerHTML = `<div class="empty-state card">
+          <div style="font-size:40px;">📷</div>
+          <h3 class="mt-16">${LANGUE === 'he' ? 'עדיין אין תמונות' : "Aucune photo pour l'instant"}</h3>
+          <p class="muted mt-8">${LANGUE === 'he' ? 'תמונות המשימות של כל המשפחה יופיעו כאן!' : 'Les photos de mission de toute la famille apparaîtront ici !'}</p>
+        </div>`;
+        return;
+      }
+      const tries = [...resultatsPhotoCache].sort((a, b) => (b.Date || '').localeCompare(a.Date || ''));
+      const grid = document.createElement('div');
+      grid.className = 'album-grid';
+      tries.forEach(r => {
+        const profil = profilsCache[r.ProfilID];
+        const mission = trouverMission(r.MissionID);
+        const titre = mission ? ((LANGUE === 'he' ? mission.Titre_HE : mission.Titre_FR) || mission.Type) : '';
+        const nomProfil = profil ? (LANGUE === 'he' ? (profil.Nom_HE || profil.Nom_FR) : profil.Nom_FR) : '';
+        const legende = `${profil ? profil.Avatar || '' : ''} ${nomProfil}${titre ? ' — ' + titre : ''}`.trim();
+        const div = document.createElement('div');
+        div.className = 'album-photo';
+        div.innerHTML = `<img src="${r.MediaURL}" loading="lazy" alt="${titre}">
+          <span class="avatar-badge">${profil ? (profil.Avatar || '🦁') : ''}</span>`;
+        div.onclick = () => ouvrirLightbox(r.MediaURL, legende);
+        grid.appendChild(div);
+      });
+      box.innerHTML = '';
+      box.appendChild(grid);
+    }
+
+    function ouvrirLightbox(url, legende) {
+      document.getElementById('lightbox-img').src = url;
+      document.getElementById('lightbox-legende').textContent = legende;
+      document.getElementById('lightbox-bg').style.display = 'flex';
+    }
+
+    document.getElementById('lightbox-fermer').onclick = () => {
+      document.getElementById('lightbox-bg').style.display = 'none';
+    };
+    document.getElementById('lightbox-bg').onclick = (e) => {
+      if (e.target.id === 'lightbox-bg') document.getElementById('lightbox-bg').style.display = 'none';
+    };
 
     function parler(texte, langue) {
       if (!('speechSynthesis' in window)) return;

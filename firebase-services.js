@@ -231,6 +231,15 @@ export async function getResultatsProfil(profilId) {
   return snap.docs.map(d => ({ ResultID: d.id, ...d.data() }));
 }
 
+// Écoute en temps réel de TOUS les résultats (utilisé par l'album photo,
+// pour voir apparaître les nouvelles photos sans recharger la page)
+export function ecouterTousResultats(callback) {
+  return onSnapshot(collection(db, "resultats"), snap => {
+    const resultats = snap.docs.map(d => ({ ResultID: d.id, ...d.data() }));
+    callback(resultats);
+  });
+}
+
 // ============================================================
 // DEFIS ROUTE (bingo / roue / énigmes)
 // ============================================================
