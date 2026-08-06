@@ -314,8 +314,11 @@ export async function ajouterDefiRoute(data) {
 }
 
 // Marque un défi de route comme fait par un profil (pour savoir ce qu'il reste à faire)
-export async function marquerDefiFait(defiId, profilId) {
-  await addDoc(collection(db, "defisFaits"), { DefiID: defiId, ProfilID: profilId, Date: new Date().toISOString() });
+export async function marquerDefiFait(defiId, profilId, correct) {
+  await addDoc(collection(db, "defisFaits"), {
+    DefiID: defiId, ProfilID: profilId, Date: new Date().toISOString(),
+    Correct: correct === undefined ? null : !!correct
+  });
   return { success: true };
 }
 

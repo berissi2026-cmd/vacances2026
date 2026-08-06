@@ -74,6 +74,15 @@
   .game-tile .emoji { font-size: 30px; display: block; margin-bottom: 6px; }
   .game-badge { font-size: 11px; margin-top: 6px; color: var(--bark); opacity: .75; line-height:1.4; }
   .game-badge .neuf { color: var(--sunset); font-weight: 700; }
+  #stats-enigmes { margin-bottom: 16px; }
+  #stats-enigmes h4 { font-family: var(--font-display); margin-bottom: 8px; }
+  .stats-grid-enigmes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; margin-bottom: 12px; }
+  .stats-grid-enigmes .stat-box { background: var(--sand-light); border: 2px solid var(--bark); border-radius: var(--radius-sm); padding: 8px 4px; }
+  .stats-grid-enigmes .stat-box b { display: block; font-size: 18px; font-family: var(--font-display); }
+  .stats-grid-enigmes .stat-box span { font-size: 10px; opacity: .75; }
+  .stats-jours-liste { display: flex; flex-wrap: wrap; gap: 6px; }
+  .stats-jours-liste .jour-pill { font-size: 11px; background: var(--sand-light); border: 2px solid var(--bark); border-radius: 999px; padding: 3px 8px; }
+  .stats-jours-liste .jour-pill.complet { background: var(--jungle-leaf); color: #fff; }
 
   .games-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
   .album-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
@@ -177,6 +186,7 @@
   </div>
 
   <div class="panel" id="panel-voiture">
+    <div class="card" id="stats-enigmes"></div>
     <div class="games-grid">
       <div class="game-tile" onclick="window.ouvrirJeu('bingo')"><span class="emoji">🔲</span>Bingo<div class="game-badge" id="badge-bingo"></div></div>
       <div class="game-tile" onclick="window.ouvrirJeu('roue')"><span class="emoji">🎡</span>Roue des défis<div class="game-badge" id="badge-roue"></div></div>
@@ -1095,6 +1105,49 @@
           badge.innerHTML = parts.join(' · ');
         }
       });
+      afficherStatsEnigmes();
+    }
+
+    function afficherStatsEnigmes() {
+      const zone = document.getElementById('stats-enigmes');
+      if (!zone) return;
+      const toutes = toutLesDefis.enigme;
+      const debloques = joursDebloques();
+      const disponibles = toutes.filter(e => !e.Jour || debloques.includes(e.Jour));
+
+      const mesReponses = defisFaitsCache.filter(d =>
+        d.ProfilID === PROFIL_ID && disponibles.some(e => e.DefiID === d.DefiID)
+      );
+      const repondu = mesReponses.length;
+      const manque = disponibles.length - repondu;
+      const bienRepondu = mesReponses.filter(d => d.Correct === true).length;
+      const pointsEnigmes = mesReponses.reduce((somme, d) => {
+        const e = toutes.find(x => x.DefiID === d.DefiID);
+        if (!e) return somme;
+        return somme + (d.Correct ? (Number(e.Points) || 10) : 2);
+      }, 0);
+
+      const t = LANGUE === 'he'
+        ? { titre: '📊 הסטטיסטיקה שלי בחידות', repondu: 'ענית', manque: 'נשארו', bien: 'תשובות נכונות', pts: 'נקודות מחידות' }
+        : { titre: '📊 Mes stats énigmes', repondu: 'Répondu', manque: 'Il en manque', bien: 'Bien répondu', pts: 'Points via énigmes' };
+
+      const parJour = JOURS.map((jour, i) => {
+        const total = toutes.filter(e => e.Jour === jour).length;
+        if (!total) return null;
+        const faites = defisFaitsCache.filter(d => d.ProfilID === PROFIL_ID && toutes.some(e => e.DefiID === d.DefiID && e.Jour === jour)).length;
+        const jourNom = LANGUE === 'he' ? JOURS_HE[i] : jour;
+        return `<span class="jour-pill ${faites >= total ? 'complet' : ''}">${jourNom} : ${faites}/${total}</span>`;
+      }).filter(Boolean).join('');
+
+      zone.innerHTML = `
+        <h4>${t.titre}</h4>
+        <div class="stats-grid-enigmes">
+          <div class="stat-box"><b>${repondu}</b><span>${t.repondu}</span></div>
+          <div class="stat-box"><b>${manque}</b><span>${t.manque}</span></div>
+          <div class="stat-box"><b>${bienRepondu}</b><span>${t.bien}</span></div>
+          <div class="stat-box"><b>${pointsEnigmes}</b><span>${t.pts}</span></div>
+        </div>
+        <div class="stats-jours-liste">${parJour || ''}</div>`;
     }
 
     window.ouvrirJeu = async function(type) {
@@ -1224,8 +1277,9 @@
           boutonsRep.forEach(b => b.disabled = true);
           const i = Number(btn.dataset.i);
           const statut = document.getElementById('enigme-statut');
-          await marquerDefiFait(e.DefiID, PROFIL_ID);
-          if (i === e.ReponseIndex) {
+          const estCorrect = i === e.ReponseIndex;
+          await marquerDefiFait(e.DefiID, PROFIL_ID, estCorrect);
+          if (estCorrect) {
             await ajouterScoreProfil(PROFIL_ID, points);
             btn.style.background = 'var(--jungle-leaf)';
             statut.textContent = LANGUE === 'he' ? `🎉 נכון! +${points} נקודות` : `🎉 Bonne réponse ! +${points} points`;
