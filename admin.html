@@ -8,9 +8,35 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Admin — Vacances Quest</title>
 <link rel="stylesheet" href="styles.css">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
+  .trail-path { position: relative; max-width: 360px; margin: 10px auto; padding: 60px 0 6px; }
+  .trail-path::before {
+    content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 5px;
+    margin-left: -2.5px;
+    background-image: repeating-linear-gradient(to bottom, var(--bark) 0 10px, transparent 10px 20px);
+    opacity: 0.4;
+  }
+  .trail-node-wrap { position: relative; display: flex; margin-bottom: 34px; }
+  .trail-node-wrap:nth-child(odd) { justify-content: flex-start; }
+  .trail-node-wrap:nth-child(even) { justify-content: flex-end; }
+  .trail-node {
+    width: 74px; height: 74px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+    background: var(--sand-light); border: 4px solid var(--bark);
+    font-size: 26px; cursor: pointer; position: relative; z-index: 2;
+    box-shadow: 4px 4px 0 rgba(92,61,36,0.25);
+  }
+  .trail-node.fait { background: var(--gold); }
+  .trail-node .num { position:absolute; top:-8px; left:-8px; background: var(--bark); color:#fff; font-size:11px; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family: var(--font-display); }
+  .trail-node.vide { opacity: 0.5; box-shadow: none; }
+  .trail-node.ici { border-color: var(--sunset); box-shadow: 0 0 0 5px rgba(230,126,34,.35), 4px 4px 0 rgba(92,61,36,0.25); animation: pulse 1.6s infinite; transform: scale(1.12); }
+  .trail-node .pion { position:absolute; top:-46px; left:50%; transform: translateX(-50%); font-size:60px; line-height:1; filter: drop-shadow(1px 3px 2px rgba(0,0,0,.4)); }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+  .trail-label { font-family: var(--font-display); font-weight:700; font-size:12px; text-align:center; margin-top:6px; max-width:90px; }
+  .trail-node-col { display:flex; flex-direction:column; align-items:center; }
+  .voyage-jour { max-width: 360px; margin: 0 auto 8px; }
+  .voyage-jour-titre { font-family: var(--font-display); text-align:center; background: var(--jungle-deep); color:#fff; border-radius: 999px; padding: 6px 14px; display:inline-block; margin: 0 auto; font-size: 14px; }
+  .voyage-jour-head { text-align:center; }
   .admin-tabs { display: flex; gap: 8px; padding: 16px 20px 0; flex-wrap: wrap; }
   .admin-tab { font-family: var(--font-display); font-weight: 700; font-size: 13px; padding: 8px 14px; border-radius: 999px; background: var(--sand-light); border: 2px solid var(--bark); cursor: pointer; }
   .admin-tab.active { background: var(--jungle-deep); color: var(--white); }
@@ -286,9 +312,9 @@ Mauvaise réponse 2"></textarea>
         </div>
         <button class="btn btn--primary btn--block mt-16" id="btn-save-voyage">💾 Enregistrer</button>
 
-        <h3 class="mt-24">📍 Ou clique directement sur la carte</h3>
-        <p class="muted mt-8" style="font-size:12px;">Clique sur un lieu pour y placer la voiture immédiatement.</p>
-        <div id="admin-map" style="height:360px; border-radius:12px; border:3px solid var(--bark); margin-top:10px;"></div>
+        <h3 class="mt-24">🗺️ Ou clique directement sur le plateau</h3>
+        <p class="muted mt-8" style="font-size:12px;">Clique sur une étape pour y placer la voiture immédiatement.</p>
+        <div id="plateau-admin" class="mt-16"></div>
       </div>
     </div>
   </div>
@@ -366,7 +392,7 @@ Mauvaise réponse 2"></textarea>
       if (settings.DateDebutVoyage) document.getElementById('v-date-debut').value = settings.DateDebutVoyage;
       if (settings.PositionManuelle) select.value = settings.PositionManuelle;
 
-      chargerCarteVoyage();
+      afficherPlateauAdmin();
     }
 
     function momentDepuisHeureAdmin(heureStr) {
@@ -378,46 +404,73 @@ Mauvaise réponse 2"></textarea>
       return 'nuit';
     }
 
-    let adminMap = null;
-    let dernieresBoundsCarte = null;
-    async function chargerCarteVoyage() {
-      try {
-        const lieux = (await getLieux()).filter(l => l.Lat && l.Lng && !isNaN(Number(l.Lat)) && !isNaN(Number(l.Lng)));
-        if (!adminMap) {
-          adminMap = L.map('admin-map');
-          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap'
-          }).addTo(adminMap);
-        }
-        adminMap.invalidateSize();
-        // Retire les anciens marqueurs
-        adminMap.eachLayer(layer => { if (layer instanceof L.Marker) adminMap.removeLayer(layer); });
+    const MOMENT_ICONES_ADMIN = { matin: '☀️', apresmidi: '🌤️', soir: '🌇', nuit: '🌙' };
 
-        if (!lieux.length) { dernieresBoundsCarte = null; adminMap.setView([32.8, 35.5], 8); return; }
+    async function afficherPlateauAdmin() {
+      const box = document.getElementById('plateau-admin');
+      if (!box) return;
+      const [lieux, settings] = await Promise.all([getLieux(), getSettings()]);
 
-        const bounds = [];
-        lieux.forEach(l => {
-          const lat = Number(l.Lat), lng = Number(l.Lng);
-          bounds.push([lat, lng]);
-          const marker = L.marker([lat, lng]).addTo(adminMap);
-          const moment = momentDepuisHeureAdmin(l.Heure);
-          marker.bindPopup(`<b>${l.Nom_FR}</b><br>${l.Jour} — ${l.Heure || ''}<br><button id="pos-${l.LieuID}" style="margin-top:6px;padding:6px 10px;border-radius:8px;border:2px solid #5c3d24;background:#e67e22;color:#fff;font-weight:700;">🚗 Placer la voiture ici</button>`);
-          marker.on('popupopen', () => {
-            const btn = document.getElementById('pos-' + l.LieuID);
-            if (btn) btn.onclick = async () => {
-              const valeur = l.Jour + '|' + moment;
-              await appliquerPositionAvecRembobinage(valeur);
-              document.getElementById('v-position-manuelle').value = valeur;
-              marker.closePopup();
-              alert(`🚗 Voiture placée à : ${l.Nom_FR} (${l.Jour} — ${moment})`);
-            };
-          });
+      const lieuxParCase = {};
+      lieux.forEach(l => {
+        const jourIndex = JOURS_ADMIN.indexOf(l.Jour);
+        if (jourIndex === -1) return;
+        const moment = momentDepuisHeureAdmin(l.Heure);
+        const cle = jourIndex + '-' + moment;
+        (lieuxParCase[cle] = lieuxParCase[cle] || []).push(l);
+      });
+
+      const positionActuelle = settings.PositionManuelle || '';
+
+      box.innerHTML = '';
+      let numeroEtape = 0;
+      JOURS_ADMIN.forEach((jour, jourIndex) => {
+        const jourSection = document.createElement('div');
+        jourSection.className = 'voyage-jour';
+        jourSection.innerHTML = `<div class="voyage-jour-head"><span class="voyage-jour-titre">🗓️ ${jour}</span></div>`;
+        const path = document.createElement('div');
+        path.className = 'trail-path';
+
+        MOMENTS_ADMIN.forEach(([moment, label]) => {
+          const cle = jourIndex + '-' + moment;
+          const casesLieux = lieuxParCase[cle] || [];
+          const lieuPrincipal = casesLieux[0] || null;
+          const valeur = jour + '|' + moment;
+          const estIci = positionActuelle === valeur;
+          const estNuit = moment === 'nuit';
+
+          let icone = MOMENT_ICONES_ADMIN[moment];
+          let texte = label;
+          let badge = '';
+          if (lieuPrincipal) {
+            icone = '📍';
+            texte = lieuPrincipal.Nom_FR;
+            if (estNuit) badge = `<span class="num">🏠</span>`;
+            else { numeroEtape++; badge = `<span class="num">${numeroEtape}</span>`; }
+          }
+
+          const wrap = document.createElement('div');
+          wrap.className = 'trail-node-wrap';
+          wrap.innerHTML = `
+            <div class="trail-node-col">
+              <div class="trail-node ${lieuPrincipal ? '' : 'vide'} ${estIci ? 'ici' : ''}">
+                ${estIci ? '<span class="pion">🚗</span>' : ''}
+                ${icone}
+                ${badge}
+              </div>
+              <div class="trail-label">${texte}</div>
+            </div>`;
+          wrap.querySelector('.trail-node').onclick = async () => {
+            await appliquerPositionAvecRembobinage(valeur);
+            document.getElementById('v-position-manuelle').value = valeur;
+            afficherPlateauAdmin();
+          };
+          path.appendChild(wrap);
         });
-        dernieresBoundsCarte = bounds;
-        adminMap.fitBounds(bounds, { padding: [30, 30] });
-      } catch (err) {
-        console.error('Erreur carte admin voyage:', err);
-      }
+
+        jourSection.appendChild(path);
+        box.appendChild(jourSection);
+      });
     }
 
     function jourIndexDepuisValeur(valeur) {
@@ -473,6 +526,7 @@ Mauvaise réponse 2"></textarea>
       await updateSettings({ DateDebutVoyage: document.getElementById('v-date-debut').value || '' });
       await appliquerPositionAvecRembobinage(document.getElementById('v-position-manuelle').value || '');
       btn.disabled = false; btn.textContent = '💾 Enregistrer';
+      afficherPlateauAdmin();
       alert('Réglages du voyage enregistrés !');
     };
 
@@ -482,8 +536,8 @@ Mauvaise réponse 2"></textarea>
         document.querySelectorAll('.admin-panel').forEach(x => x.classList.remove('active'));
         t.classList.add('active');
         document.getElementById('p-' + t.dataset.p).classList.add('active');
-        if (t.dataset.p === 'voyage' && adminMap) {
-          setTimeout(() => { chargerCarteVoyage(); }, 80);
+        if (t.dataset.p === 'voyage') {
+          afficherPlateauAdmin();
         }
       };
     });
