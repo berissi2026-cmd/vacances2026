@@ -18,8 +18,32 @@
   .panel { display: none; padding: 20px; }
   .panel.active { display: block; }
 
-  .trail-stop { display: flex; align-items: center; gap: 14px; background: var(--sand-light); border: 3px solid var(--bark); border-radius: var(--radius-md); padding: 12px 16px; margin-bottom: 10px; }
-  .trail-stop .pin { font-size: 24px; }
+  /* --- PISTE FACON JEU DE L'OIE --- */
+  .trail-path { position: relative; max-width: 360px; margin: 10px auto; padding: 30px 0; }
+  .trail-path::before {
+    content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 5px;
+    margin-left: -2.5px;
+    background-image: repeating-linear-gradient(to bottom, var(--bark) 0 10px, transparent 10px 20px);
+    opacity: 0.4;
+  }
+  .trail-node-wrap { position: relative; display: flex; margin-bottom: 34px; }
+  .trail-node-wrap:nth-child(odd) { justify-content: flex-start; }
+  .trail-node-wrap:nth-child(even) { justify-content: flex-end; }
+  .trail-node {
+    width: 74px; height: 74px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+    background: var(--sand-light); border: 4px solid var(--bark);
+    font-size: 26px; cursor: pointer; position: relative; z-index: 2;
+    box-shadow: 4px 4px 0 rgba(92,61,36,0.25);
+  }
+  .trail-node.fait { background: var(--gold); }
+  .trail-node.courant { background: var(--jungle-leaf); color: var(--white); animation: pulse 1.6s infinite; }
+  .trail-node.a-venir { opacity: 0.55; }
+  .trail-node .num { position:absolute; top:-8px; left:-8px; background: var(--bark); color:#fff; font-size:11px; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family: var(--font-display); }
+  .trail-node .check { position:absolute; bottom:-6px; right:-6px; font-size:18px; }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+  .trail-label { font-family: var(--font-display); font-weight:700; font-size:12px; text-align:center; margin-top:6px; max-width:90px; }
+  .trail-node-col { display:flex; flex-direction:column; align-items:center; }
 
   .drive-status { text-align: center; padding: 14px; border-radius: var(--radius-md); font-weight: 700; font-family: var(--font-display); margin-bottom: 16px; }
   .drive-status.roule { background: var(--jungle-leaf); color: var(--white); }
@@ -35,8 +59,11 @@
 
   .wheel-result, .enigme-box { background: var(--sand-light); border: 3px dashed var(--bark); border-radius: var(--radius-md); padding: 20px; text-align: center; margin-top: 14px; min-height: 60px; }
 
-  #modal-bg { display: none; position: fixed; inset: 0; background: rgba(31,77,44,0.6); align-items: center; justify-content: center; padding: 20px; z-index: 50; }
-  #modal-box { background: var(--sand-light); border: var(--border-thick) solid var(--bark); border-radius: var(--radius-lg); padding: 24px; max-width: 420px; width: 100%; text-align: center; }
+  #modal-bg { display: none; position: fixed; inset: 0; background: rgba(31,77,44,0.6); align-items: center; justify-content: center; padding: 20px; z-index: 50; overflow-y: auto; }
+  #modal-box { background: var(--sand-light); border: var(--border-thick) solid var(--bark); border-radius: var(--radius-lg); padding: 24px; max-width: 420px; width: 100%; text-align: center; margin: 20px 0; }
+  .mission-card { text-align: start; background: var(--white); border: 2px solid var(--bark); border-radius: var(--radius-sm); padding: 12px; margin-top: 10px; }
+  .mission-card.done { opacity: 0.5; }
+  .star-picker { display:flex; gap:6px; justify-content:center; font-size:26px; cursor:pointer; }
 </style>
 </head>
 <body class="bg-jungle">
@@ -62,7 +89,7 @@
   </div>
 
   <div class="panel active" id="panel-carte">
-    <div class="col" id="trail-container">
+    <div id="trail-container">
       <div class="empty-state card">
         <div style="font-size:40px;">🌿</div>
         <h3 class="mt-16">Aucune étape pour l'instant</h3>
@@ -77,7 +104,6 @@
       <button class="btn btn--primary" id="btn-on-roule">🚗 On roule</button>
       <button class="btn btn--ghost" id="btn-on-arrete">📍 On est arrivés</button>
     </div>
-    <p class="muted mt-8" style="text-align:center;">La détection auto peut aussi activer le mode voiture toute seule.</p>
 
     <div class="games-grid">
       <div class="game-tile" onclick="window.ouvrirJeu('bingo')"><span class="emoji">🔲</span>Bingo voiture</div>
@@ -88,10 +114,12 @@
   </div>
 
   <div class="panel" id="panel-badges">
-    <div class="empty-state card">
-      <div style="font-size:40px;">🏅</div>
-      <h3 class="mt-16">Pas encore de badge</h3>
-      <p class="muted mt-8">Accomplis des missions à chaque étape pour en gagner !</p>
+    <div id="badges-container">
+      <div class="empty-state card">
+        <div style="font-size:40px;">🏅</div>
+        <h3 class="mt-16">Pas encore de badge</h3>
+        <p class="muted mt-8">Accomplis des missions à chaque étape pour en gagner !</p>
+      </div>
     </div>
   </div>
 
@@ -102,12 +130,18 @@
   </div>
 
   <script type="module">
-    import { getProfil, ecouterScoreFamille, ecouterProfil, getDefisRoute, ecouterLieux } from './firebase-services.js';
+    import {
+      getProfil, ecouterScoreFamille, ecouterProfil, getDefisRoute, ecouterLieux,
+      getMissionsParLieu, getResultatsProfil, enregistrerResultat, getTypesExcursion
+    } from './firebase-services.js';
 
     const params = new URLSearchParams(window.location.search);
     const PROFIL_ID = params.get('profil');
+    const LANGUE = localStorage.getItem('vq_langue') || 'fr';
     let monProfil = null;
     let toutLesDefis = { bingo: [], roue: [], enigme: [] };
+    let missionsFaitesIds = new Set();
+    let typesParId = {};
 
     async function init() {
       if (!PROFIL_ID) { window.location.href = 'index.html'; return; }
@@ -117,32 +151,43 @@
       appliquerProfil(p);
 
       ecouterScoreFamille(s => document.getElementById('score-famille').textContent = s);
-      ecouterProfil(PROFIL_ID, p => { monProfil = p; document.getElementById('score-perso').textContent = p.ScorePerso || 0; });
-      ecouterLieux(afficherLieux);
+      ecouterProfil(PROFIL_ID, p2 => { monProfil = { ...monProfil, ...p2 }; document.getElementById('score-perso').textContent = p2.ScorePerso || 0; });
 
-      const defis = await getDefisRoute();
+      const [defis, resultats, types] = await Promise.all([
+        getDefisRoute(), getResultatsProfil(PROFIL_ID), getTypesExcursion()
+      ]);
       defis.forEach(d => {
         if (d.Type === 'bingo_item') toutLesDefis.bingo.push(d);
         if (d.Type === 'roue') toutLesDefis.roue.push(d);
         if (d.Type === 'enigme') toutLesDefis.enigme.push(d);
       });
+      resultats.filter(r => r.Statut === 'fait').forEach(r => missionsFaitesIds.add(r.MissionID));
+      types.forEach(t => typesParId[t.TypeID] = t);
+
+      ecouterLieux(afficherPiste);
     }
 
     function appliquerProfil(p) {
+      const nom = LANGUE === 'he' ? (p.Nom_HE || p.Nom_FR) : p.Nom_FR;
       document.getElementById('mon-avatar').textContent = p.Avatar || '🦁';
-      document.getElementById('mon-nom').textContent = p.Nom;
+      document.getElementById('mon-nom').textContent = nom;
       document.getElementById('mon-role').textContent = p.Role === 'parent' ? "Chef d'expédition" : 'Explorateur';
       document.getElementById('score-perso').textContent = p.ScorePerso || 0;
-      document.body.setAttribute('dir', p.Langue === 'he' ? 'rtl' : 'ltr');
+      document.body.setAttribute('dir', LANGUE === 'he' ? 'rtl' : 'ltr');
       if (p.ProfilID === 'p_papa' || p.ProfilID === 'p_maman') {
         document.getElementById('lien-admin').style.display = 'inline-flex';
       }
       if (Number(p.Age) > 0 && Number(p.Age) <= 4) {
-        parler('Bienvenue ' + p.Nom + " ! Prêt pour l'aventure ?", p.Langue);
+        parler((LANGUE === 'he' ? 'ברוכים הבאים ' : 'Bienvenue ') + nom, LANGUE);
       }
     }
 
-    function afficherLieux(lieux) {
+    // --- PISTE / CARTE (jeu de l'oie) ---
+    let lieuxCache = [];
+    let missionsParLieuCache = {};
+
+    async function afficherPiste(lieux) {
+      lieuxCache = lieux;
       const box = document.getElementById('trail-container');
       if (!lieux.length) {
         box.innerHTML = `<div class="empty-state card">
@@ -152,13 +197,134 @@
         </div>`;
         return;
       }
-      box.innerHTML = '';
-      lieux.forEach(l => {
-        const el = document.createElement('div');
-        el.className = 'trail-stop';
-        el.innerHTML = `<span class="pin">📍</span><div><b>${monProfil.Langue === 'he' ? (l.Nom_HE || l.Nom_FR) : l.Nom_FR}</b><div class="muted">${l.Jour} ${l.Heure || ''}</div></div>`;
-        box.appendChild(el);
+
+      // Charge les missions de chaque lieu pour savoir qui est "fait"
+      const toutes = await Promise.all(lieux.map(l => getMissionsParLieu(l.LieuID)));
+      lieux.forEach((l, i) => missionsParLieuCache[l.LieuID] = toutes[i]);
+
+      let premierNonFaitTrouve = false;
+      const path = document.createElement('div');
+      path.className = 'trail-path';
+
+      lieux.forEach((l, index) => {
+        const missions = missionsParLieuCache[l.LieuID] || [];
+        const toutesFaites = missions.length > 0 && missions.every(m => missionsFaitesIds.has(m.MissionID));
+        let etat = 'a-venir';
+        if (toutesFaites) etat = 'fait';
+        else if (!premierNonFaitTrouve) { etat = 'courant'; premierNonFaitTrouve = true; }
+
+        const type = typesParId[l.Type];
+        const icone = type ? type.Icone : '📍';
+        const nom = LANGUE === 'he' ? (l.Nom_HE || l.Nom_FR) : l.Nom_FR;
+
+        const wrap = document.createElement('div');
+        wrap.className = 'trail-node-wrap';
+        wrap.innerHTML = `
+          <div class="trail-node-col">
+            <div class="trail-node ${etat}" data-id="${l.LieuID}">
+              <span class="num">${index + 1}</span>
+              ${icone}
+              ${etat === 'fait' ? '<span class="check">✅</span>' : ''}
+            </div>
+            <div class="trail-label">${nom}</div>
+          </div>`;
+        wrap.querySelector('.trail-node').onclick = () => ouvrirLieu(l.LieuID);
+        path.appendChild(wrap);
       });
+
+      box.innerHTML = '';
+      box.appendChild(path);
+    }
+
+    async function ouvrirLieu(lieuId) {
+      const lieu = lieuxCache.find(l => l.LieuID === lieuId);
+      const missions = missionsParLieuCache[lieuId] || [];
+      const box = document.getElementById('modal-box');
+      document.getElementById('modal-bg').style.display = 'flex';
+
+      const nom = LANGUE === 'he' ? (lieu.Nom_HE || lieu.Nom_FR) : lieu.Nom_FR;
+      const torah = LANGUE === 'he' ? lieu.TorahTexte_HE : lieu.TorahTexte_FR;
+      const geo = LANGUE === 'he' ? lieu.FaitGeo_HE : lieu.FaitGeo_FR;
+
+      let html = `<h2>📍 ${nom}</h2>`;
+      if (torah) html += `<div class="mission-card">📖 ${torah}</div>`;
+      if (geo) html += `<div class="mission-card">🌍 ${geo}</div>`;
+
+      if (!missions.length) {
+        html += `<p class="muted mt-16">Aucune mission pour ce lieu pour l'instant.</p>`;
+      } else {
+        missions.forEach(m => {
+          const fait = missionsFaitesIds.has(m.MissionID);
+          const titre = (LANGUE === 'he' ? m.Titre_HE : m.Titre_FR) || m.Type;
+          const icones = { photo: '📸', chasse: '🔎', animaux: '🐸', quiz: '❓', note: '⭐' };
+          html += `<div class="mission-card ${fait ? 'done' : ''}" id="mission-${m.MissionID}">
+            <b>${icones[m.Type] || ''} ${titre}</b> <span class="muted">(${m.Points || 0} pts)</span>
+            ${renderContenuMission(m, fait)}
+          </div>`;
+        });
+      }
+      html += boutonFermer();
+      box.innerHTML = html;
+
+      missions.forEach(m => {
+        if (missionsFaitesIds.has(m.MissionID)) return;
+        const el = document.getElementById('mission-' + m.MissionID);
+        const btn = el.querySelector('.btn-valider-mission');
+        if (btn) btn.onclick = () => validerMission(m, lieuId);
+        el.querySelectorAll('.star-picker span').forEach(s => {
+          s.onclick = () => validerMission(m, lieuId, s.dataset.note);
+        });
+      });
+    }
+
+    function renderContenuMission(m, fait) {
+      if (fait) return `<div class="muted mt-8">✅ Fait !</div>`;
+      const c = m.Contenu || {};
+      if (m.Type === 'photo') {
+        return `<p class="muted mt-8">${c.consigne || ''}</p>
+          <button class="btn btn--accent btn--block mt-8 btn-valider-mission">📸 Fait !</button>`;
+      }
+      if (m.Type === 'chasse') {
+        return `<ul class="mt-8">${(c.indices || []).map(i => `<li>${i}</li>`).join('')}</ul>
+          <button class="btn btn--accent btn--block mt-8 btn-valider-mission">🔎 Trouvé !</button>`;
+      }
+      if (m.Type === 'animaux') {
+        return `<p class="mt-8">${(c.animaux || []).join('  ')}</p>
+          <button class="btn btn--accent btn--block mt-8 btn-valider-mission">🐸 Tous trouvés !</button>`;
+      }
+      if (m.Type === 'quiz') {
+        const reponses = c.reponses || [];
+        return `<p class="mt-8"><b>${c.question || ''}</b></p>` +
+          reponses.map((r, i) => `<button class="btn btn--ghost btn--block mt-8" onclick="window.repondreQuiz('${m.MissionID}', ${i === 0})">${r}</button>`).join('');
+      }
+      if (m.Type === 'note') {
+        return `<div class="star-picker mt-8">${[1,2,3,4,5].map(n => `<span data-note="${n}">⭐</span>`).join('')}</div>`;
+      }
+      return `<button class="btn btn--accent btn--block mt-8 btn-valider-mission">Fait !</button>`;
+    }
+
+    window.repondreQuiz = function(missionId, correct) {
+      const lieu = Object.entries(missionsParLieuCache).find(([lid, ms]) => ms.some(m => m.MissionID === missionId));
+      const lieuId = lieu ? lieu[0] : null;
+      const mission = lieu ? lieu[1].find(m => m.MissionID === missionId) : null;
+      if (!mission) return;
+      if (correct) {
+        alert('Bonne réponse ! 🎉');
+        validerMission(mission, lieuId);
+      } else {
+        alert('Pas tout à fait, réessaie !');
+      }
+    };
+
+    async function validerMission(mission, lieuId, note) {
+      await enregistrerResultat({
+        profilId: PROFIL_ID, missionId: mission.MissionID, statut: 'fait',
+        points: mission.Points || 10, note: note || ''
+      });
+      missionsFaitesIds.add(mission.MissionID);
+      parler(LANGUE === 'he' ? 'כל הכבוד!' : 'Bravo !', LANGUE);
+      fermerModal();
+      afficherPiste(lieuxCache);
     }
 
     function parler(texte, langue) {
@@ -168,7 +334,6 @@
       speechSynthesis.speak(utter);
     }
 
-    // --- Onglets ---
     document.querySelectorAll('.tab').forEach(tab => {
       tab.onclick = () => {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -178,10 +343,8 @@
       };
     });
 
-    // --- Mode voiture ---
     let modeVoiture = false;
     const SEUIL_VITESSE_MS = 20 / 3.6;
-
     function setModeVoiture(actif) {
       modeVoiture = actif;
       const el = document.getElementById('drive-status');
@@ -190,26 +353,21 @@
     }
     document.getElementById('btn-on-roule').onclick = () => setModeVoiture(true);
     document.getElementById('btn-on-arrete').onclick = () => setModeVoiture(false);
-
     if ('geolocation' in navigator) {
       navigator.geolocation.watchPosition(pos => {
         const vitesse = pos.coords.speed;
-        if (vitesse !== null && !isNaN(vitesse) && vitesse > SEUIL_VITESSE_MS && !modeVoiture) {
-          setModeVoiture(true);
-        }
+        if (vitesse !== null && !isNaN(vitesse) && vitesse > SEUIL_VITESSE_MS && !modeVoiture) setModeVoiture(true);
       }, () => {}, { enableHighAccuracy: true, maximumAge: 5000 });
     }
 
-    // --- Jeux ---
     window.ouvrirJeu = function(type) {
       const box = document.getElementById('modal-box');
       document.getElementById('modal-bg').style.display = 'flex';
-      const langue = monProfil.Langue;
+      const langue = LANGUE;
 
       if (type === 'bingo') {
         const items = toutLesDefis.bingo.slice(0, 9);
-        box.innerHTML = '<h3>🔲 Bingo voiture</h3><p class="muted mt-8">Touche une case quand tu la vois !</p>' +
-          '<div class="bingo-grid mt-16">' +
+        box.innerHTML = '<h3>🔲 Bingo voiture</h3><div class="bingo-grid mt-16">' +
           items.map(it => `<div class="bingo-cell" onclick="this.classList.toggle('found')">${langue === 'he' ? it.Contenu_HE : it.Contenu_FR}</div>`).join('') +
           '</div>' + boutonFermer();
       }
@@ -220,11 +378,10 @@
       if (type === 'enigme') {
         const e = toutLesDefis.enigme[Math.floor(Math.random() * toutLesDefis.enigme.length)];
         box.innerHTML = '<h3>❓ Énigme</h3><div class="enigme-box">' +
-          (e ? (langue === 'he' ? e.Contenu_HE : e.Contenu_FR) : "Pas encore d'énigmes ajoutées.") +
-          '</div>' + boutonFermer();
+          (e ? (langue === 'he' ? e.Contenu_HE : e.Contenu_FR) : "Pas encore d'énigmes ajoutées.") + '</div>' + boutonFermer();
       }
       if (type === 'musique') {
-        box.innerHTML = "<h3>🎵 Musique du voyage</h3><p class=\"muted mt-8\">La playlist sera branchée ici une fois les vidéos ajoutées dans l'admin.</p>" + boutonFermer();
+        box.innerHTML = "<h3>🎵 Musique du voyage</h3><p class=\"muted mt-8\">Playlist à venir.</p>" + boutonFermer();
       }
     };
 
@@ -233,7 +390,7 @@
       const resultEl = document.getElementById('wheel-result');
       if (!r.length) { resultEl.textContent = 'Pas encore de défis ajoutés.'; return; }
       const defi = r[Math.floor(Math.random() * r.length)];
-      resultEl.textContent = monProfil.Langue === 'he' ? defi.Contenu_HE : defi.Contenu_FR;
+      resultEl.textContent = LANGUE === 'he' ? defi.Contenu_HE : defi.Contenu_FR;
     };
 
     function boutonFermer() {
