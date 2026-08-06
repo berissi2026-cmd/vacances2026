@@ -208,7 +208,13 @@ Mauvaise réponse 2"></textarea>
 
     <!-- DEFIS ROUTE -->
     <div class="admin-panel" id="p-defis">
-      <h3>Ajouter un défi de route</h3>
+      <h3>📦 Import en masse (défis route)</h3>
+      <p class="muted mt-8" style="font-size:12px;">Colle le bloc JSON préparé (bingo/roue/énigmes), puis clique sur Importer.</p>
+      <textarea id="import-defis-json" rows="5" style="width:100%; margin-top:10px; font-family:monospace; font-size:12px;" placeholder='[{"type":"bingo_item","contenuFr":"Un tracteur","contenuHe":"טרקטור"},{"type":"enigme","contenuFr":"...","contenuHe":"...","reponse":""}]'></textarea>
+      <button class="btn btn--primary btn--block mt-8" id="btn-importer-defis">📦 Importer les défis</button>
+      <div id="import-defis-statut" class="muted mt-8" style="font-size:13px;"></div>
+
+      <h3 class="mt-24">Ajouter un défi de route</h3>
       <div class="col mt-16">
         <div><label>Type</label>
           <select id="d-type">
@@ -574,6 +580,38 @@ Mauvaise réponse 2"></textarea>
         chargerLieux();
         chargerLieuxPourMissions();
       }
+    };
+
+    // --- IMPORT EN MASSE DEFIS ---
+    document.getElementById('btn-importer-defis').onclick = async () => {
+      const statut = document.getElementById('import-defis-statut');
+      const zone = document.getElementById('import-defis-json');
+      let liste;
+      try {
+        liste = JSON.parse(zone.value);
+        if (!Array.isArray(liste)) throw new Error('doit être un tableau []');
+      } catch (e) {
+        statut.textContent = '❌ JSON invalide : ' + e.message;
+        return;
+      }
+      if (!liste.length) { statut.textContent = '❌ La liste est vide.'; return; }
+
+      const btn = document.getElementById('btn-importer-defis');
+      btn.disabled = true;
+      let ok = 0;
+      for (const entree of liste) {
+        try {
+          await ajouterDefiRoute({
+            type: entree.type, contenuFr: entree.contenuFr, contenuHe: entree.contenuHe || '',
+            reponse: entree.reponse || ''
+          });
+          ok++;
+        } catch (e) { /* on continue */ }
+        statut.textContent = `⏳ ${ok}/${liste.length} importés...`;
+      }
+      btn.disabled = false;
+      statut.textContent = `✅ ${ok} défi(s) importé(s).`;
+      if (ok > 0) zone.value = '';
     };
 
     // --- PLAYLIST MUSIQUE DE LA ROUTE ---

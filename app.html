@@ -395,6 +395,9 @@
       let html = `<h2>📍 ${nom}</h2>`;
       if (torah) html += `<div class="mission-card">📖 ${torah}</div>`;
       if (geo) html += `<div class="mission-card">🌍 ${geo}</div>`;
+      if (torah || geo) {
+        html += `<button class="btn btn--ghost btn--block mt-8" id="btn-ecouter-histoire">🔊 ${LANGUE === 'he' ? 'האזינו לסיפור' : "Écouter l'histoire"}</button>`;
+      }
 
       if (!missions.length) {
         html += `<p class="muted mt-16">Aucune mission pour ce lieu pour l'instant.</p>`;
@@ -411,6 +414,14 @@
       }
       html += boutonFermer();
       box.innerHTML = html;
+
+      const btnEcouter = document.getElementById('btn-ecouter-histoire');
+      if (btnEcouter) {
+        btnEcouter.onclick = () => {
+          const texte = [torah, geo].filter(Boolean).join('. ');
+          parler(texte, LANGUE);
+        };
+      }
 
       missions.forEach(m => {
         if (missionsFaitesIds.has(m.MissionID)) return;
@@ -775,7 +786,10 @@
     function boutonFermer() {
       return '<button class="btn btn--ghost btn--block mt-16" onclick="window.fermerModal()">Fermer</button>';
     }
-    window.fermerModal = function() { document.getElementById('modal-bg').style.display = 'none'; };
+    window.fermerModal = function() {
+      document.getElementById('modal-bg').style.display = 'none';
+      if ('speechSynthesis' in window) speechSynthesis.cancel();
+    };
 
     init();
   </script>
