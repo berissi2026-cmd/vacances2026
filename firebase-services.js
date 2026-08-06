@@ -145,12 +145,17 @@ export async function ajouterLieu(data) {
     Nom_FR: data.nomFr, Nom_HE: data.nomHe, Type: data.type,
     Jour: data.jour, Heure: data.heure || "",
     Lat: data.lat || "", Lng: data.lng || "",
-    PhotoURL: data.photoUrl || "",
+    PhotoURL: data.photoUrl || "", AudioURL: data.audioUrl || "",
     TorahTexte_FR: data.torahFr || "", TorahTexte_HE: data.torahHe || "",
     FaitGeo_FR: data.faitGeoFr || "", FaitGeo_HE: data.faitGeoHe || "",
     Ordre: tousLieux.length + 1
   });
   return { success: true, lieuId: ref.id };
+}
+
+export async function updateLieuAudio(lieuId, audioUrl) {
+  await updateDoc(doc(db, "lieux", lieuId), { AudioURL: audioUrl });
+  return { success: true };
 }
 
 export async function supprimerLieu(lieuId) {
@@ -269,7 +274,10 @@ export async function getDefisRoute(type) {
 export async function ajouterDefiRoute(data) {
   const ref = await addDoc(collection(db, "defisRoute"), {
     Type: data.type, Contenu_FR: data.contenuFr, Contenu_HE: data.contenuHe,
-    Reponse: data.reponse || ""
+    Reponse: data.reponse || "",
+    OptionsFR: data.optionsFr || [], OptionsHE: data.optionsHe || [],
+    ReponseIndex: (data.reponseIndex !== undefined && data.reponseIndex !== null) ? data.reponseIndex : -1,
+    Points: data.points || 10
   });
   return { success: true, defiId: ref.id };
 }

@@ -228,12 +228,18 @@ Mauvaise réponse 2"></textarea>
           <select id="d-type">
             <option value="bingo_item">Case de bingo</option>
             <option value="roue">Défi roue</option>
-            <option value="enigme">Énigme</option>
+            <option value="enigme">Énigme (QCM)</option>
           </select>
         </div>
-        <div><label>Contenu (FR)</label><input id="d-fr"></div>
-        <div><label>Contenu (HE)</label><input id="d-he"></div>
-        <div><label>Réponse (optionnel)</label><input id="d-reponse"></div>
+        <div><label>Contenu / Question (FR)</label><input id="d-fr"></div>
+        <div><label>Contenu / Question (HE)</label><input id="d-he"></div>
+        <div><label>Points gagnés</label><input type="number" id="d-points" value="10"></div>
+
+        <div id="d-qcm-zone" style="display:none;">
+          <p class="muted mt-16" style="font-size:12px;">4 réponses possibles — coche la bonne case pour indiquer la bonne réponse.</p>
+          <div class="col mt-8" id="d-qcm-options"></div>
+        </div>
+
         <button class="btn btn--primary btn--block mt-16" id="btn-ajouter-defi">➕ Ajouter</button>
       </div>
 
@@ -279,8 +285,10 @@ Mauvaise réponse 2"></textarea>
       getLieux, ajouterLieu, supprimerLieu, ajouterDefiRoute, getProfils,
       getTypesExcursion, ajouterTypeExcursion, seedTypesExcursionSiVide,
       getMissionsParLieu, ajouterMission, supprimerMission,
-      getSettings, updateSettings, getPlaylistPourLieu, ajouterVideoPlaylist, supprimerVideoPlaylist
+      getSettings, updateSettings, getPlaylistPourLieu, ajouterVideoPlaylist, supprimerVideoPlaylist,
+      updateLieuAudio
     } from './firebase-services.js';
+    import { uploaderAudioLieu } from './imagekit-services.js';
 
     document.getElementById('btn-init').onclick = async () => {
       const btn = document.getElementById('btn-init');
@@ -634,7 +642,9 @@ Mauvaise réponse 2"></textarea>
         try {
           await ajouterDefiRoute({
             type: entree.type, contenuFr: entree.contenuFr, contenuHe: entree.contenuHe || '',
-            reponse: entree.reponse || ''
+            reponse: entree.reponse || '',
+            optionsFr: entree.optionsFr || [], optionsHe: entree.optionsHe || [],
+            reponseIndex: entree.reponseIndex, points: entree.points || 10
           });
           ok++;
         } catch (e) { /* on continue */ }
@@ -712,14 +722,35 @@ Mauvaise réponse 2"></textarea>
         const item = document.createElement('div');
         item.className = 'lieu-item';
         item.innerHTML = `<div class="top-row">
-            <span>📍 <b>${l.Nom_FR}</b> — ${l.Jour} ${l.Heure || ''}</span>
-            <div class="actions"><button data-id="${l.LieuID}">🗑️</button></div>
-          </div>`;
-        item.querySelector('button').onclick = async () => {
+            <span>📍 <b>${l.Nom_FR}</b> — ${l.Jour} ${l.Heure || ''} ${l.AudioURL ? '🔊' : ''}</span>
+            <div class="actions">
+              <button class="btn-audio" data-id="${l.LieuID}" title="Ajouter/remplacer l'audio">🎙️</button>
+              <input type="file" accept="audio/*" class="input-audio" data-id="${l.LieuID}" style="display:none;">
+              <button data-id="${l.LieuID}">🗑️</button>
+            </div>
+          </div>
+          <div class="muted statut-audio" data-id="${l.LieuID}" style="font-size:12px;"></div>`;
+        item.querySelector('button:not(.btn-audio)').onclick = async () => {
           if (!confirm('Supprimer ce lieu ?')) return;
           await supprimerLieu(l.LieuID);
           chargerLieux();
           chargerLieuxPourMissions();
+        };
+        const inputAudio = item.querySelector('.input-audio');
+        const statutAudio = item.querySelector('.statut-audio');
+        item.querySelector('.btn-audio').onclick = () => inputAudio.click();
+        inputAudio.onchange = async () => {
+          const fichier = inputAudio.files[0];
+          if (!fichier) return;
+          statutAudio.textContent = '⏳ Envoi en cours...';
+          try {
+            const url = await uploaderAudioLieu(l.LieuID, fichier);
+            await updateLieuAudio(l.LieuID, url);
+            statutAudio.textContent = '✅ Audio ajouté !';
+            chargerLieux();
+          } catch (e) {
+            statutAudio.textContent = '❌ Échec de l\'envoi, réessaie.';
+          }
         };
         box.appendChild(item);
       });
@@ -787,11 +818,47 @@ Mauvaise réponse 2"></textarea>
     }
 
     // --- DEFIS ROUTE ---
+    function construireQcmOptions() {
+      const zone = document.getElementById('d-qcm-options');
+      zone.innerHTML = '';
+      for (let i = 0; i < 4; i++) {
+        const row = document.createElement('div');
+        row.className = 'field-row';
+        row.style.alignItems = 'center';
+        row.innerHTML = `
+          <input type="radio" name="d-qcm-correct" value="${i}" ${i === 0 ? 'checked' : ''} style="width:auto;">
+          <input placeholder="Réponse FR ${i + 1}" class="d-qcm-fr">
+          <input placeholder="תשובה HE ${i + 1}" class="d-qcm-he">`;
+        zone.appendChild(row);
+      }
+    }
+    construireQcmOptions();
+
+    document.getElementById('d-type').addEventListener('change', () => {
+      document.getElementById('d-qcm-zone').style.display = val('d-type') === 'enigme' ? 'block' : 'none';
+    });
+
     document.getElementById('btn-ajouter-defi').onclick = async () => {
-      const data = { type: val('d-type'), contenuFr: val('d-fr'), contenuHe: val('d-he'), reponse: val('d-reponse') };
+      const type = val('d-type');
+      const data = {
+        type, contenuFr: val('d-fr'), contenuHe: val('d-he'),
+        points: Number(val('d-points')) || 10
+      };
       if (!data.contenuFr) { alert('Le contenu en français est obligatoire'); return; }
+
+      if (type === 'enigme') {
+        const optionsFr = [...document.querySelectorAll('.d-qcm-fr')].map(i => i.value).filter(Boolean);
+        const optionsHe = [...document.querySelectorAll('.d-qcm-he')].map(i => i.value);
+        if (optionsFr.length < 2) { alert('Ajoute au moins 2 réponses possibles'); return; }
+        const correctInput = document.querySelector('input[name="d-qcm-correct"]:checked');
+        data.optionsFr = optionsFr;
+        data.optionsHe = optionsHe;
+        data.reponseIndex = correctInput ? Number(correctInput.value) : 0;
+      }
+
       await ajouterDefiRoute(data);
-      ['d-fr','d-he','d-reponse'].forEach(id => document.getElementById(id).value = '');
+      ['d-fr', 'd-he'].forEach(id => document.getElementById(id).value = '');
+      construireQcmOptions();
       alert('Défi ajouté !');
     };
 

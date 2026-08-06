@@ -49,6 +49,7 @@
   .trail-node.a-venir { opacity: 0.55; }
   .trail-node .num { position:absolute; top:-8px; left:-8px; background: var(--bark); color:#fff; font-size:11px; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family: var(--font-display); }
   .trail-node .check { position:absolute; bottom:-6px; right:-6px; font-size:18px; }
+  .trail-node .plus { position:absolute; bottom:-6px; left:-6px; background: var(--sunset); color:#fff; font-size:11px; width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family: var(--font-display); }
   .trail-node.vide { opacity: 0.5; box-shadow: none; }
   .trail-node.ici { border-color: var(--sunset); box-shadow: 0 0 0 5px rgba(230,126,34,.35), 4px 4px 0 rgba(92,61,36,0.25); animation: pulse 1.6s infinite; transform: scale(1.12); }
   .trail-node .pion { position:absolute; top:-46px; left:50%; transform: translateX(-50%); font-size:60px; line-height:1; filter: drop-shadow(1px 3px 2px rgba(0,0,0,.4)); }
@@ -211,7 +212,7 @@
     import {
       getProfil, getProfils, ecouterScoreFamille, ecouterProfil, getDefisRoute, ecouterLieux,
       getMissionsParLieu, getResultatsProfil, enregistrerResultat, getTypesExcursion,
-      ecouterTousResultats, getSettings, ajouterBadgeProfil, getPlaylistPourLieu
+      ecouterTousResultats, getSettings, ajouterBadgeProfil, getPlaylistPourLieu, ajouterScoreProfil
     } from './firebase-services.js';
     import { uploaderPhotoMission } from './imagekit-services.js';
 
@@ -361,6 +362,7 @@
 
       const pion = calculerPositionPion(settingsVoyage);
       const momentLabels = MOMENT_LABELS[LANGUE] || MOMENT_LABELS.fr;
+      let numeroEtape = 0;
 
       box.innerHTML = '';
       JOURS.forEach((jourFr, jourIndex) => {
@@ -377,10 +379,12 @@
           const casesLieux = lieuxParCase[cle] || [];
           const lieuPrincipal = casesLieux[0] || null;
           const estIci = pion.jourIndex === jourIndex && pion.moment === moment;
+          const estNuit = moment === 'nuit';
 
           let etatClasse = 'vide';
           let icone = MOMENT_ICONES[moment];
           let label = momentLabels[moment];
+          let badgeCoin = '';
 
           if (lieuPrincipal) {
             const missions = missionsParLieuCache[lieuPrincipal.LieuID] || [];
@@ -389,6 +393,12 @@
             const type = typesParId[lieuPrincipal.Type];
             icone = type ? type.Icone : '📍';
             label = LANGUE === 'he' ? (lieuPrincipal.Nom_HE || lieuPrincipal.Nom_FR) : lieuPrincipal.Nom_FR;
+            if (estNuit) {
+              badgeCoin = `<span class="num">🏠</span>`;
+            } else {
+              numeroEtape++;
+              badgeCoin = `<span class="num">${numeroEtape}</span>`;
+            }
           }
 
           const wrap = document.createElement('div');
@@ -399,7 +409,8 @@
                 ${estIci ? '<span class="pion">🚗</span>' : ''}
                 ${icone}
                 ${etatClasse === 'fait' ? '<span class="check">✅</span>' : ''}
-                ${casesLieux.length > 1 ? `<span class="num">+${casesLieux.length - 1}</span>` : ''}
+                ${badgeCoin}
+                ${casesLieux.length > 1 ? `<span class="plus">+${casesLieux.length - 1}</span>` : ''}
               </div>
               <div class="trail-label">${label}</div>
             </div>`;
@@ -438,7 +449,9 @@
       let html = `<h2>📍 ${nom}</h2>`;
       if (torah) html += `<div class="mission-card">📖 ${torah}</div>`;
       if (geo) html += `<div class="mission-card">🌍 ${geo}</div>`;
-      if (torah || geo) {
+      if (lieu.AudioURL) {
+        html += `<audio controls style="width:100%; margin-top:8px;" src="${lieu.AudioURL}"></audio>`;
+      } else if (torah || geo) {
         html += `<button class="btn btn--ghost btn--block mt-8" id="btn-ecouter-histoire">🔊 ${LANGUE === 'he' ? 'האזינו לסיפור' : "Écouter l'histoire"}</button>`;
       }
 
@@ -845,18 +858,40 @@
 
       if (type === 'bingo') {
         const items = toutLesDefis.bingo.slice(0, 9);
-        box.innerHTML = '<h3>🔲 Bingo voiture</h3><div class="bingo-grid mt-16">' +
-          items.map(it => `<div class="bingo-cell" onclick="this.classList.toggle('found')">${langue === 'he' ? it.Contenu_HE : it.Contenu_FR}</div>`).join('') +
-          '</div>' + boutonFermer();
+        const totalPoints = items.reduce((s, it) => s + (Number(it.Points) || 10), 0);
+        box.innerHTML = `<h3>🔲 Bingo voiture</h3>
+          <p class="muted mt-8" style="font-size:12px;">${LANGUE === 'he' ? `מצאו את כל 9 הפריטים כדי לזכות ב-${totalPoints} נקודות למשפחה!` : `Trouvez les 9 objets pour gagner ${totalPoints} points pour la famille !`}</p>
+          <div class="bingo-grid mt-16">` +
+          items.map((it, i) => `<div class="bingo-cell" data-i="${i}">${langue === 'he' ? it.Contenu_HE : it.Contenu_FR}</div>`).join('') +
+          `</div><div class="muted mt-8" id="bingo-statut" style="text-align:center;"></div>` + boutonFermer();
+
+        let trouves = new Set();
+        let dejaGagne = false;
+        box.querySelectorAll('.bingo-cell').forEach(cell => {
+          cell.onclick = async () => {
+            cell.classList.toggle('found');
+            const i = Number(cell.dataset.i);
+            if (cell.classList.contains('found')) trouves.add(i); else trouves.delete(i);
+            if (trouves.size === items.length && !dejaGagne) {
+              dejaGagne = true;
+              await ajouterScoreProfil(PROFIL_ID, totalPoints);
+              document.getElementById('bingo-statut').textContent =
+                LANGUE === 'he' ? `🎉 ביינגו! +${totalPoints} נקודות!` : `🎉 Bingo complet ! +${totalPoints} points !`;
+              parler(LANGUE === 'he' ? 'ביינגו! כל הכבוד לכולם!' : 'Bingo ! Bravo à toute la famille !', LANGUE);
+            }
+          };
+        });
       }
       if (type === 'roue') {
-        box.innerHTML = '<h3>🎡 Roue des défis</h3><div class="wheel-result" id="wheel-result">Tourne la roue !</div>' +
-          '<button class="btn btn--accent btn--block mt-16" onclick="window.tournerRoue()">🎡 Tourner</button>' + boutonFermer();
+        box.innerHTML = '<h3>🎡 Roue des défis</h3><div class="wheel-result" id="wheel-result">' +
+          (LANGUE === 'he' ? 'סובבו את הגלגל!' : 'Tourne la roue !') + '</div>' +
+          '<button class="btn btn--accent btn--block mt-16" id="btn-tourner-roue">🎡 ' + (LANGUE === 'he' ? 'סובבו' : 'Tourner') + '</button>' +
+          '<div id="roue-valider-zone"></div>' + boutonFermer();
+        document.getElementById('btn-tourner-roue').onclick = window.tournerRoue;
       }
       if (type === 'enigme') {
-        const e = toutLesDefis.enigme[Math.floor(Math.random() * toutLesDefis.enigme.length)];
-        box.innerHTML = '<h3>❓ Énigme</h3><div class="enigme-box">' +
-          (e ? (langue === 'he' ? e.Contenu_HE : e.Contenu_FR) : "Pas encore d'énigmes ajoutées.") + '</div>' + boutonFermer();
+        window.enigmeIndexUtilises = window.enigmeIndexUtilises || new Set();
+        afficherProchaineEnigme(box);
       }
       if (type === 'musique') {
         const chargement = LANGUE === 'he' ? 'טוען...' : 'Chargement...';
@@ -887,10 +922,71 @@
     window.tournerRoue = function() {
       const r = toutLesDefis.roue;
       const resultEl = document.getElementById('wheel-result');
-      if (!r.length) { resultEl.textContent = 'Pas encore de défis ajoutés.'; return; }
+      const zone = document.getElementById('roue-valider-zone');
+      if (!r.length) { resultEl.textContent = "Pas encore de défis ajoutés."; return; }
       const defi = r[Math.floor(Math.random() * r.length)];
       resultEl.textContent = LANGUE === 'he' ? defi.Contenu_HE : defi.Contenu_FR;
+      const points = Number(defi.Points) || 10;
+      zone.innerHTML = `<button class="btn btn--primary btn--block mt-16" id="btn-valider-roue">✅ ${LANGUE === 'he' ? `בוצע! (+${points})` : `Fait ! (+${points} pts)`}</button>`;
+      document.getElementById('btn-valider-roue').onclick = async () => {
+        await ajouterScoreProfil(PROFIL_ID, points);
+        zone.innerHTML = `<p class="muted mt-8" style="text-align:center;">🎉 +${points} ${LANGUE === 'he' ? 'נקודות!' : 'points !'}</p>`;
+        parler(LANGUE === 'he' ? 'כל הכבוד!' : 'Bravo !', LANGUE);
+      };
     };
+
+    // ------------------------------------------------------------
+    // ÉNIGMES — QCM avec score, passage automatique à la suivante
+    // ------------------------------------------------------------
+    function afficherProchaineEnigme(box) {
+      const dispo = toutLesDefis.enigme.filter((e, i) => !window.enigmeIndexUtilises.has(i));
+      const liste = dispo.length ? dispo : toutLesDefis.enigme;
+      if (window.enigmeIndexUtilises.size >= toutLesDefis.enigme.length) window.enigmeIndexUtilises.clear();
+
+      if (!liste.length) {
+        box.innerHTML = `<h3>❓ ${LANGUE === 'he' ? 'חידה' : 'Énigme'}</h3><p class="muted mt-8">${LANGUE === 'he' ? 'עדיין אין חידות.' : "Pas encore d'énigmes ajoutées."}</p>${boutonFermer()}`;
+        return;
+      }
+      const e = liste[Math.floor(Math.random() * liste.length)];
+      const indexReel = toutLesDefis.enigme.indexOf(e);
+      window.enigmeIndexUtilises.add(indexReel);
+
+      const question = LANGUE === 'he' ? e.Contenu_HE : e.Contenu_FR;
+      const options = (LANGUE === 'he' ? e.OptionsHE : e.OptionsFR) || [];
+      const points = Number(e.Points) || 10;
+
+      box.innerHTML = `<h3>❓ ${LANGUE === 'he' ? 'חידה' : 'Énigme'}</h3>
+        <div class="enigme-box">${question || ''}</div>
+        <div class="col mt-16" id="enigme-options">
+          ${options.map((op, i) => `<button class="btn btn--ghost btn--block btn-reponse-enigme" data-i="${i}">${op}</button>`).join('')}
+        </div>
+        <div class="muted mt-8" id="enigme-statut" style="text-align:center;"></div>`;
+
+      const boutonsRep = box.querySelectorAll('.btn-reponse-enigme');
+      boutonsRep.forEach(btn => {
+        btn.onclick = async () => {
+          boutonsRep.forEach(b => b.disabled = true);
+          const i = Number(btn.dataset.i);
+          const statut = document.getElementById('enigme-statut');
+          if (i === e.ReponseIndex) {
+            await ajouterScoreProfil(PROFIL_ID, points);
+            btn.style.background = 'var(--jungle-leaf)';
+            statut.textContent = LANGUE === 'he' ? `🎉 נכון! +${points} נקודות` : `🎉 Bonne réponse ! +${points} points`;
+            parler(LANGUE === 'he' ? 'כל הכבוד!' : 'Bravo !', LANGUE);
+          } else {
+            btn.style.background = '#e57373';
+            statut.textContent = LANGUE === 'he' ? 'לא נכון, ננסה את הבאה!' : "Perdu, on passe à la suivante !";
+          }
+          const suite = document.createElement('button');
+          suite.className = 'btn btn--primary btn--block mt-16';
+          suite.textContent = LANGUE === 'he' ? '➡️ הבאה' : '➡️ Question suivante';
+          suite.onclick = () => afficherProchaineEnigme(box);
+          statut.after(suite);
+        };
+      });
+
+      box.appendChild(document.createRange().createContextualFragment(boutonFermer()));
+    }
 
     function boutonFermer() {
       return '<button class="btn btn--ghost btn--block mt-16" onclick="window.fermerModal()">Fermer</button>';

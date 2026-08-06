@@ -48,3 +48,31 @@ export async function uploaderPhotoMission(profilId, missionId, blob) {
 export async function uploaderPhotoProfil(profilId, blob) {
   return uploaderVersImageKit(`/vacances2026/profils`, profilId, blob);
 }
+
+// Upload d'un fichier audio (histoire racontée) pour un lieu, renvoie l'URL publique
+export async function uploaderAudioLieu(lieuId, fichier) {
+  const authRes = await fetch(AUTH_ENDPOINT);
+  if (!authRes.ok) throw new Error("Service d'authentification ImageKit indisponible");
+  const { token, expire, signature } = await authRes.json();
+
+  const formData = new FormData();
+  const extension = (fichier.name.split('.').pop() || 'mp3').toLowerCase();
+  formData.append("file", fichier, `${lieuId}.${extension}`);
+  formData.append("fileName", `${lieuId}_${Date.now()}.${extension}`);
+  formData.append("publicKey", IMAGEKIT_PUBLIC_KEY);
+  formData.append("signature", signature);
+  formData.append("expire", expire);
+  formData.append("token", token);
+  formData.append("folder", `/vacances2026/audio`);
+
+  const res = await fetch("https://upload.imagekit.io/api/v1/files/upload", {
+    method: "POST",
+    body: formData
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error("Échec upload audio : " + err);
+  }
+  const data = await res.json();
+  return data.url;
+}
