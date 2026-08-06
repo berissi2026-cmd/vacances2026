@@ -1247,10 +1247,10 @@
       return defisFaitsCache.some(d => d.DefiID === defiId && d.ProfilID === PROFIL_ID);
     }
 
-    // Estime une difficulté à partir des points d'un défi (facile ≤10, moyen ≤25, difficile plus)
+    // Estime une difficulté à partir des points d'un défi (barème réel : facile 15, moyen 25, difficile 40)
     function difficulteDepuisPoints(points) {
       const p = Number(points) || 10;
-      if (p <= 10) return 'facile';
+      if (p <= 15) return 'facile';
       if (p <= 25) return 'moyen';
       return 'difficile';
     }
@@ -1522,6 +1522,19 @@
     // ÉNIGMES — QCM avec score, passage automatique à la suivante
     // ------------------------------------------------------------
     function afficherProchaineEnigme(box) {
+      const age = Number(monProfil.Age);
+      if (age && age <= 4) {
+        box.innerHTML = `<h3>❓ ${LANGUE === 'he' ? 'חידה' : 'Énigme'}</h3>
+          <div class="mission-card">${LANGUE === 'he'
+            ? '📖 המשחק הזה דורש קריאה. בקשו מאח או אחות גדולים שיעזרו לכם, או שחקו בביינגו במקום!'
+            : "📖 Ce jeu demande de savoir lire. Demande à un grand frère ou une grande sœur de t'aider, ou joue au Bingo à la place !"}</div>
+          <button class="btn btn--accent btn--block mt-16" id="btn-vers-bingo">🔲 ${LANGUE === 'he' ? 'למעבר לביינגו' : 'Aller au Bingo'}</button>
+          ${boutonFermer()}`;
+        const btn = document.getElementById('btn-vers-bingo');
+        if (btn) btn.onclick = () => window.ouvrirJeu('bingo');
+        return;
+      }
+
       const { nouveaux, enRetard } = poolsPourType(toutLesDefis.enigme);
       const liste = [...enRetard, ...nouveaux];
 
