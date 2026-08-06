@@ -22,6 +22,10 @@
   .panel.active { display: block; }
 
   #switch-profil-row { display: flex; flex-direction: row; flex-wrap: nowrap; gap: 8px; padding: 8px 20px; overflow-x: auto; align-items: center; }
+  #progress-1000 { padding: 10px 20px 0; }
+  .progress-track { background: var(--sand-light); border: 3px solid var(--bark); border-radius: 999px; height: 20px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--jungle-leaf), var(--sunset)); border-radius: 999px; width: 0%; transition: width 0.6s ease; }
+  .progress-label { text-align: center; font-family: var(--font-display); font-size: 12px; margin-top: 4px; font-weight: 700; }
   .switch-profil-btn { width: 46px; height: 46px; flex: 0 0 46px; border-radius: 50%; background: var(--sand-light); border: 3px solid var(--bark); font-size: 22px; display:flex; align-items:center; justify-content:center; cursor:pointer; opacity:.55; overflow:hidden; }
   .switch-profil-btn img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
   .switch-profil-btn.actif { opacity: 1; border-color: var(--sunset); box-shadow: 0 0 0 3px rgba(230,126,34,.3); }
@@ -130,6 +134,11 @@
       <span class="score-pill" style="background: var(--sunset);">🏆 <span id="score-famille">0</span></span>
     </div>
   </header>
+
+  <div id="progress-1000">
+    <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+    <div class="progress-label" id="progress-label">0 / 1000 points</div>
+  </div>
 
   <div id="switch-profil-row"></div>
 
@@ -274,7 +283,14 @@
       monProfil = p;
       appliquerProfil(p);
 
-      ecouterScoreFamille(s => document.getElementById('score-famille').textContent = s);
+      ecouterScoreFamille(s => {
+        document.getElementById('score-famille').textContent = s;
+        const OBJECTIF = 1000;
+        const pct = Math.min(100, Math.round((s / OBJECTIF) * 100));
+        document.getElementById('progress-fill').style.width = pct + '%';
+        document.getElementById('progress-label').textContent =
+          (LANGUE === 'he' ? `${s} / ${OBJECTIF} נקודות` : `${s} / ${OBJECTIF} points`) + (s >= OBJECTIF ? ' 🏆' : '');
+      });
       ecouterProfil(PROFIL_ID, p2 => {
         monProfil = { ...monProfil, ...p2 };
         document.getElementById('score-perso').textContent = p2.ScorePerso || 0;
