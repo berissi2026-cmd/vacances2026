@@ -12,10 +12,19 @@
   .admin-panel { display: none; padding: 20px; max-width: 560px; margin: 0 auto; }
   .admin-panel.active { display: block; }
   .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .lieu-item { background: var(--sand-light); border: 2px solid var(--bark); border-radius: var(--radius-sm); padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .lieu-item { background: var(--sand-light); border: 2px solid var(--bark); border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 8px; }
+  .lieu-item .top-row { display: flex; justify-content: space-between; align-items: center; }
   .lieu-item button { border: none; background: none; cursor: pointer; font-size: 16px; }
+  .lieu-item .actions { display: flex; gap: 6px; }
   #gate { max-width: 380px; margin: 60px auto; padding: 20px; }
-  #init-banner { display:none; max-width: 480px; margin: 20px auto; }
+
+  .type-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--sand-light); border: 2px solid var(--bark); border-radius: 999px; padding: 6px 12px; font-size: 13px; margin: 4px 4px 0 0; }
+
+  .mission-type-fields { display: none; }
+  .mission-type-fields.active { display: block; }
+  .mission-item { background: var(--white); border: 2px dashed var(--bark); border-radius: var(--radius-sm); padding: 10px 12px; margin-top: 8px; font-size: 13px; }
+
+  select.lieu-picker { margin-bottom: 16px; }
 </style>
 </head>
 <body class="bg-jungle">
@@ -29,6 +38,7 @@
       <button class="btn btn--primary btn--block mt-16" id="btn-entrer">Entrer</button>
       <div id="mdp-erreur" class="muted" style="color: var(--danger); display:none;">Mot de passe incorrect</div>
       <button class="btn btn--ghost btn--block mt-16" id="btn-init">🌱 Première utilisation ? Initialiser les données</button>
+      <button class="btn btn--ghost btn--block mt-8" id="btn-corriger">🔧 Corriger les prénoms (Elior)</button>
     </div>
   </div>
 
@@ -39,27 +49,28 @@
 
     <div class="admin-tabs">
       <div class="admin-tab active" data-p="lieux">📍 Lieux</div>
+      <div class="admin-tab" data-p="missions">🎯 Missions</div>
+      <div class="admin-tab" data-p="types">🏷️ Types d'excursion</div>
       <div class="admin-tab" data-p="defis">🚗 Défis route</div>
       <div class="admin-tab" data-p="progression">📊 Progression</div>
     </div>
 
+    <!-- LIEUX -->
     <div class="admin-panel active" id="p-lieux">
       <h3>Ajouter un lieu</h3>
       <div class="col mt-16">
+        <div>
+          <label>🔎 Rechercher le lieu (nom en hébreu ou français)</label>
+          <input id="l-recherche" placeholder="ex: כנרת ou Kinneret" autocomplete="off">
+          <div id="l-suggestions" style="margin-top:6px;"></div>
+        </div>
+
         <div class="field-row">
           <div><label>Nom (FR)</label><input id="l-nomfr"></div>
           <div><label>Nom (HE)</label><input id="l-nomhe"></div>
         </div>
         <div class="field-row">
-          <div><label>Type</label>
-            <select id="l-type">
-              <option value="mayan">Mayan / source</option>
-              <option value="parc">Parc / nature</option>
-              <option value="visite">Visite / musée</option>
-              <option value="ruine">Site historique</option>
-              <option value="autre">Autre</option>
-            </select>
-          </div>
+          <div><label>Type d'excursion</label><select id="l-type"></select></div>
           <div><label>Jour</label>
             <select id="l-jour">
               <option>Dimanche</option><option>Lundi</option><option>Mardi</option>
@@ -77,6 +88,12 @@
         </div>
         <button class="btn btn--ghost" id="btn-position">📍 Utiliser ma position actuelle</button>
 
+        <div>
+          <label>📋 Ou coller des coordonnées copiées depuis Google Maps</label>
+          <input id="l-coller-coords" placeholder="ex: 31.7767, 35.2345">
+          <p class="muted" style="font-size:12px;">Dans Google Maps : appui long sur le lieu, les coordonnées s'affichent en bas, copie-les et colle-les ici.</p>
+        </div>
+
         <div><label>Léa dit Torah (FR)</label><textarea id="l-torahfr" rows="2"></textarea></div>
         <div><label>Léa dit Torah (HE)</label><textarea id="l-torahhe" rows="2"></textarea></div>
         <div><label>Fait géo / nature (FR)</label><textarea id="l-geofr" rows="2"></textarea></div>
@@ -89,6 +106,88 @@
       <div id="liste-lieux" class="mt-16"></div>
     </div>
 
+    <!-- MISSIONS -->
+    <div class="admin-panel" id="p-missions">
+      <h3>Missions par lieu</h3>
+      <select class="lieu-picker mt-16" id="m-lieu-picker"></select>
+
+      <div id="m-form" style="display:none;">
+        <div class="col">
+          <div><label>Type de mission</label>
+            <select id="m-type">
+              <option value="photo">📸 Mission photo</option>
+              <option value="chasse">🔎 Chasse au trésor</option>
+              <option value="animaux">🐸 Trouver des animaux</option>
+              <option value="quiz">❓ Quiz</option>
+              <option value="note">⭐ Donner une note</option>
+            </select>
+          </div>
+          <div class="field-row">
+            <div><label>Titre (FR)</label><input id="m-titrefr"></div>
+            <div><label>Titre (HE)</label><input id="m-titrehe"></div>
+          </div>
+
+          <div class="mission-type-fields active" data-type="photo">
+            <label>Consigne de la photo (FR)</label><textarea id="m-photo-consigne" rows="2" placeholder="ex: prends en photo quelque chose de vert"></textarea>
+          </div>
+          <div class="mission-type-fields" data-type="chasse">
+            <label>Indices (un par ligne)</label><textarea id="m-chasse-indices" rows="4"></textarea>
+          </div>
+          <div class="mission-type-fields" data-type="animaux">
+            <label>Animaux à trouver (un par ligne, emoji possible)</label><textarea id="m-animaux-liste" rows="4" placeholder="🦎 Lézard
+🐦 Oiseau"></textarea>
+          </div>
+          <div class="mission-type-fields" data-type="quiz">
+            <label>Question</label><input id="m-quiz-question" class="mt-8">
+            <label class="mt-8">Réponses (une par ligne, la 1ère est la bonne)</label>
+            <textarea id="m-quiz-reponses" rows="3" placeholder="Bonne réponse
+Mauvaise réponse 1
+Mauvaise réponse 2"></textarea>
+          </div>
+          <div class="mission-type-fields" data-type="note">
+            <p class="muted">Les enfants pourront donner une note ⭐ de 1 à 5 à ce lieu, rien à configurer de plus.</p>
+          </div>
+
+          <div class="field-row mt-16">
+            <div><label>Difficulté</label>
+              <select id="m-difficulte">
+                <option value="facile">Facile (petits)</option>
+                <option value="moyen" selected>Moyen</option>
+                <option value="difficile">Difficile (grands)</option>
+              </select>
+            </div>
+            <div><label>Points</label><input type="number" id="m-points" value="10"></div>
+          </div>
+
+          <div class="field-row">
+            <div><label>Badge gagné (FR)</label><input id="m-badgefr" placeholder="ex: Explorateur d'eau"></div>
+            <div><label>Emoji du badge</label><input id="m-badgeemoji" placeholder="🏆"></div>
+          </div>
+
+          <button class="btn btn--primary btn--block mt-16" id="btn-ajouter-mission">➕ Ajouter cette mission</button>
+        </div>
+
+        <h3 class="mt-24">Missions existantes pour ce lieu</h3>
+        <div id="liste-missions" class="mt-16"></div>
+      </div>
+    </div>
+
+    <!-- TYPES D'EXCURSION -->
+    <div class="admin-panel" id="p-types">
+      <h3>Types d'excursion</h3>
+      <p class="muted mt-8">Ajoute tes propres catégories (elles apparaîtront dans le formulaire "Ajouter un lieu").</p>
+      <div class="col mt-16">
+        <div class="field-row">
+          <div><label>Nom (FR)</label><input id="t-fr" placeholder="ex: Kayak"></div>
+          <div><label>Nom (HE)</label><input id="t-he" placeholder="קיאק"></div>
+        </div>
+        <div><label>Emoji</label><input id="t-icone" placeholder="🛶"></div>
+        <button class="btn btn--primary btn--block mt-8" id="btn-ajouter-type">➕ Ajouter ce type</button>
+      </div>
+      <div id="liste-types" class="mt-16"></div>
+    </div>
+
+    <!-- DEFIS ROUTE -->
     <div class="admin-panel" id="p-defis">
       <h3>Ajouter un défi de route</h3>
       <div class="col mt-16">
@@ -104,9 +203,9 @@
         <div><label>Réponse (optionnel)</label><input id="d-reponse"></div>
         <button class="btn btn--primary btn--block mt-16" id="btn-ajouter-defi">➕ Ajouter</button>
       </div>
-      <p class="muted mt-16">Ces défis alimentent le Bingo, la Roue et les Énigmes du mode voiture pour tous les enfants.</p>
     </div>
 
+    <!-- PROGRESSION -->
     <div class="admin-panel" id="p-progression">
       <h3>Progression de la famille</h3>
       <div id="liste-progression" class="col mt-16"></div>
@@ -115,20 +214,23 @@
 
   <script type="module">
     import {
-      verifierMotDePasseAdmin, initialiserDonneesSiVide, getLieux, ajouterLieu,
-      supprimerLieu, ajouterDefiRoute, getProfils
+      verifierMotDePasseAdmin, initialiserDonneesSiVide, corrigerProfilsFamille,
+      getLieux, ajouterLieu, supprimerLieu, ajouterDefiRoute, getProfils,
+      getTypesExcursion, ajouterTypeExcursion,
+      getMissionsParLieu, ajouterMission, supprimerMission
     } from './firebase-services.js';
 
     document.getElementById('btn-init').onclick = async () => {
       const btn = document.getElementById('btn-init');
-      btn.disabled = true;
-      btn.textContent = 'Initialisation...';
+      btn.disabled = true; btn.textContent = 'Initialisation...';
       const res = await initialiserDonneesSiVide();
-      btn.disabled = false;
-      btn.textContent = '🌱 Première utilisation ? Initialiser les données';
-      alert(res.deja
-        ? 'Les données existent déjà, rien à faire !'
-        : "C'est prêt ! Les 6 profils de la famille et des défis de démo ont été créés.");
+      btn.disabled = false; btn.textContent = "🌱 Première utilisation ? Initialiser les données";
+      alert(res.deja ? 'Les données existent déjà, rien à faire !' : "C'est prêt !");
+    };
+
+    document.getElementById('btn-corriger').onclick = async () => {
+      await corrigerProfilsFamille();
+      alert('Prénoms corrigés (Elior) !');
     };
 
     document.getElementById('btn-entrer').onclick = async () => {
@@ -137,8 +239,10 @@
       if (ok) {
         document.getElementById('gate').style.display = 'none';
         document.getElementById('admin-content').style.display = 'block';
+        chargerTypesExcursion();
         chargerLieux();
         chargerProgression();
+        chargerTypesListe();
       } else {
         document.getElementById('mdp-erreur').style.display = 'block';
       }
@@ -160,6 +264,89 @@
       });
     };
 
+    // --- Coller des coordonnées copiées depuis Google Maps ---
+    document.getElementById('l-coller-coords').addEventListener('input', (e) => {
+      const val = e.target.value;
+      const m = val.match(/(-?\d{1,3}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)/);
+      if (m) {
+        document.getElementById('l-lat').value = m[1];
+        document.getElementById('l-lng').value = m[2];
+      }
+    });
+
+    // --- Recherche gratuite de lieu (OpenStreetMap / Nominatim, sans clé API) ---
+    let timerRecherche = null;
+    document.getElementById('l-recherche').addEventListener('input', (e) => {
+      clearTimeout(timerRecherche);
+      const requete = e.target.value.trim();
+      if (requete.length < 3) { document.getElementById('l-suggestions').innerHTML = ''; return; }
+      timerRecherche = setTimeout(() => rechercherLieu(requete), 500);
+    });
+
+    async function rechercherLieu(requete) {
+      const box = document.getElementById('l-suggestions');
+      box.innerHTML = '<p class="muted" style="font-size:12px;">Recherche...</p>';
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(requete)}&format=json&addressdetails=1&namedetails=1&countrycodes=il&accept-language=he,fr&limit=5`;
+        const res = await fetch(url);
+        const resultats = await res.json();
+        if (!resultats.length) { box.innerHTML = '<p class="muted" style="font-size:12px;">Aucun résultat, essaie un autre mot ou utilise les coordonnées collées.</p>'; return; }
+        box.innerHTML = '';
+        resultats.forEach(r => {
+          const item = document.createElement('div');
+          item.className = 'lieu-item';
+          item.style.cursor = 'pointer';
+          const nomPrincipal = r.namedetails?.name || r.display_name.split(',')[0];
+          item.innerHTML = `<span>📍 ${nomPrincipal}</span>`;
+          item.onclick = () => choisirSuggestion(r);
+          box.appendChild(item);
+        });
+      } catch (err) {
+        box.innerHTML = '<p class="muted" style="font-size:12px;">Recherche indisponible, utilise les coordonnées collées à la place.</p>';
+      }
+    }
+
+    function choisirSuggestion(r) {
+      document.getElementById('l-lat').value = Number(r.lat).toFixed(5);
+      document.getElementById('l-lng').value = Number(r.lon).toFixed(5);
+
+      const nd = r.namedetails || {};
+      const nomHe = nd['name:he'] || nd.name || '';
+      const nomFr = nd['name:fr'] || nd['name:en'] || '';
+
+      if (nomHe) document.getElementById('l-nomhe').value = nomHe;
+      if (nomFr) document.getElementById('l-nomfr').value = nomFr;
+      else if (!document.getElementById('l-nomfr').value) {
+        document.getElementById('l-nomfr').value = nd.name || r.display_name.split(',')[0];
+      }
+
+      document.getElementById('l-suggestions').innerHTML = '';
+      document.getElementById('l-recherche').value = '';
+    }
+
+    // --- TYPES D'EXCURSION ---
+    async function chargerTypesExcursion() {
+      const types = await getTypesExcursion();
+      const sel = document.getElementById('l-type');
+      sel.innerHTML = types.map(t => `<option value="${t.TypeID}">${t.Icone} ${t.LabelFR}</option>`).join('');
+    }
+
+    async function chargerTypesListe() {
+      const types = await getTypesExcursion();
+      document.getElementById('liste-types').innerHTML = types.map(t =>
+        `<span class="type-chip">${t.Icone} ${t.LabelFR} / ${t.LabelHE}</span>`).join('');
+    }
+
+    document.getElementById('btn-ajouter-type').onclick = async () => {
+      const labelFr = val('t-fr');
+      if (!labelFr) { alert('Le nom en français est obligatoire'); return; }
+      await ajouterTypeExcursion({ labelFr, labelHe: val('t-he'), icone: val('t-icone') || '📍' });
+      ['t-fr','t-he','t-icone'].forEach(id => document.getElementById(id).value = '');
+      chargerTypesExcursion();
+      chargerTypesListe();
+    };
+
+    // --- LIEUX ---
     document.getElementById('btn-ajouter-lieu').onclick = async () => {
       const data = {
         nomFr: val('l-nomfr'), nomHe: val('l-nomhe'), type: val('l-type'),
@@ -172,6 +359,7 @@
       ['l-nomfr','l-nomhe','l-heure','l-photo','l-lat','l-lng','l-torahfr','l-torahhe','l-geofr','l-geohe']
         .forEach(id => document.getElementById(id).value = '');
       chargerLieux();
+      chargerLieuxPourMissions();
     };
 
     async function chargerLieux() {
@@ -181,17 +369,82 @@
       lieux.forEach(l => {
         const item = document.createElement('div');
         item.className = 'lieu-item';
-        item.innerHTML = `<span>📍 <b>${l.Nom_FR}</b> — ${l.Jour} ${l.Heure || ''}</span>
-          <button data-id="${l.LieuID}">🗑️</button>`;
+        item.innerHTML = `<div class="top-row">
+            <span>📍 <b>${l.Nom_FR}</b> — ${l.Jour} ${l.Heure || ''}</span>
+            <div class="actions"><button data-id="${l.LieuID}">🗑️</button></div>
+          </div>`;
         item.querySelector('button').onclick = async () => {
           if (!confirm('Supprimer ce lieu ?')) return;
           await supprimerLieu(l.LieuID);
           chargerLieux();
+          chargerLieuxPourMissions();
         };
         box.appendChild(item);
       });
     }
 
+    // --- MISSIONS ---
+    async function chargerLieuxPourMissions() {
+      const lieux = await getLieux();
+      const sel = document.getElementById('m-lieu-picker');
+      sel.innerHTML = '<option value="">— Choisis un lieu —</option>' +
+        lieux.map(l => `<option value="${l.LieuID}">${l.Nom_FR}</option>`).join('');
+    }
+
+    document.getElementById('m-lieu-picker').onchange = async (e) => {
+      const lieuId = e.target.value;
+      document.getElementById('m-form').style.display = lieuId ? 'block' : 'none';
+      if (lieuId) chargerMissions(lieuId);
+    };
+
+    document.getElementById('m-type').onchange = (e) => {
+      document.querySelectorAll('.mission-type-fields').forEach(f => f.classList.remove('active'));
+      const target = document.querySelector(`.mission-type-fields[data-type="${e.target.value}"]`);
+      if (target) target.classList.add('active');
+    };
+
+    document.getElementById('btn-ajouter-mission').onclick = async () => {
+      const lieuId = document.getElementById('m-lieu-picker').value;
+      if (!lieuId) { alert('Choisis un lieu'); return; }
+      const type = val('m-type');
+      let contenu = {};
+      if (type === 'photo') contenu = { consigne: val('m-photo-consigne') };
+      if (type === 'chasse') contenu = { indices: val('m-chasse-indices').split('\n').filter(Boolean) };
+      if (type === 'animaux') contenu = { animaux: val('m-animaux-liste').split('\n').filter(Boolean) };
+      if (type === 'quiz') contenu = { question: val('m-quiz-question'), reponses: val('m-quiz-reponses').split('\n').filter(Boolean) };
+
+      await ajouterMission({
+        lieuId, type,
+        titreFr: val('m-titrefr'), titreHe: val('m-titrehe'),
+        contenu, difficulte: val('m-difficulte'), points: Number(val('m-points')) || 10,
+        badgeNomFr: val('m-badgefr'), badgeVisuel: val('m-badgeemoji')
+      });
+
+      ['m-titrefr','m-titrehe','m-photo-consigne','m-chasse-indices','m-animaux-liste',
+       'm-quiz-question','m-quiz-reponses','m-badgefr','m-badgeemoji']
+        .forEach(id => document.getElementById(id).value = '');
+      chargerMissions(lieuId);
+    };
+
+    async function chargerMissions(lieuId) {
+      const missions = await getMissionsParLieu(lieuId);
+      const box = document.getElementById('liste-missions');
+      box.innerHTML = missions.length ? '' : '<p class="muted">Aucune mission pour ce lieu.</p>';
+      const icones = { photo: '📸', chasse: '🔎', animaux: '🐸', quiz: '❓', note: '⭐' };
+      missions.forEach(m => {
+        const el = document.createElement('div');
+        el.className = 'mission-item';
+        el.innerHTML = `<b>${icones[m.Type] || ''} ${m.Titre_FR || m.Type}</b> — ${m.Points || 0} pts
+          <button style="float:inline-end; border:none; background:none; cursor:pointer;" data-id="${m.MissionID}">🗑️</button>`;
+        el.querySelector('button').onclick = async () => {
+          await supprimerMission(m.MissionID);
+          chargerMissions(lieuId);
+        };
+        box.appendChild(el);
+      });
+    }
+
+    // --- DEFIS ROUTE ---
     document.getElementById('btn-ajouter-defi').onclick = async () => {
       const data = { type: val('d-type'), contenuFr: val('d-fr'), contenuHe: val('d-he'), reponse: val('d-reponse') };
       if (!data.contenuFr) { alert('Le contenu en français est obligatoire'); return; }
@@ -200,6 +453,7 @@
       alert('Défi ajouté !');
     };
 
+    // --- PROGRESSION ---
     async function chargerProgression() {
       const profils = await getProfils();
       const box = document.getElementById('liste-progression');
@@ -208,12 +462,14 @@
         const el = document.createElement('div');
         el.className = 'card row';
         el.innerHTML = `<span style="font-size:24px;">${p.Avatar || '🧑'}</span>
-          <div><b>${p.Nom}</b><div class="muted">⭐ ${p.ScorePerso || 0} points</div></div>`;
+          <div><b>${p.Nom_FR}</b><div class="muted">⭐ ${p.ScorePerso || 0} points</div></div>`;
         box.appendChild(el);
       });
     }
 
     function val(id) { return document.getElementById(id).value; }
+
+    chargerLieuxPourMissions();
   </script>
 </body>
 </html>
