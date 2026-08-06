@@ -2,6 +2,9 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Vacances Quest</title>
 <link rel="stylesheet" href="styles.css">
@@ -27,6 +30,7 @@
   .avatar-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 16px 0 24px; }
   .avatar-choice { font-size: 30px; text-align: center; padding: 14px 0; border-radius: var(--radius-sm); border: 3px solid var(--bark); background: var(--sand-light); cursor: pointer; }
   .avatar-choice.selected { background: var(--jungle-leaf); }
+  .photo-profil-preview { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; display: block; margin: 12px auto; border: 3px solid var(--bark); }
 
   #premier-lancement { display: none; text-align: center; padding: 60px 20px; }
   .lien-changer-langue { display: block; text-align: center; margin-top: 20px; font-size: 13px; opacity: 0.6; cursor: pointer; }
@@ -68,7 +72,10 @@
   <div id="onboarding">
     <div class="card">
       <h2 id="onboard-title">Bienvenue !</h2>
-      <p class="muted mt-8">Choisis ton animal</p>
+      <p class="muted mt-8" id="txt-choisir">Choisis ton animal, ou prends une photo !</p>
+      <img id="photo-preview" class="photo-profil-preview" style="display:none;">
+      <input type="file" accept="image/*" capture="user" id="input-photo-profil" style="display:none;">
+      <button class="btn btn--ghost btn--block mt-16" id="btn-prendre-photo">📷 <span id="txt-photo-btn">Prendre une photo</span></button>
       <div class="mt-24">
         <div class="avatar-grid" id="avatar-grid"></div>
       </div>
@@ -77,16 +84,20 @@
   </div>
 
   <script type="module">
-    import { getProfils, updateProfilAvatar } from './firebase-services.js';
+    import { getProfils, updateProfilAvatar, updateProfilPhoto } from './firebase-services.js';
+    import { uploaderPhotoProfil } from './imagekit-services.js';
 
     const AVATARS = ['🦁','🐘','🐒','🦒','🐯','🦓','🐊','🦜','🐢','🦛','🦏','🐆'];
     let profilSelectionne = null;
     let avatarChoisi = AVATARS[0];
+    let photoBlobChoisi = null;
     let langue = localStorage.getItem('vq_langue');
+    const params = new URLSearchParams(window.location.search);
+    const PROFIL_A_MODIFIER = params.get('modifier');
 
     const TEXTES = {
-      fr: { eyebrow: "L'aventure commence", sous: "Choisis qui part à l'aventure aujourd'hui", changerLangue: "🌐 Changer la langue", bienvenue: "Bienvenue " },
-      he: { eyebrow: "ההרפתקה מתחילה", sous: "בחרו מי יוצא להרפתקה היום", changerLangue: "🌐 החלף שפה", bienvenue: "ברוכים הבאים " }
+      fr: { eyebrow: "L'aventure commence", sous: "Choisis qui part à l'aventure aujourd'hui", changerLangue: "🌐 Changer la langue", bienvenue: "Bienvenue ", choisir: "Choisis ton animal, ou prends une photo !", photoBtn: "Prendre une photo" },
+      he: { eyebrow: "ההרפתקה מתחילה", sous: "בחרו מי יוצא להרפתקה היום", changerLangue: "🌐 החלף שפה", bienvenue: "ברוכים הבאים ", choisir: "בחרו חיה, או צלמו תמונה!", photoBtn: "צלמו תמונה" }
     };
 
     document.getElementById('choix-fr').onclick = () => choisirLangue('fr');
@@ -116,6 +127,12 @@
         document.getElementById('premier-lancement').style.display = 'block';
         return;
       }
+
+      if (PROFIL_A_MODIFIER) {
+        const profil = profils.find(p => p.ProfilID === PROFIL_A_MODIFIER);
+        if (profil) { ouvrirOnboarding(profil); return; }
+      }
+
       document.getElementById('screen-profils').style.display = 'block';
       afficherProfils(profils);
     }
@@ -128,7 +145,7 @@
         const tile = document.createElement('div');
         tile.className = 'profil-tile';
         tile.innerHTML = `
-          <span class="emoji">${p.Avatar || '🧑'}</span>
+          ${p.PhotoURL ? `<img src="${p.PhotoURL}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 6px;">` : `<span class="emoji">${p.Avatar || '🧑'}</span>`}
           <div class="nom">${nomAffiche}</div>
           <div class="score">⭐ ${p.ScorePerso || 0}</div>
         `;
@@ -138,17 +155,32 @@
     }
 
     function selectionnerProfil(profil) {
-      profilSelectionne = profil;
-      if (profil.Avatar) {
+      if (profil.Avatar || profil.PhotoURL) {
         entrerDansApp(profil.ProfilID);
       } else {
-        document.getElementById('screen-profils').style.display = 'none';
-        document.getElementById('onboarding').style.display = 'block';
-        const t = TEXTES[langue] || TEXTES.fr;
-        const nomAffiche = langue === 'he' ? (profil.Nom_HE || profil.Nom_FR) : profil.Nom_FR;
-        document.getElementById('onboard-title').textContent = t.bienvenue + nomAffiche + ' !';
-        construireAvatarGrid();
+        ouvrirOnboarding(profil);
       }
+    }
+
+    function ouvrirOnboarding(profil) {
+      profilSelectionne = profil;
+      avatarChoisi = profil.Avatar || AVATARS[0];
+      photoBlobChoisi = null;
+      document.getElementById('screen-profils').style.display = 'none';
+      document.getElementById('onboarding').style.display = 'block';
+      const t = TEXTES[langue] || TEXTES.fr;
+      const nomAffiche = langue === 'he' ? (profil.Nom_HE || profil.Nom_FR) : profil.Nom_FR;
+      document.getElementById('onboard-title').textContent = t.bienvenue + nomAffiche + ' !';
+      document.getElementById('txt-choisir').textContent = t.choisir;
+      document.getElementById('txt-photo-btn').textContent = t.photoBtn;
+      const preview = document.getElementById('photo-preview');
+      if (profil.PhotoURL) {
+        preview.src = profil.PhotoURL;
+        preview.style.display = 'block';
+      } else {
+        preview.style.display = 'none';
+      }
+      construireAvatarGrid();
     }
 
     function construireAvatarGrid() {
@@ -167,9 +199,54 @@
       });
     }
 
+    document.getElementById('btn-prendre-photo').onclick = () => {
+      document.getElementById('input-photo-profil').click();
+    };
+
+    document.getElementById('input-photo-profil').onchange = async (e) => {
+      const fichier = e.target.files[0];
+      if (!fichier) return;
+      const blob = await compresserImagePetite(fichier);
+      photoBlobChoisi = blob;
+      const preview = document.getElementById('photo-preview');
+      preview.src = URL.createObjectURL(blob);
+      preview.style.display = 'block';
+    };
+
+    function compresserImagePetite(fichier, maxLargeur = 500, qualite = 0.8) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        const lecteur = new FileReader();
+        lecteur.onload = () => { img.src = lecteur.result; };
+        lecteur.onerror = reject;
+        img.onload = () => {
+          const ratio = Math.min(1, maxLargeur / img.width);
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.width * ratio);
+          canvas.height = Math.round(img.height * ratio);
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob(b => b ? resolve(b) : reject(new Error('toBlob a échoué')), 'image/jpeg', qualite);
+        };
+        img.onerror = reject;
+        lecteur.readAsDataURL(fichier);
+      });
+    }
+
     document.getElementById('btn-start').onclick = async () => {
-      await updateProfilAvatar(profilSelectionne.ProfilID, avatarChoisi);
-      entrerDansApp(profilSelectionne.ProfilID);
+      const btn = document.getElementById('btn-start');
+      btn.disabled = true;
+      try {
+        if (photoBlobChoisi) {
+          const url = await uploaderPhotoProfil(profilSelectionne.ProfilID, photoBlobChoisi);
+          await updateProfilPhoto(profilSelectionne.ProfilID, url);
+        }
+        await updateProfilAvatar(profilSelectionne.ProfilID, avatarChoisi);
+        entrerDansApp(profilSelectionne.ProfilID);
+      } catch (err) {
+        alert("Erreur lors de l'envoi de la photo, réessaie (vérifie ta connexion).");
+        btn.disabled = false;
+      }
     };
 
     function entrerDansApp(profilId) {

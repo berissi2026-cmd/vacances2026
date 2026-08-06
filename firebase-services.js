@@ -44,6 +44,11 @@ export async function updateProfilAvatar(profilId, avatar) {
   return { success: true };
 }
 
+export async function updateProfilPhoto(profilId, photoUrl) {
+  await updateDoc(doc(db, "profils", profilId), { PhotoURL: photoUrl });
+  return { success: true };
+}
+
 // Migration : corrige les profils déjà créés avec l'ancienne orthographe / structure
 export async function corrigerProfilsFamille() {
   const corrections = {

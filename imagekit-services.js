@@ -12,20 +12,20 @@
 const IMAGEKIT_PUBLIC_KEY = "public_YxpIbmKQ9kSTFflGa1DK5vUO0eU=";
 const AUTH_ENDPOINT = "https://fancy-wave-d762.berissi2026.workers.dev";
 
-// Upload d'une photo de mission vers ImageKit, renvoie l'URL publique
-export async function uploaderPhotoMission(profilId, missionId, blob) {
+// Fonction générique d'upload vers ImageKit, renvoie l'URL publique
+async function uploaderVersImageKit(dossier, nomFichier, blob) {
   const authRes = await fetch(AUTH_ENDPOINT);
   if (!authRes.ok) throw new Error("Service d'authentification ImageKit indisponible");
   const { token, expire, signature } = await authRes.json();
 
   const formData = new FormData();
-  formData.append("file", blob, `${missionId}.jpg`);
-  formData.append("fileName", `${missionId}_${Date.now()}.jpg`);
+  formData.append("file", blob, `${nomFichier}.jpg`);
+  formData.append("fileName", `${nomFichier}_${Date.now()}.jpg`);
   formData.append("publicKey", IMAGEKIT_PUBLIC_KEY);
   formData.append("signature", signature);
   formData.append("expire", expire);
   formData.append("token", token);
-  formData.append("folder", `/vacances2026/${profilId}`);
+  formData.append("folder", dossier);
 
   const res = await fetch("https://upload.imagekit.io/api/v1/files/upload", {
     method: "POST",
@@ -37,4 +37,14 @@ export async function uploaderPhotoMission(profilId, missionId, blob) {
   }
   const data = await res.json();
   return data.url;
+}
+
+// Upload d'une photo de mission vers ImageKit, renvoie l'URL publique
+export async function uploaderPhotoMission(profilId, missionId, blob) {
+  return uploaderVersImageKit(`/vacances2026/${profilId}`, missionId, blob);
+}
+
+// Upload d'une photo de profil (selfie) vers ImageKit, renvoie l'URL publique
+export async function uploaderPhotoProfil(profilId, blob) {
+  return uploaderVersImageKit(`/vacances2026/profils`, profilId, blob);
 }
