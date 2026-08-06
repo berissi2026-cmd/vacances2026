@@ -1522,21 +1522,21 @@
     // ÉNIGMES — QCM avec score, passage automatique à la suivante
     // ------------------------------------------------------------
     function afficherProchaineEnigme(box) {
+      const { nouveaux, enRetard } = poolsPourType(toutLesDefis.enigme);
+      const liste = [...enRetard, ...nouveaux];
+
       const age = Number(monProfil.Age);
-      if (age && age <= 4) {
+      if (age && age <= 4 && !liste.length) {
         box.innerHTML = `<h3>❓ ${LANGUE === 'he' ? 'חידה' : 'Énigme'}</h3>
           <div class="mission-card">${LANGUE === 'he'
-            ? '📖 המשחק הזה דורש קריאה. בקשו מאח או אחות גדולים שיעזרו לכם, או שחקו בביינגו במקום!'
-            : "📖 Ce jeu demande de savoir lire. Demande à un grand frère ou une grande sœur de t'aider, ou joue au Bingo à la place !"}</div>
+            ? '📖 אין עוד חידות מתאימות כרגע. בקשו מהורה שיקריא לכם, או שחקו בביינגו!'
+            : "📖 Pas d'énigme adaptée pour l'instant. Demande à un parent de te la lire, ou joue au Bingo !"}</div>
           <button class="btn btn--accent btn--block mt-16" id="btn-vers-bingo">🔲 ${LANGUE === 'he' ? 'למעבר לביינגו' : 'Aller au Bingo'}</button>
           ${boutonFermer()}`;
         const btn = document.getElementById('btn-vers-bingo');
         if (btn) btn.onclick = () => window.ouvrirJeu('bingo');
         return;
       }
-
-      const { nouveaux, enRetard } = poolsPourType(toutLesDefis.enigme);
-      const liste = [...enRetard, ...nouveaux];
 
       if (!liste.length) {
         box.innerHTML = `<h3>❓ ${LANGUE === 'he' ? 'חידה' : 'Énigme'}</h3><p class="muted mt-8">${LANGUE === 'he' ? 'אין עוד חידות היום.' : "Pas de nouvelles énigmes aujourd'hui."}</p>${boutonFermer()}`;
