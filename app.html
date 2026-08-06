@@ -74,8 +74,8 @@
   .game-tile .emoji { font-size: 30px; display: block; margin-bottom: 6px; }
   .game-badge { font-size: 11px; margin-top: 6px; color: var(--bark); opacity: .75; line-height:1.4; }
   .game-badge .neuf { color: var(--sunset); font-weight: 700; }
-  #stats-enigmes { margin-bottom: 16px; }
-  #stats-enigmes h4 { font-family: var(--font-display); margin-bottom: 8px; }
+  .stats-jeu { margin-bottom: 16px; }
+  .stats-jeu h4 { font-family: var(--font-display); margin-bottom: 8px; }
   .stats-grid-enigmes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; margin-bottom: 12px; }
   .stats-grid-enigmes .stat-box { background: var(--sand-light); border: 2px solid var(--bark); border-radius: var(--radius-sm); padding: 8px 4px; }
   .stats-grid-enigmes .stat-box b { display: block; font-size: 18px; font-family: var(--font-display); }
@@ -186,7 +186,9 @@
   </div>
 
   <div class="panel" id="panel-voiture">
-    <div class="card" id="stats-enigmes"></div>
+    <div class="card stats-jeu" id="stats-bingo"></div>
+    <div class="card stats-jeu" id="stats-roue"></div>
+    <div class="card stats-jeu" id="stats-enigmes"></div>
     <div class="games-grid">
       <div class="game-tile" onclick="window.ouvrirJeu('bingo')"><span class="emoji">🔲</span>Bingo<div class="game-badge" id="badge-bingo"></div></div>
       <div class="game-tile" onclick="window.ouvrirJeu('roue')"><span class="emoji">🎡</span>Roue des défis<div class="game-badge" id="badge-roue"></div></div>
@@ -1138,13 +1140,20 @@
           badge.innerHTML = parts.join(' · ');
         }
       });
-      afficherStatsEnigmes();
+      afficherStatsJeu('enigme', toutLesDefis.enigme, 'stats-enigmes', true);
+      afficherStatsJeu('bingo', toutLesDefis.bingo, 'stats-bingo', false);
+      afficherStatsJeu('roue', toutLesDefis.roue, 'stats-roue', false);
     }
 
-    function afficherStatsEnigmes() {
-      const zone = document.getElementById('stats-enigmes');
+    const TITRES_STATS = {
+      enigme: { fr: '📊 Mes stats énigmes', he: '📊 הסטטיסטיקה שלי בחידות' },
+      bingo: { fr: '📊 Mes stats bingo', he: '📊 הסטטיסטיקה שלי בביינגו' },
+      roue: { fr: '📊 Mes stats roue des défis', he: '📊 הסטטיסטיקה שלי בגלגל' }
+    };
+
+    function afficherStatsJeu(type, toutes, zoneId, avecCorrection) {
+      const zone = document.getElementById(zoneId);
       if (!zone) return;
-      const toutes = toutLesDefis.enigme;
       const debloques = joursDebloques();
       const disponibles = toutes.filter(e => !e.Jour || debloques.includes(e.Jour));
 
@@ -1154,15 +1163,16 @@
       const repondu = mesReponses.length;
       const manque = disponibles.length - repondu;
       const bienRepondu = mesReponses.filter(d => d.Correct === true).length;
-      const pointsEnigmes = mesReponses.reduce((somme, d) => {
+      const points = mesReponses.reduce((somme, d) => {
         const e = toutes.find(x => x.DefiID === d.DefiID);
         if (!e) return somme;
+        if (!avecCorrection) return somme + (Number(e.Points) || 10);
         return somme + (d.Correct ? (Number(e.Points) || 10) : 2);
       }, 0);
 
       const t = LANGUE === 'he'
-        ? { titre: '📊 הסטטיסטיקה שלי בחידות', repondu: 'ענית', manque: 'נשארו', bien: 'תשובות נכונות', pts: 'נקודות מחידות' }
-        : { titre: '📊 Mes stats énigmes', repondu: 'Répondu', manque: 'Il en manque', bien: 'Bien répondu', pts: 'Points via énigmes' };
+        ? { titre: TITRES_STATS[type].he, repondu: 'ענית', manque: 'נשארו', bien: 'תשובות נכונות', pts: 'נקודות' }
+        : { titre: TITRES_STATS[type].fr, repondu: 'Répondu', manque: 'Il en manque', bien: 'Bien répondu', pts: 'Points' };
 
       const parJour = JOURS.map((jour, i) => {
         const total = toutes.filter(e => e.Jour === jour).length;
@@ -1172,13 +1182,15 @@
         return `<span class="jour-pill ${faites >= total ? 'complet' : ''}">${jourNom} : ${faites}/${total}</span>`;
       }).filter(Boolean).join('');
 
+      if (!toutes.length) { zone.innerHTML = ''; return; }
+
       zone.innerHTML = `
         <h4>${t.titre}</h4>
-        <div class="stats-grid-enigmes">
+        <div class="stats-grid-enigmes" style="grid-template-columns: repeat(${avecCorrection ? 4 : 3}, 1fr);">
           <div class="stat-box"><b>${repondu}</b><span>${t.repondu}</span></div>
           <div class="stat-box"><b>${manque}</b><span>${t.manque}</span></div>
-          <div class="stat-box"><b>${bienRepondu}</b><span>${t.bien}</span></div>
-          <div class="stat-box"><b>${pointsEnigmes}</b><span>${t.pts}</span></div>
+          ${avecCorrection ? `<div class="stat-box"><b>${bienRepondu}</b><span>${t.bien}</span></div>` : ''}
+          <div class="stat-box"><b>${points}</b><span>${t.pts}</span></div>
         </div>
         <div class="stats-jours-liste">${parJour || ''}</div>`;
     }
