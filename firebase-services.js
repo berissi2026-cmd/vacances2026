@@ -14,12 +14,12 @@ import {
 // (Console Firebase > Paramètres du projet > Tes applications > Config)
 // ------------------------------------------------------------
 const firebaseConfig = {
-  apiKey: "COLLE_TA_CLE_API_ICI",
-  authDomain: "TON-PROJET.firebaseapp.com",
-  projectId: "TON-PROJET",
-  storageBucket: "TON-PROJET.appspot.com",
-  messagingSenderId: "000000000000",
-  appId: "1:000000000000:web:xxxxxxxxxxxxxxxxxxxxxx"
+  apiKey: "AIzaSyBmV7Ba4EC9puU07zn0N39U6LRRSwLPWEM",
+  authDomain: "vacances2026data.firebaseapp.com",
+  projectId: "vacances2026data",
+  storageBucket: "vacances2026data.firebasestorage.app",
+  messagingSenderId: "782996150411",
+  appId: "1:782996150411:web:e0aa4bc94e045216339c8e"
 };
 
 const app = initializeApp(firebaseConfig);
