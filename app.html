@@ -18,9 +18,9 @@
   .panel { display: none; padding: 20px; }
   .panel.active { display: block; }
 
-  .switch-profil-row { display: flex; gap: 8px; padding: 10px 20px 0; overflow-x: auto; }
-  .switch-profil-btn { width: 40px; height: 40px; flex-shrink:0; border-radius: 50%; background: var(--sand-light); border: 3px solid var(--bark); font-size: 18px; display:flex; align-items:center; justify-content:center; cursor:pointer; opacity:.55; }
-  .switch-profil-btn.actif { opacity: 1; border-color: var(--sunset); box-shadow: 0 0 0 3px rgba(230,126,34,.3); }
+  .switch-profil-row { display: flex; flex-direction: row; flex-wrap: nowrap; gap: 6px; padding: 6px 20px; overflow-x: auto; align-items: center; }
+  .switch-profil-btn { width: 28px; height: 28px; flex: 0 0 28px; border-radius: 50%; background: var(--sand-light); border: 2px solid var(--bark); font-size: 14px; display:flex; align-items:center; justify-content:center; cursor:pointer; opacity:.55; }
+  .switch-profil-btn.actif { opacity: 1; border-color: var(--sunset); box-shadow: 0 0 0 2px rgba(230,126,34,.3); }
 
   /* --- PISTE FACON JEU DE L'OIE --- */
   .trail-path { position: relative; max-width: 360px; margin: 10px auto; padding: 30px 0; }
