@@ -8,9 +8,6 @@ import {
   getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc,
   updateDoc, deleteDoc, onSnapshot, increment, query, where
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
-import {
-  getStorage, ref as storageRef, uploadBytes, getDownloadURL
-} from "https://www.gstatic.com/firebasejs/10.13.2/firebase-storage.js";
 
 // ------------------------------------------------------------
 // ⚠️ À REMPLIR : colle ici la config de TON projet Firebase
@@ -27,7 +24,6 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
-export const storage = getStorage(app);
 
 // ============================================================
 // PROFILS
@@ -227,15 +223,6 @@ export async function enregistrerResultat(data) {
     await ajouterScoreProfil(data.profilId, data.points);
   }
   return { success: true, resultId: ref.id };
-}
-
-// Upload d'une photo de mission vers Firebase Storage, renvoie l'URL publique
-export async function uploaderPhotoMission(profilId, missionId, blob) {
-  const nomFichier = `photos/${profilId}/${missionId}_${Date.now()}.jpg`;
-  const ref = storageRef(storage, nomFichier);
-  await uploadBytes(ref, blob, { contentType: "image/jpeg" });
-  const url = await getDownloadURL(ref);
-  return url;
 }
 
 export async function getResultatsProfil(profilId) {

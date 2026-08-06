@@ -132,9 +132,9 @@
   <script type="module">
     import {
       getProfil, ecouterScoreFamille, ecouterProfil, getDefisRoute, ecouterLieux,
-      getMissionsParLieu, getResultatsProfil, enregistrerResultat, getTypesExcursion,
-      uploaderPhotoMission
+      getMissionsParLieu, getResultatsProfil, enregistrerResultat, getTypesExcursion
     } from './firebase-services.js';
+    import { uploaderPhotoMission } from './cloudinary-services.js';
 
     const params = new URLSearchParams(window.location.search);
     const PROFIL_ID = params.get('profil');
