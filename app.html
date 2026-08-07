@@ -653,14 +653,15 @@
       }
 
       if (!missions.length) {
-        html += `<p class="muted mt-16">Aucune mission pour ce lieu pour l'instant.</p>`;
+        html += `<p class="muted mt-16">${LANGUE === 'he' ? 'עדיין אין משימות למקום הזה.' : 'Aucune mission pour ce lieu pour l\'instant.'}</p>`;
       } else {
+        const txtPts = LANGUE === 'he' ? 'נק\'' : 'pts';
         missions.forEach(m => {
           const fait = missionsFaitesIds.has(m.MissionID);
           const titre = (LANGUE === 'he' ? m.Titre_HE : m.Titre_FR) || m.Type;
           const icones = { photo: '📸', chasse: '🔎', animaux: '🐸', quiz: '❓', note: '⭐' };
           html += `<div class="mission-card ${fait ? 'done' : ''}" id="mission-${m.MissionID}">
-            <b>${icones[m.Type] || ''} ${titre}</b> <span class="muted">(${m.Points || 0} pts)</span>
+            <b>${icones[m.Type] || ''} ${titre}</b> <span class="muted">(${m.Points || 0} ${txtPts})</span>
             ${renderContenuMission(m, fait)}
           </div>`;
         });
@@ -1615,7 +1616,7 @@
       box.innerHTML = `<h3>${emoji} ${titre}</h3>
         <div class="wheel-result">${(LANGUE === 'he' ? defi.Contenu_HE : defi.Contenu_FR) + enRetardTxt}</div>
         <p class="muted mt-8" style="font-size:12px; text-align:center;">${LANGUE === 'he' ? `נותרו היום: ${p.restantQuota}` : `Restant aujourd'hui : ${p.restantQuota}`}</p>
-        <button class="btn btn--primary btn--block mt-16" id="btn-valider-defi-simple">✅ ${verbeFait} (+${points} pts)</button>
+        <button class="btn btn--primary btn--block mt-16" id="btn-valider-defi-simple">✅ ${verbeFait} (+${points} ${LANGUE === 'he' ? "נק'" : 'pts'})</button>
         <div id="defi-simple-statut" class="muted mt-8" style="text-align:center;"></div>
         ${boutonFermer()}`;
       document.getElementById('btn-valider-defi-simple').onclick = async () => {
