@@ -205,9 +205,9 @@
     <div class="card stats-jeu" id="stats-roue"></div>
     <div class="card stats-jeu" id="stats-enigmes"></div>
     <div class="games-grid">
-      <div class="game-tile" onclick="window.ouvrirJeu('bingo')"><span class="emoji">🔲</span>Bingo<div class="game-badge" id="badge-bingo"></div></div>
-      <div class="game-tile" onclick="window.ouvrirJeu('roue')"><span class="emoji">🎡</span>Roue des défis<div class="game-badge" id="badge-roue"></div></div>
-      <div class="game-tile" onclick="window.ouvrirJeu('enigme')"><span class="emoji">❓</span>Énigmes<div class="game-badge" id="badge-enigme"></div></div>
+      <div class="game-tile" onclick="window.ouvrirJeu('bingo')"><span class="emoji">🔲</span><span id="txt-tuile-bingo">Bingo</span><div class="game-badge" id="badge-bingo"></div></div>
+      <div class="game-tile" onclick="window.ouvrirJeu('roue')"><span class="emoji">🎡</span><span id="txt-tuile-roue">Roue des défis</span><div class="game-badge" id="badge-roue"></div></div>
+      <div class="game-tile" onclick="window.ouvrirJeu('enigme')"><span class="emoji">❓</span><span id="txt-tuile-enigme">Énigmes</span><div class="game-badge" id="badge-enigme"></div></div>
     </div>
   </div>
 
@@ -381,6 +381,11 @@
       tabs.forEach((tab, i) => { tab.textContent = t ? labelsHe[i] : labelsFr[i]; });
       const btnDiplome = document.getElementById('btn-voir-diplome');
       if (btnDiplome) btnDiplome.textContent = t ? '🏆 התעודה שלי' : '🏆 Voir mon diplôme';
+      const tuiles = { 'txt-tuile-bingo': ['Bingo', 'ביינגו'], 'txt-tuile-roue': ['Roue des défis', 'גלגל האתגרים'], 'txt-tuile-enigme': ['Énigmes', 'חידות'] };
+      Object.entries(tuiles).forEach(([id, [fr, he]]) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = t ? he : fr;
+      });
     }
 
     async function init() {
@@ -749,11 +754,13 @@
     function renderContenuMission(m, fait) {
       if (fait) return `<div class="muted mt-8">✅ Fait !</div>`;
       const c = m.Contenu || {};
+      const heb = LANGUE === 'he';
       if (m.Type === 'photo') {
-        const txtPrendre = LANGUE === 'he' ? '📸 צלם תמונה' : '📸 Prendre une photo';
-        const txtEnvoyer = LANGUE === 'he' ? '✅ שלח' : '✅ Envoyer';
-        const txtRefaire = LANGUE === 'he' ? '🔄 תמונה אחרת' : '🔄 Reprendre';
-        return `<p class="muted mt-8">${c.consigne || ''}</p>
+        const consigne = (heb && c.consigneHe) ? c.consigneHe : (c.consigne || '');
+        const txtPrendre = heb ? '📸 צלם תמונה' : '📸 Prendre une photo';
+        const txtEnvoyer = heb ? '✅ שלח' : '✅ Envoyer';
+        const txtRefaire = heb ? '🔄 תמונה אחרת' : '🔄 Reprendre';
+        return `<p class="muted mt-8">${consigne}</p>
           <input type="file" accept="image/*" capture="environment" class="input-photo-mission" data-mission="${m.MissionID}" style="display:none">
           <img class="photo-preview mt-8" style="display:none;max-width:100%;border-radius:12px;">
           <div class="row-photo-btns mt-8" style="display:flex;gap:8px;">
@@ -763,16 +770,19 @@
           <div class="muted mt-8 statut-envoi" data-mission="${m.MissionID}"></div>`;
       }
       if (m.Type === 'chasse') {
-        return `<ul class="mt-8">${(c.indices || []).map(i => `<li>${i}</li>`).join('')}</ul>
-          <button class="btn btn--accent btn--block mt-8 btn-valider-mission">🔎 ${LANGUE === 'he' ? 'מצאתי!' : 'Trouvé !'}</button>`;
+        const indices = (heb && c.indicesHe && c.indicesHe.length) ? c.indicesHe : (c.indices || []);
+        return `<ul class="mt-8">${indices.map(i => `<li>${i}</li>`).join('')}</ul>
+          <button class="btn btn--accent btn--block mt-8 btn-valider-mission">🔎 ${heb ? 'מצאתי!' : 'Trouvé !'}</button>`;
       }
       if (m.Type === 'animaux') {
-        return `<p class="mt-8">${(c.animaux || []).join('  ')}</p>
-          <button class="btn btn--accent btn--block mt-8 btn-valider-mission">🐸 ${LANGUE === 'he' ? 'מצאתי הכל!' : 'Tous trouvés !'}</button>`;
+        const animaux = (heb && c.animauxHe && c.animauxHe.length) ? c.animauxHe : (c.animaux || []);
+        return `<p class="mt-8">${animaux.join('  ')}</p>
+          <button class="btn btn--accent btn--block mt-8 btn-valider-mission">🐸 ${heb ? 'מצאתי הכל!' : 'Tous trouvés !'}</button>`;
       }
       if (m.Type === 'quiz') {
-        const reponses = c.reponses || [];
-        return `<p class="mt-8"><b>${c.question || ''}</b></p>` +
+        const reponses = (heb && c.reponsesHe && c.reponsesHe.length) ? c.reponsesHe : (c.reponses || []);
+        const question = (heb && c.questionHe) ? c.questionHe : (c.question || '');
+        return `<p class="mt-8"><b>${question}</b></p>` +
           reponses.map((r, i) => `<button class="btn btn--ghost btn--block mt-8" onclick="window.repondreQuiz('${m.MissionID}', ${i === 0})">${r}</button>`).join('');
       }
       if (m.Type === 'note') {
