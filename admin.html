@@ -304,16 +304,12 @@ Mauvaise réponse 2"></textarea>
     <!-- VOYAGE -->
     <div class="admin-panel" id="p-voyage">
       <h3>🗺️ Plateau du voyage (pion voiture)</h3>
+      <p class="muted mt-8" style="font-size:12px;">Le pion se positionne automatiquement selon ta géolocalisation dès que tu es à moins de 5km d'un lieu connu. Utilise les réglages ci-dessous seulement si tu veux forcer une position toi-même.</p>
       <div class="col mt-16">
-        <div>
-          <label>Date du dimanche de départ</label>
-          <input type="date" id="v-date-debut">
-          <p class="muted mt-8" style="font-size:12px;">Le pion avance automatiquement sur la carte (Matin/Après-midi/Soir/Nuit) selon la date et l'heure réelles, à partir de ce jour.</p>
-        </div>
         <div class="mt-16">
           <label>Forcer la position du pion (optionnel)</label>
           <select id="v-position-manuelle">
-            <option value="">🔄 Automatique (selon la date/heure)</option>
+            <option value="">🔄 Automatique (selon la géolocalisation)</option>
             <option value="route">🚗 En route (entre deux étapes)</option>
           </select>
           <p class="muted mt-8" style="font-size:12px;">Utile si vous êtes en retard/avance sur le programme.</p>
@@ -397,7 +393,7 @@ Mauvaise réponse 2"></textarea>
       });
 
       const settings = await getSettings();
-      if (settings.DateDebutVoyage) document.getElementById('v-date-debut').value = settings.DateDebutVoyage;
+      // Le pion se base uniquement sur la géolocalisation ou une position forcée manuellement
       if (settings.PositionManuelle) select.value = settings.PositionManuelle;
 
       afficherPlateauAdmin();
@@ -582,7 +578,6 @@ Mauvaise réponse 2"></textarea>
     document.getElementById('btn-save-voyage').onclick = async () => {
       const btn = document.getElementById('btn-save-voyage');
       btn.disabled = true; btn.textContent = 'Enregistrement...';
-      await updateSettings({ DateDebutVoyage: document.getElementById('v-date-debut').value || '' });
       await appliquerPositionAvecRembobinage(document.getElementById('v-position-manuelle').value || '');
       btn.disabled = false; btn.textContent = '💾 Enregistrer';
       afficherPlateauAdmin();
