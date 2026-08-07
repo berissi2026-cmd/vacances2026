@@ -600,7 +600,8 @@
     }
 
     // Détermine les niveaux de difficulté adaptés à l'âge d'un profil
-    function tranchesDifficultePourAge(age) {
+    function tranchesDifficultePourAge(age, role) {
+      if (role === 'parent') return ['moyen', 'difficile'];
       const a = Number(age);
       if (!a) return null; // âge non renseigné : on montre tout
       if (a <= 4) return ['facile'];
@@ -612,7 +613,7 @@
     async function ouvrirLieu(lieuId) {
       const lieu = lieuxCache.find(l => l.LieuID === lieuId);
       const missionsToutes = missionsParLieuCache[lieuId] || [];
-      const tranches = tranchesDifficultePourAge(monProfil.Age);
+      const tranches = tranchesDifficultePourAge(monProfil.Age, monProfil.Role);
       const missionsFiltrees = tranches ? missionsToutes.filter(m => tranches.includes(m.Difficulte || 'moyen')) : missionsToutes;
       const missions = missionsFiltrees.length ? missionsFiltrees : missionsToutes;
       const box = document.getElementById('modal-box');
@@ -1284,7 +1285,7 @@
       let disponible = liste.filter(d => !d.Jour || debloques.includes(d.Jour));
 
       // Adapter à l'âge du profil actuel, avec repli sur tout si rien ne correspond
-      const tranches = tranchesDifficultePourAge(monProfil.Age);
+      const tranches = tranchesDifficultePourAge(monProfil.Age, monProfil.Role);
       if (tranches) {
         const filtres = disponible.filter(d => tranches.includes(difficulteDepuisPoints(d.Points)));
         if (filtres.length) disponible = filtres;
