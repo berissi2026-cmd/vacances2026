@@ -660,8 +660,16 @@
         const el = document.getElementById('mission-' + m.MissionID);
         const btn = el.querySelector('.btn-valider-mission');
         if (btn) btn.onclick = () => validerMission(m, lieuId);
-        el.querySelectorAll('.star-picker span').forEach(s => {
-          s.onclick = () => validerMission(m, lieuId, s.dataset.note);
+        el.querySelectorAll('.star-picker').forEach(picker => {
+          const etoiles = [...picker.querySelectorAll('span')];
+          const remplirJusqua = (n) => {
+            etoiles.forEach(e => { e.textContent = Number(e.dataset.note) <= n ? '⭐' : '☆'; });
+          };
+          etoiles.forEach(s => {
+            s.onmouseenter = () => remplirJusqua(Number(s.dataset.note));
+            s.onmouseleave = () => remplirJusqua(0);
+            s.onclick = () => validerMission(m, lieuId, s.dataset.note);
+          });
         });
         cablerMissionPhoto(el, m, lieuId);
       });
@@ -767,7 +775,7 @@
           reponses.map((r, i) => `<button class="btn btn--ghost btn--block mt-8" onclick="window.repondreQuiz('${m.MissionID}', ${i === 0})">${r}</button>`).join('');
       }
       if (m.Type === 'note') {
-        return `<div class="star-picker mt-8">${[1,2,3,4,5].map(n => `<span data-note="${n}">⭐</span>`).join('')}</div>`;
+        return `<div class="star-picker mt-8">${[1,2,3,4,5].map(n => `<span data-note="${n}">☆</span>`).join('')}</div>`;
       }
       return `<button class="btn btn--accent btn--block mt-8 btn-valider-mission">Fait !</button>`;
     }
