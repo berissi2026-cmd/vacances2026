@@ -152,7 +152,7 @@
         const tile = document.createElement('div');
         tile.className = 'profil-tile';
         tile.innerHTML = `
-          ${p.PhotoURL ? `<img src="${p.PhotoURL}" alt="" style="width:64px;height:64px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 6px;">` : `<span class="emoji">${p.Avatar || '🧑'}</span>`}
+          ${p.PhotoURL ? `<img src="${p.PhotoURL}" alt="" style="width:100px;height:100px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 6px;">` : `<span class="emoji">${p.Avatar || '🧑'}</span>`}
           <div class="nom">${nomAffiche}</div>
           <div class="score">⭐ ${p.ScorePerso || 0}</div>
         `;
