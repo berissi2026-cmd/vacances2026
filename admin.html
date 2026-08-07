@@ -9,6 +9,7 @@
 <title>Admin — Vacances Quest</title>
 <link rel="stylesheet" href="styles.css">
 <style>
+  @keyframes tomberConfettiAdmin { 0% { transform: translateY(0) rotate(0deg); opacity:1; } 100% { transform: translateY(110vh) rotate(360deg); opacity:0.8; } }
   .trail-path { position: relative; max-width: 360px; margin: 10px auto; padding: 60px 0 6px; }
   .trail-path::before {
     content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 5px;
@@ -324,6 +325,7 @@ Mauvaise réponse 2"></textarea>
         <input type="file" accept="audio/*" id="input-musique-victoire" style="display:none;">
         <button class="btn btn--accent btn--block mt-8" id="btn-choisir-musique-victoire">🎵 Choisir un fichier audio</button>
         <div id="statut-musique-victoire" class="muted mt-8" style="font-size:12px;"></div>
+        <button class="btn btn--ghost btn--block mt-8" id="btn-apercu-victoire">👁️ Voir l'aperçu de la célébration à 1000 pts</button>
 
         <h3 class="mt-24">🗺️ Ou clique directement sur le plateau</h3>
         <p class="muted mt-8" style="font-size:12px;">Clique sur une étape pour y placer la voiture immédiatement.</p>
@@ -532,6 +534,33 @@ Mauvaise réponse 2"></textarea>
         if (n > 0) alert(`⏪ ${n} réponse(s) donnée(s) après ce jour ont été remises en attente, pour rester cohérent avec le recul dans le temps.`);
       }
     }
+
+    document.getElementById('btn-apercu-victoire').onclick = async () => {
+      const settings = await getSettings();
+      if ('vibrate' in navigator) navigator.vibrate([300, 100, 300, 100, 500]);
+      if (settings.MusiqueVictoireURL) {
+        const audio = new Audio(settings.MusiqueVictoireURL);
+        audio.play().catch(() => alert("Impossible de lire le son automatiquement sur ce navigateur, mais tout le reste fonctionne."));
+      } else {
+        alert("Pas encore de musique choisie — l'aperçu montrera quand même les confettis.");
+      }
+      // Confettis pendant 5 secondes (aperçu plus court que les vraies 60s)
+      const conteneur = document.createElement('div');
+      conteneur.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:999;overflow:hidden;';
+      document.body.appendChild(conteneur);
+      const couleurs = ['#e67e22', '#2ecc71', '#3498db', '#f1c40f', '#e74c3c', '#9b59b6'];
+      const intervalle = setInterval(() => {
+        const conf = document.createElement('div');
+        const couleur = couleurs[Math.floor(Math.random() * couleurs.length)];
+        const gauche = Math.random() * 100;
+        const duree = 2.5 + Math.random() * 2;
+        const taille = 6 + Math.random() * 8;
+        conf.style.cssText = `position:absolute;top:-20px;left:${gauche}vw;width:${taille}px;height:${taille * 0.4}px;background:${couleur};opacity:.9;animation:tomberConfettiAdmin ${duree}s linear forwards;transform:rotate(${Math.random() * 360}deg);`;
+        conteneur.appendChild(conf);
+        setTimeout(() => conf.remove(), duree * 1000);
+      }, 120);
+      setTimeout(() => { clearInterval(intervalle); setTimeout(() => conteneur.remove(), 3000); }, 5000);
+    };
 
     document.getElementById('btn-choisir-musique-victoire').onclick = () => {
       document.getElementById('input-musique-victoire').click();
