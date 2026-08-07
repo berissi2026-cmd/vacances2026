@@ -640,15 +640,13 @@
       document.getElementById('modal-bg').style.display = 'flex';
 
       const nom = LANGUE === 'he' ? (lieu.Nom_HE || lieu.Nom_FR) : lieu.Nom_FR;
-      const torah = LANGUE === 'he' ? lieu.TorahTexte_HE : lieu.TorahTexte_FR;
-      const geo = LANGUE === 'he' ? lieu.FaitGeo_HE : lieu.FaitGeo_FR;
+      const torah = lieu.TorahTexte_HE || lieu.TorahTexte_FR;
 
       let html = `<h2>📍 ${nom}</h2>`;
-      if (torah || geo) {
+      if (torah) {
         html += `<button class="btn btn--ghost btn--block mt-8" id="btn-lire-histoire">📖 ${LANGUE === 'he' ? 'קראו את הסיפור' : "Lire l'histoire"}</button>
-          <div id="zone-histoire" style="display:none;">
-            ${torah ? `<div class="mission-card mt-8">📖 ${torah}</div>` : ''}
-            ${geo ? `<div class="mission-card mt-8">🌍 ${geo}</div>` : ''}
+          <div id="zone-histoire" style="display:none;" dir="rtl">
+            <div class="mission-card mt-8">📖 ${torah}</div>
             ${lieu.AudioURL ? `<audio controls style="width:100%; margin-top:8px;" src="${lieu.AudioURL}"></audio>` : ''}
           </div>`;
       }

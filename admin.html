@@ -142,10 +142,7 @@
           <div id="activites-suggestions" class="mt-8"></div>
         </div>
 
-        <div><label>Léa dit Torah (FR)</label><textarea id="l-torahfr" rows="2"></textarea></div>
-        <div><label>Léa dit Torah (HE)</label><textarea id="l-torahhe" rows="2"></textarea></div>
-        <div><label>Fait géo / nature (FR)</label><textarea id="l-geofr" rows="2"></textarea></div>
-        <div><label>Fait géo / nature (HE)</label><textarea id="l-geohe" rows="2"></textarea></div>
+        <div><label>Histoire du lieu (HE)</label><textarea id="l-torahhe" rows="4"></textarea></div>
 
         <button class="btn btn--primary btn--block mt-16" id="btn-ajouter-lieu">➕ Ajouter ce lieu</button>
       </div>
@@ -927,12 +924,11 @@ Mauvaise réponse 2"></textarea>
       const data = {
         nomFr: val('l-nomfr'), nomHe: val('l-nomhe'), type: val('l-type'),
         jour: val('l-jour'), heure: val('l-heure'), lat: val('l-lat'), lng: val('l-lng'),
-        photoUrl: val('l-photo'), torahFr: val('l-torahfr'), torahHe: val('l-torahhe'),
-        faitGeoFr: val('l-geofr'), faitGeoHe: val('l-geohe')
+        photoUrl: val('l-photo'), torahHe: val('l-torahhe')
       };
       if (!data.nomFr) { alert('Le nom du lieu est obligatoire'); return; }
       await ajouterLieu(data);
-      ['l-nomfr','l-nomhe','l-heure','l-photo','l-lat','l-lng','l-torahfr','l-torahhe','l-geofr','l-geohe']
+      ['l-nomfr','l-nomhe','l-heure','l-photo','l-lat','l-lng','l-torahhe']
         .forEach(id => document.getElementById(id).value = '');
       chargerLieux();
       chargerLieuxPourMissions();
@@ -986,10 +982,7 @@ Mauvaise réponse 2"></textarea>
                 <div><label>Latitude</label><input class="e-lat" value="${l.Lat || ''}"></div>
                 <div><label>Longitude</label><input class="e-lng" value="${l.Lng || ''}"></div>
               </div>
-              <div><label>Torah (FR)</label><textarea class="e-torahfr" rows="2">${l.TorahTexte_FR || ''}</textarea></div>
-              <div><label>Torah (HE)</label><textarea class="e-torahhe" rows="2">${l.TorahTexte_HE || ''}</textarea></div>
-              <div><label>Fait géo (FR)</label><textarea class="e-geofr" rows="2">${l.FaitGeo_FR || ''}</textarea></div>
-              <div><label>Fait géo (HE)</label><textarea class="e-geohe" rows="2">${l.FaitGeo_HE || ''}</textarea></div>
+              <div><label>Histoire du lieu (HE)</label><textarea class="e-torahhe" rows="5">${l.TorahTexte_HE || ''}</textarea></div>
               <button class="btn btn--primary btn--block mt-8 btn-sauver-lieu">💾 Sauvegarder les modifications</button>
             </div>`;
           zone.querySelector('.btn-sauver-lieu').onclick = async () => {
@@ -1001,10 +994,7 @@ Mauvaise réponse 2"></textarea>
               heure: zone.querySelector('.e-heure').value,
               lat: zone.querySelector('.e-lat').value,
               lng: zone.querySelector('.e-lng').value,
-              torahFr: zone.querySelector('.e-torahfr').value,
-              torahHe: zone.querySelector('.e-torahhe').value,
-              faitGeoFr: zone.querySelector('.e-geofr').value,
-              faitGeoHe: zone.querySelector('.e-geohe').value
+              torahHe: zone.querySelector('.e-torahhe').value
             });
             alert('Lieu modifié !');
             chargerLieux();
