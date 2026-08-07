@@ -26,7 +26,12 @@
   .outil-icone { width: 40px; height: 40px; flex: 0 0 40px; border-radius: 50%; background: var(--sand-light); border: 3px solid var(--bark); font-size: 18px; display:flex; align-items:center; justify-content:center; cursor:pointer; text-decoration:none; color: var(--bark); }
   #barre-outils-haut a.outil-icone:first-child { background: var(--sunset); color: #fff; font-size: 20px; }
   .outil-icone-mini { width: 26px; height: 26px; border-radius: 50%; background: rgba(255,255,255,.15); border: 2px solid rgba(255,255,255,.5); font-size: 13px; display:flex; align-items:center; justify-content:center; cursor:pointer; text-decoration:none; color: #fff; }
-  #progress-1000 { padding: 10px 20px 0; text-align: center; }
+  #progress-1000 { padding: 10px 20px 0; text-align: center; position: relative; }
+  .progress-fill.pulse-gain { animation: pulseGain 0.6s ease; }
+  @keyframes pulseGain { 0% { filter: brightness(1); } 50% { filter: brightness(1.5); } 100% { filter: brightness(1); } }
+  .gain-flottant { position: absolute; left: 50%; top: -6px; transform: translateX(-50%); font-family: var(--font-display); font-weight: 700; color: var(--sunset); font-size: 18px; animation: gainMonte 1.2s ease forwards; pointer-events: none; z-index: 5; }
+  @keyframes gainMonte { 0% { opacity: 0; transform: translate(-50%, 10px) scale(0.8); } 20% { opacity: 1; transform: translate(-50%, -6px) scale(1.1); } 100% { opacity: 0; transform: translate(-50%, -40px) scale(1); } }
+  @keyframes tomberConfetti { 0% { transform: translateY(0) rotate(0deg); opacity:1; } 100% { transform: translateY(110vh) rotate(360deg); opacity:0.8; } }
   .progress-track { background: var(--sand-light); border: 3px solid var(--bark); border-radius: 999px; height: 20px; overflow: hidden; }
   .progress-fill { height: 100%; background: linear-gradient(90deg, var(--jungle-leaf), var(--sunset)); border-radius: 999px; width: 0%; transition: width 0.6s ease; }
   .progress-label { text-align: center; font-family: var(--font-display); font-size: 12px; margin-top: 4px; font-weight: 700; }
@@ -280,6 +285,7 @@
     let typesParId = {};
     let profilsCache = {};
     let resultatsPhotoCache = [];
+    let pointsLogCache = [];
     let defisFaitsCache = [];
     let settingsVoyage = {};
 
@@ -396,6 +402,7 @@
       monProfil = p;
       appliquerProfil(p);
 
+      let dernierScoreFamilleConnu = null;
       ecouterScoreFamille(s => {
         document.getElementById('score-famille').textContent = s;
         const OBJECTIF = 1000;
@@ -403,6 +410,11 @@
         document.getElementById('progress-fill').style.width = pct + '%';
         document.getElementById('progress-label').textContent =
           (LANGUE === 'he' ? `${s} / ${OBJECTIF} נקודות` : `${s} / ${OBJECTIF} points`) + (s >= OBJECTIF ? ' 🏆' : '');
+        if (dernierScoreFamilleConnu !== null && s > dernierScoreFamilleConnu) {
+          const gain = s - dernierScoreFamilleConnu;
+          afficherGainPoints(gain);
+        }
+        dernierScoreFamilleConnu = s;
         verifierPalier(s);
       });
       ecouterProfil(PROFIL_ID, p2 => {
@@ -439,7 +451,10 @@
         resultatsPhotoCache = tous.filter(r => r.MediaURL);
         afficherAlbum();
       });
-      ecouterPointsLog(afficherExplorateurDuJour);
+      ecouterPointsLog(logs => {
+        pointsLogCache = logs;
+        afficherExplorateurDuJour(logs);
+      });
     }
 
     function afficherExplorateurDuJour(logs) {
@@ -1018,6 +1033,23 @@
       }
     };
 
+    function afficherGainPoints(gain) {
+      const fill = document.getElementById('progress-fill');
+      const zone = document.getElementById('progress-1000');
+      if (fill) {
+        fill.classList.remove('pulse-gain');
+        void fill.offsetWidth; // relance l'animation même si elle vient de tourner
+        fill.classList.add('pulse-gain');
+      }
+      if (zone) {
+        const bulle = document.createElement('div');
+        bulle.className = 'gain-flottant';
+        bulle.textContent = '+' + gain;
+        zone.appendChild(bulle);
+        setTimeout(() => bulle.remove(), 1300);
+      }
+    }
+
     function verifierPalier(score) {
       for (const p of PALIERS) {
         const cle = 'vq_palier_' + p;
@@ -1029,12 +1061,46 @@
       }
     }
 
+    function lancerConfettis(dureeMs) {
+      const conteneur = document.createElement('div');
+      conteneur.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:300;overflow:hidden;';
+      document.body.appendChild(conteneur);
+      const couleurs = ['#e67e22', '#2ecc71', '#3498db', '#f1c40f', '#e74c3c', '#9b59b6'];
+      const intervalle = setInterval(() => {
+        const conf = document.createElement('div');
+        const couleur = couleurs[Math.floor(Math.random() * couleurs.length)];
+        const gauche = Math.random() * 100;
+        const duree = 2.5 + Math.random() * 2;
+        const taille = 6 + Math.random() * 8;
+        conf.style.cssText = `position:absolute;top:-20px;left:${gauche}vw;width:${taille}px;height:${taille * 0.4}px;background:${couleur};opacity:.9;animation:tomberConfetti ${duree}s linear forwards;transform:rotate(${Math.random() * 360}deg);`;
+        conteneur.appendChild(conf);
+        setTimeout(() => conf.remove(), duree * 1000);
+      }, 120);
+      setTimeout(() => { clearInterval(intervalle); setTimeout(() => conteneur.remove(), 3000); }, dureeMs);
+    }
+
     function afficherCelebrationPalier(palier) {
       const msg = (PALIER_MESSAGES[LANGUE] || PALIER_MESSAGES.fr)[palier];
       const txtPhoto = LANGUE === 'he' ? '📸 תמונת זיכרון!' : '📸 Photo souvenir !';
+
+      let blocParticipants = '';
+      if (palier === 1000) {
+        const idsParticipants = [...new Set(pointsLogCache.filter(l => Number(l.Points) > 0).map(l => l.ProfilID))];
+        const noms = idsParticipants.map(id => {
+          const p = profilsCache[id];
+          if (!p) return null;
+          return (p.Avatar || '') + ' ' + (LANGUE === 'he' ? (p.Nom_HE || p.Nom_FR) : p.Nom_FR);
+        }).filter(Boolean);
+        if (noms.length) {
+          const titreBravo = LANGUE === 'he' ? '🎉 כל הכבוד ל:' : '🎉 Bravo à :';
+          blocParticipants = `<p class="mt-8" style="font-weight:700;">${titreBravo}<br>${noms.join(' · ')}</p>`;
+        }
+      }
+
       document.getElementById('palier-carte').innerHTML = `
         <div style="font-size:22px; font-family: var(--font-display);">${msg.titre}</div>
         <p class="mt-16">${msg.texte}</p>
+        ${blocParticipants}
         <input type="file" accept="image/*" capture="environment" id="input-photo-palier" style="display:none;">
         <img id="preview-photo-palier" style="display:none;max-width:100%;border-radius:12px;margin-top:10px;">
         <button class="btn btn--accent btn--block mt-16" id="btn-photo-palier">${txtPhoto}</button>
@@ -1042,6 +1108,16 @@
         <button class="btn btn--primary btn--block mt-16" id="btn-fermer-palier">${LANGUE === 'he' ? 'סגור' : 'Super !'}</button>`;
       document.getElementById('palier-bg').style.display = 'flex';
       parler(msg.titre + '. ' + msg.texte, LANGUE);
+
+      if (palier === 1000) {
+        if ('vibrate' in navigator) navigator.vibrate([300, 100, 300, 100, 500]);
+        if (settingsVoyage.MusiqueVictoireURL) {
+          const audioVictoire = new Audio(settingsVoyage.MusiqueVictoireURL);
+          audioVictoire.play().catch(() => {});
+        }
+        lancerConfettis(60000);
+      }
+
       document.getElementById('btn-fermer-palier').onclick = () => {
         document.getElementById('palier-bg').style.display = 'none';
       };

@@ -319,6 +319,12 @@ Mauvaise réponse 2"></textarea>
         </div>
         <button class="btn btn--primary btn--block mt-16" id="btn-save-voyage">💾 Enregistrer</button>
 
+        <h3 class="mt-24">🎉 Musique de victoire (1000 points)</h3>
+        <p class="muted mt-8" style="font-size:12px;">Se joue automatiquement quand la famille atteint 1000 points.</p>
+        <input type="file" accept="audio/*" id="input-musique-victoire" style="display:none;">
+        <button class="btn btn--accent btn--block mt-8" id="btn-choisir-musique-victoire">🎵 Choisir un fichier audio</button>
+        <div id="statut-musique-victoire" class="muted mt-8" style="font-size:12px;"></div>
+
         <h3 class="mt-24">🗺️ Ou clique directement sur le plateau</h3>
         <p class="muted mt-8" style="font-size:12px;">Clique sur une étape pour y placer la voiture immédiatement.</p>
         <button class="btn btn--accent btn--block mt-8" id="btn-en-route">🚗💨 Marquer : En route (entre deux étapes)</button>
@@ -336,7 +342,7 @@ Mauvaise réponse 2"></textarea>
       getSettings, updateSettings, getPlaylistPourLieu, ajouterVideoPlaylist, supprimerVideoPlaylist,
       updateLieuAudio, reinitialiserTousLesPoints, getDefisFaits, supprimerDefiFait
     } from './firebase-services.js';
-    import { uploaderAudioLieu } from './imagekit-services.js';
+    import { uploaderAudioLieu, uploaderMusiqueVictoire } from './imagekit-services.js';
 
     // --- Écran de mot de passe ---
     function demarrerAdmin() {
@@ -526,6 +532,23 @@ Mauvaise réponse 2"></textarea>
         if (n > 0) alert(`⏪ ${n} réponse(s) donnée(s) après ce jour ont été remises en attente, pour rester cohérent avec le recul dans le temps.`);
       }
     }
+
+    document.getElementById('btn-choisir-musique-victoire').onclick = () => {
+      document.getElementById('input-musique-victoire').click();
+    };
+    document.getElementById('input-musique-victoire').onchange = async () => {
+      const fichier = document.getElementById('input-musique-victoire').files[0];
+      if (!fichier) return;
+      const statut = document.getElementById('statut-musique-victoire');
+      statut.textContent = '⏳ Envoi en cours...';
+      try {
+        const url = await uploaderMusiqueVictoire(fichier);
+        await updateSettings({ MusiqueVictoireURL: url });
+        statut.textContent = '✅ Musique de victoire enregistrée !';
+      } catch (e) {
+        statut.textContent = '❌ Échec de l\'envoi, réessaie.';
+      }
+    };
 
     document.getElementById('btn-save-voyage').onclick = async () => {
       const btn = document.getElementById('btn-save-voyage');

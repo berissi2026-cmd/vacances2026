@@ -51,19 +51,27 @@ export async function uploaderPhotoProfil(profilId, blob) {
 
 // Upload d'un fichier audio (histoire racontée) pour un lieu, renvoie l'URL publique
 export async function uploaderAudioLieu(lieuId, fichier) {
+  return uploaderFichierAudioGenerique(lieuId, fichier, '/vacances2026/audio');
+}
+
+export async function uploaderMusiqueVictoire(fichier) {
+  return uploaderFichierAudioGenerique('victoire_1000', fichier, '/vacances2026/audio');
+}
+
+async function uploaderFichierAudioGenerique(id, fichier, dossier) {
   const authRes = await fetch(AUTH_ENDPOINT);
   if (!authRes.ok) throw new Error("Service d'authentification ImageKit indisponible");
   const { token, expire, signature } = await authRes.json();
 
   const formData = new FormData();
   const extension = (fichier.name.split('.').pop() || 'mp3').toLowerCase();
-  formData.append("file", fichier, `${lieuId}.${extension}`);
-  formData.append("fileName", `${lieuId}_${Date.now()}.${extension}`);
+  formData.append("file", fichier, `${id}.${extension}`);
+  formData.append("fileName", `${id}_${Date.now()}.${extension}`);
   formData.append("publicKey", IMAGEKIT_PUBLIC_KEY);
   formData.append("signature", signature);
   formData.append("expire", expire);
   formData.append("token", token);
-  formData.append("folder", `/vacances2026/audio`);
+  formData.append("folder", dossier);
 
   const res = await fetch("https://upload.imagekit.io/api/v1/files/upload", {
     method: "POST",
