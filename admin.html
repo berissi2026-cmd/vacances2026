@@ -159,6 +159,7 @@
       <p class="muted mt-8" style="font-size:12px;">Colle le bloc JSON (le nom du lieu doit correspondre exactement au nom déjà importé), puis Importer.</p>
       <textarea id="import-missions-json" rows="5" style="width:100%; margin-top:10px; font-family:monospace; font-size:12px;" placeholder='[{"lieuNom":"Ein Harod (עין חרוד)","type":"photo","titreFr":"...","titreHe":"...","contenu":{"consigne":"..."},"difficulte":"facile","points":5}]'></textarea>
       <button class="btn btn--primary btn--block mt-8" id="btn-importer-missions">📦 Importer les missions</button>
+      <button class="btn btn--ghost btn--block mt-8" id="btn-vider-missions" style="color:#c0392b;">🗑️ Supprimer TOUTES les missions existantes</button>
       <div id="import-missions-statut" class="muted mt-8" style="font-size:13px;"></div>
 
       <h3 class="mt-24">Missions par lieu</h3>
@@ -331,7 +332,7 @@ Mauvaise réponse 2"></textarea>
       verifierMotDePasseAdmin, initialiserDonneesSiVide, corrigerProfilsFamille,
       getLieux, ajouterLieu, supprimerLieu, ajouterDefiRoute, getDefisRoute, supprimerDefiRoute, getProfils,
       getTypesExcursion, ajouterTypeExcursion, seedTypesExcursionSiVide,
-      getMissionsParLieu, ajouterMission, supprimerMission,
+      getMissionsParLieu, ajouterMission, supprimerMission, getToutesMissions,
       getSettings, updateSettings, getPlaylistPourLieu, ajouterVideoPlaylist, supprimerVideoPlaylist,
       updateLieuAudio, reinitialiserTousLesPoints, getDefisFaits, supprimerDefiFait
     } from './firebase-services.js';
@@ -933,6 +934,19 @@ Mauvaise réponse 2"></textarea>
     }
 
     // --- IMPORT EN MASSE MISSIONS ---
+    document.getElementById('btn-vider-missions').onclick = async () => {
+      if (!confirm('Supprimer TOUTES les missions existantes (tous lieux confondus) ?')) return;
+      const statut = document.getElementById('import-missions-statut');
+      const missions = await getToutesMissions();
+      let ok = 0;
+      for (const m of missions) {
+        await supprimerMission(m.MissionID);
+        ok++;
+        statut.textContent = `⏳ ${ok}/${missions.length} supprimées...`;
+      }
+      statut.textContent = `✅ ${ok} mission(s) supprimée(s).`;
+    };
+
     document.getElementById('btn-importer-missions').onclick = async () => {
       const statut = document.getElementById('import-missions-statut');
       const zone = document.getElementById('import-missions-json');
