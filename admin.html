@@ -284,6 +284,13 @@ Mauvaise réponse 2"></textarea>
 
       <h3 class="mt-24">🎵 Playlist musique de la route</h3>
       <div class="col mt-16">
+        <div><label>🔎 Rechercher sur YouTube</label><input id="yt-recherche" placeholder="ex: Akiva Aba Toda"></div>
+        <button class="btn btn--accent btn--block mt-8" id="btn-rechercher-yt">🔎 Rechercher</button>
+      </div>
+      <div id="yt-resultats" class="col mt-16"></div>
+
+      <h4 class="mt-24">Ou ajouter manuellement</h4>
+      <div class="col mt-8">
         <div><label>Titre de la chanson</label><input id="pl-titre" placeholder="ex: Chansons pour la route"></div>
         <div><label>Lien YouTube (ou juste l'ID de la vidéo)</label><input id="pl-video" placeholder="https://www.youtube.com/watch?v=..."></div>
         <button class="btn btn--primary btn--block mt-16" id="btn-ajouter-video">➕ Ajouter à la playlist</button>
@@ -874,6 +881,45 @@ Mauvaise réponse 2"></textarea>
       btn.disabled = false;
       statut.textContent = `✅ ${ok} défi(s) importé(s).`;
       if (ok > 0) zone.value = '';
+    };
+
+    // --- RECHERCHE YOUTUBE ---
+    const YOUTUBE_API_KEY = "AIzaSyB9qxpQHPXVLcDbMBThvgT7x1KkftqTJ3k";
+
+    document.getElementById('btn-rechercher-yt').onclick = async () => {
+      const requete = document.getElementById('yt-recherche').value.trim();
+      const zone = document.getElementById('yt-resultats');
+      if (!requete) return;
+      zone.innerHTML = '<p class="muted">⏳ Recherche en cours...</p>';
+      try {
+        const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=10&q=${encodeURIComponent(requete)}&key=${YOUTUBE_API_KEY}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error.message);
+        if (!data.items || !data.items.length) { zone.innerHTML = '<p class="muted">Aucun résultat.</p>'; return; }
+        zone.innerHTML = '';
+        data.items.forEach(item => {
+          const videoId = item.id.videoId;
+          const titre = item.snippet.title;
+          const chaine = item.snippet.channelTitle;
+          const miniature = item.snippet.thumbnails.default.url;
+          const div = document.createElement('div');
+          div.className = 'lieu-item';
+          div.innerHTML = `<div class="top-row" style="align-items:center;">
+              <img src="${miniature}" style="width:60px;height:45px;border-radius:6px;object-fit:cover;">
+              <span style="flex:1;font-size:13px;">${titre}<br><span class="muted" style="font-size:11px;">${chaine}</span></span>
+              <button class="btn-ajouter-resultat" style="background:var(--jungle-leaf);color:#fff;border-radius:8px;border:2px solid var(--bark);padding:6px 10px;">➕</button>
+            </div>`;
+          div.querySelector('.btn-ajouter-resultat').onclick = async () => {
+            await ajouterVideoPlaylist({ lieuId: 'route', videoId, titre });
+            alert('✅ Ajoutée à la playlist !');
+            chargerPlaylistRoute();
+          };
+          zone.appendChild(div);
+        });
+      } catch (e) {
+        zone.innerHTML = `<p class="muted">❌ Erreur : ${e.message}</p>`;
+      }
     };
 
     // --- PLAYLIST MUSIQUE DE LA ROUTE ---
