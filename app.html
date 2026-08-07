@@ -373,8 +373,19 @@
       return { jourIndex: 0, moment: 'matin' };
     }
 
+    function traduireUIStatique() {
+      const t = LANGUE === 'he';
+      const tabs = document.querySelectorAll('.tab');
+      const labelsFr = ['🗺️ Carte', '🧭 Position', '🎮 Jeux', '📷 Album', '🎖️ Badges'];
+      const labelsHe = ['🗺️ מפה', '🧭 מיקום', '🎮 משחקים', '📷 אלבום', '🎖️ תגים'];
+      tabs.forEach((tab, i) => { tab.textContent = t ? labelsHe[i] : labelsFr[i]; });
+      const btnDiplome = document.getElementById('btn-voir-diplome');
+      if (btnDiplome) btnDiplome.textContent = t ? '🏆 התעודה שלי' : '🏆 Voir mon diplôme';
+    }
+
     async function init() {
       if (!PROFIL_ID) { window.location.href = 'index.html'; return; }
+      traduireUIStatique();
       const p = await getProfil(PROFIL_ID);
       if (!p) { window.location.href = 'index.html'; return; }
       monProfil = p;
@@ -469,7 +480,9 @@
       monAvatarEl.innerHTML = p.PhotoURL ? `<img src="${p.PhotoURL}" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:50%;">` : (p.Avatar || '🦁');
       monAvatarEl.onclick = () => { window.location.href = 'index.html?modifier=' + PROFIL_ID; };
       document.getElementById('mon-nom').textContent = nom;
-      document.getElementById('mon-role').textContent = p.Role === 'parent' ? "Chef d'expédition" : 'Explorateur';
+      document.getElementById('mon-role').textContent = p.Role === 'parent'
+        ? (LANGUE === 'he' ? 'ראש המשלחת' : "Chef d'expédition")
+        : (LANGUE === 'he' ? 'חוקר/ת' : 'Explorateur');
       document.getElementById('score-perso').textContent = p.ScorePerso || 0;
       document.body.setAttribute('dir', LANGUE === 'he' ? 'rtl' : 'ltr');
       if (p.ProfilID === 'p_papa' || p.ProfilID === 'p_maman') {
@@ -742,11 +755,11 @@
       }
       if (m.Type === 'chasse') {
         return `<ul class="mt-8">${(c.indices || []).map(i => `<li>${i}</li>`).join('')}</ul>
-          <button class="btn btn--accent btn--block mt-8 btn-valider-mission">🔎 Trouvé !</button>`;
+          <button class="btn btn--accent btn--block mt-8 btn-valider-mission">🔎 ${LANGUE === 'he' ? 'מצאתי!' : 'Trouvé !'}</button>`;
       }
       if (m.Type === 'animaux') {
         return `<p class="mt-8">${(c.animaux || []).join('  ')}</p>
-          <button class="btn btn--accent btn--block mt-8 btn-valider-mission">🐸 Tous trouvés !</button>`;
+          <button class="btn btn--accent btn--block mt-8 btn-valider-mission">🐸 ${LANGUE === 'he' ? 'מצאתי הכל!' : 'Tous trouvés !'}</button>`;
       }
       if (m.Type === 'quiz') {
         const reponses = c.reponses || [];
@@ -765,10 +778,10 @@
       const mission = lieu ? lieu[1].find(m => m.MissionID === missionId) : null;
       if (!mission) return;
       if (correct) {
-        alert('Bonne réponse ! 🎉');
+        alert(LANGUE === 'he' ? 'תשובה נכונה! 🎉' : 'Bonne réponse ! 🎉');
         validerMission(mission, lieuId);
       } else {
-        alert('Pas tout à fait, réessaie !');
+        alert(LANGUE === 'he' ? 'לא בדיוק, נסו שוב!' : 'Pas tout à fait, réessaie !');
       }
     };
 
@@ -1589,7 +1602,7 @@
     }
 
     function boutonFermer() {
-      return '<button class="btn btn--ghost btn--block mt-16" onclick="window.fermerModal()">Fermer</button>';
+      return `<button class="btn btn--ghost btn--block mt-16" onclick="window.fermerModal()">${LANGUE === 'he' ? 'סגור' : 'Fermer'}</button>`;
     }
     window.fermerModal = function() {
       document.getElementById('modal-bg').style.display = 'none';

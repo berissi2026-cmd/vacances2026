@@ -180,6 +180,7 @@
       document.getElementById('onboard-title').textContent = t.bienvenue + nomAffiche + ' !';
       document.getElementById('txt-choisir').textContent = t.choisir;
       document.getElementById('txt-photo-btn').textContent = t.photoBtn;
+      document.getElementById('btn-start').textContent = langue === 'he' ? "🚀 יוצאים להרפתקה" : "🚀 Commencer l'aventure";
       const preview = document.getElementById('photo-preview');
       if (profil.PhotoURL) {
         preview.src = profil.PhotoURL;
@@ -251,7 +252,7 @@
         await updateProfilAvatar(profilSelectionne.ProfilID, avatarChoisi);
         entrerDansApp(profilSelectionne.ProfilID);
       } catch (err) {
-        alert("Erreur lors de l'envoi de la photo, réessaie (vérifie ta connexion).");
+        alert(langue === 'he' ? 'שגיאה בשליחת התמונה, נסו שוב (בדקו את החיבור לאינטרנט).' : "Erreur lors de l'envoi de la photo, réessaie (vérifie ta connexion).");
         btn.disabled = false;
       }
     };
