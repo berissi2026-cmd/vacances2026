@@ -1064,7 +1064,8 @@ Mauvaise réponse 2"></textarea>
       let ok = 0, erreurs = [];
       for (const entree of liste) {
         try {
-          const lieu = lieux.find(l => l.Nom_FR === entree.lieuNom);
+          const candidats = lieux.filter(l => l.Nom_FR === entree.lieuNom);
+          const lieu = entree.lieuJour ? candidats.find(l => l.Jour === entree.lieuJour) : candidats[0];
           if (!lieu) throw new Error('lieu introuvable: ' + entree.lieuNom);
           await ajouterMission({
             lieuId: lieu.LieuID, type: entree.type,
