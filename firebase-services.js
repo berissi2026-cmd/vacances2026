@@ -188,6 +188,17 @@ export async function updateLieuAudio(lieuId, audioUrl) {
   return { success: true };
 }
 
+export async function modifierLieu(lieuId, data) {
+  await updateDoc(doc(db, "lieux", lieuId), {
+    Nom_FR: data.nomFr, Nom_HE: data.nomHe, Type: data.type,
+    Jour: data.jour, Heure: data.heure || "",
+    Lat: data.lat || "", Lng: data.lng || "",
+    TorahTexte_FR: data.torahFr || "", TorahTexte_HE: data.torahHe || "",
+    FaitGeo_FR: data.faitGeoFr || "", FaitGeo_HE: data.faitGeoHe || ""
+  });
+  return { success: true };
+}
+
 export async function supprimerLieu(lieuId) {
   await deleteDoc(doc(db, "lieux", lieuId));
   return { success: true };

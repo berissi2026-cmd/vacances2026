@@ -1554,14 +1554,28 @@
     }
 
     // Détermine la "ville" tfilot en fonction du lieu actuel sur le plateau
+    const COORDS_VILLES_TFILA = {
+      Harish: [32.4667, 35.0500],
+      Netanya: [32.3215, 34.8532],
+      Tiberiade: [32.7896, 35.5311]
+    };
+
     function determinerVilleTfila() {
       const pion = calculerPositionPion(settingsVoyage);
       const lieuActuel = lieuxCache.find(l => {
         const jourIndex = JOURS.indexOf(l.Jour);
         return jourIndex === pion.jourIndex && momentDepuisHeure(l.Heure) === pion.moment;
       });
+      if (lieuActuel && lieuActuel.Lat && lieuActuel.Lng) {
+        let plusProche = 'Harish', distMin = Infinity;
+        Object.entries(COORDS_VILLES_TFILA).forEach(([ville, [lat, lng]]) => {
+          const d = distanceKm(Number(lieuActuel.Lat), Number(lieuActuel.Lng), lat, lng);
+          if (d < distMin) { distMin = d; plusProche = ville; }
+        });
+        return plusProche;
+      }
+      // Repli si pas de coordonnées sur ce lieu : on regarde le nom
       const nom = lieuActuel ? lieuActuel.Nom_FR : '';
-      if (nom.includes('Harish')) return 'Harish';
       if (nom.includes('Netanya')) return 'Netanya';
       if (nom.includes('Tibériade') || nom.includes('Tiberiade')) return 'Tiberiade';
       return 'Harish'; // par défaut, notre camp de base
