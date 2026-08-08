@@ -270,6 +270,7 @@
       ecouterPointsLog, updateSettings, ecouterSettings, marquerDefiFait, ecouterDefisFaits
     } from './firebase-services.js';
     import { uploaderPhotoMission } from './imagekit-services.js';
+    import { initCarSeatTracker } from './car-seat-tracker.js';
 
     const params = new URLSearchParams(window.location.search);
     const PROFIL_ID = params.get('profil');
@@ -401,6 +402,7 @@
       if (!p) { window.location.href = 'index.html'; return; }
       monProfil = p;
       appliquerProfil(p);
+      initCarSeatTracker({ profilId: PROFIL_ID, role: p.Role, langue: LANGUE });
 
       let dernierScoreFamilleConnu = null;
       ecouterScoreFamille(s => {
