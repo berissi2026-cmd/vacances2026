@@ -303,6 +303,11 @@ export function ecouterTousResultats(callback) {
   });
 }
 
+export async function supprimerResultat(resultId) {
+  await deleteDoc(doc(db, "resultats", resultId));
+  return { success: true };
+}
+
 // ============================================================
 // DEFIS ROUTE (bingo / roue / énigmes)
 // ============================================================

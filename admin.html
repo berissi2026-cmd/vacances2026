@@ -87,6 +87,7 @@
       <div class="admin-tab" data-p="progression">📊 Progression</div>
       <div class="admin-tab" data-p="voyage">🗺️ Voyage</div>
       <div class="admin-tab" data-p="sieges">🚗 Sièges</div>
+      <div class="admin-tab" data-p="album">📷 Album</div>
     </div>
 
     <!-- LIEUX -->
@@ -357,6 +358,15 @@ Mauvaise réponse 2"></textarea>
       <button class="btn btn--primary btn--block mt-16" id="btn-sieges-save-totaux">💾 Enregistrer les totaux</button>
       <button class="btn btn--ghost btn--block mt-8" id="btn-sieges-reset-totaux" style="color:#c0392b;">🔄 Remettre les 3 totaux à zéro</button>
     </div>
+
+    <!-- ALBUM PHOTO -->
+    <div class="admin-panel" id="p-album">
+      <h3>📷 Album — Gérer les photos</h3>
+      <p class="muted mt-8" style="font-size:12px;">Toutes les photos de l'album (missions, photos libres, souvenirs). Clique sur 🗑️ pour supprimer une photo.</p>
+      <div id="album-admin-filtre" class="mt-16" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
+      <div id="album-admin-grille" class="mt-16" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px;"></div>
+      <p class="muted mt-16" id="album-admin-vide" style="display:none;">Aucune photo pour l'instant.</p>
+    </div>
   </div>
 
   <script type="module">
@@ -367,7 +377,8 @@ Mauvaise réponse 2"></textarea>
       getMissionsParLieu, ajouterMission, supprimerMission, getToutesMissions,
       getSettings, updateSettings, getPlaylistPourLieu, ajouterVideoPlaylist, supprimerVideoPlaylist,
       updateLieuAudio, reinitialiserTousLesPoints, getDefisFaits, supprimerDefiFait,
-      getCarSeatTracking, ecouterCarSeatTracking, setCarSeatTracking
+      getCarSeatTracking, ecouterCarSeatTracking, setCarSeatTracking,
+      ecouterTousResultats, supprimerResultat
     } from './firebase-services.js';
     import { uploaderAudioLieu, uploaderMusiqueVictoire } from './imagekit-services.js';
 
@@ -382,6 +393,7 @@ Mauvaise réponse 2"></textarea>
       chargerReglagesVoyage();
       chargerPlaylistRoute();
       chargerSieges();
+      chargerAlbumAdmin();
     }
 
     async function tenterEntree() {
@@ -1353,6 +1365,68 @@ Mauvaise réponse 2"></textarea>
         el.innerHTML = `<span style="font-size:24px;">${p.Avatar || '🧑'}</span>
           <div><b>${p.Nom_FR}</b><div class="muted">⭐ ${p.ScorePerso || 0} points</div></div>`;
         box.appendChild(el);
+      });
+    }
+
+    // --- ALBUM PHOTO ---
+    let profilsAlbumCache = {};
+    let resultatsAlbumCache = [];
+    let filtreAlbumActuel = 'tous';
+
+    async function chargerAlbumAdmin() {
+      const profils = await getProfils();
+      profils.forEach(p => profilsAlbumCache[p.ProfilID] = p);
+
+      const filtreBox = document.getElementById('album-admin-filtre');
+      filtreBox.innerHTML = `<button class="admin-tab active" data-filtre="tous" style="padding:6px 12px; font-size:12px;">Tous</button>` +
+        profils.map(p => `<button class="admin-tab" data-filtre="${p.ProfilID}" style="padding:6px 12px; font-size:12px;">${p.Avatar || ''} ${p.Nom_FR}</button>`).join('');
+      filtreBox.querySelectorAll('button[data-filtre]').forEach(b => {
+        b.onclick = () => {
+          filtreAlbumActuel = b.dataset.filtre;
+          filtreBox.querySelectorAll('button[data-filtre]').forEach(x => x.classList.remove('active'));
+          b.classList.add('active');
+          afficherAlbumAdmin();
+        };
+      });
+
+      ecouterTousResultats(resultats => {
+        resultatsAlbumCache = resultats.filter(r => r.MediaURL);
+        afficherAlbumAdmin();
+      });
+    }
+
+    function afficherAlbumAdmin() {
+      const grille = document.getElementById('album-admin-grille');
+      const vide = document.getElementById('album-admin-vide');
+      let liste = resultatsAlbumCache;
+      if (filtreAlbumActuel !== 'tous') liste = liste.filter(r => r.ProfilID === filtreAlbumActuel);
+      liste = [...liste].sort((a, b) => (b.Date || '').localeCompare(a.Date || ''));
+
+      if (!liste.length) {
+        grille.innerHTML = '';
+        vide.style.display = 'block';
+        return;
+      }
+      vide.style.display = 'none';
+
+      grille.innerHTML = liste.map(r => {
+        const p = profilsAlbumCache[r.ProfilID];
+        const nomProfil = p ? p.Nom_FR : '';
+        const dateAff = r.Date ? new Date(r.Date).toLocaleDateString('fr-FR') : '';
+        return `
+          <div style="position:relative; border-radius:8px; overflow:hidden; border:2px solid var(--bark);">
+            <img src="${r.MediaURL}" style="width:100%; aspect-ratio:1; object-fit:cover; display:block;">
+            <button data-del="${r.ResultID}" style="position:absolute; top:4px; right:4px; background:#c0392b; color:#fff; border:none; border-radius:50%; width:26px; height:26px; font-size:13px; cursor:pointer;">🗑️</button>
+            <div style="position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,.55); color:#fff; font-size:10px; padding:2px 4px;">${nomProfil} ${r.Note ? '· ' + r.Note : ''} ${dateAff ? '· ' + dateAff : ''}</div>
+          </div>`;
+      }).join('');
+
+      grille.querySelectorAll('button[data-del]').forEach(b => {
+        b.onclick = async () => {
+          if (!confirm('Supprimer cette photo ? Cette action est irréversible.')) return;
+          b.disabled = true;
+          await supprimerResultat(b.dataset.del);
+        };
       });
     }
 
