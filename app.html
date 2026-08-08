@@ -26,8 +26,7 @@
   .outil-icone { width: 40px; height: 40px; flex: 0 0 40px; border-radius: 50%; background: var(--sand-light); border: 3px solid var(--bark); font-size: 18px; display:flex; align-items:center; justify-content:center; cursor:pointer; text-decoration:none; color: var(--bark); }
   #barre-outils-haut a.outil-icone:first-child { background: var(--sunset); color: #fff; font-size: 20px; }
   .outil-icone-mini { width: 26px; height: 26px; border-radius: 50%; background: rgba(255,255,255,.15); border: 2px solid rgba(255,255,255,.5); font-size: 13px; display:flex; align-items:center; justify-content:center; cursor:pointer; text-decoration:none; color: #fff; }
-  #btn-musique-haut { width: 32px; height: 32px; font-size: 16px; background: var(--sunset); border-color: #fff; box-shadow: 0 0 0 3px rgba(230,126,34,.35); animation: pulseMusique 2.2s infinite; }
-  @keyframes pulseMusique { 0%,100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+  #btn-musique-haut { background: var(--sunset); border-color: #fff; }
   #progress-1000 { padding: 10px 20px 0; text-align: center; position: relative; }
   .progress-fill.pulse-gain { animation: pulseGain 0.6s ease; }
   @keyframes pulseGain { 0% { filter: brightness(1); } 50% { filter: brightness(1.5); } 100% { filter: brightness(1); } }
@@ -193,6 +192,7 @@
     <div class="tab" data-panel="voiture">🎮 Jeux</div>
     <div class="tab" data-panel="album">📷 Album</div>
     <div class="tab" data-panel="badges">🎖️ Badges</div>
+    <div class="tab" data-panel="souvenir">📸 Souvenir</div>
   </div>
 
   <div class="panel active" id="panel-carte">
@@ -255,6 +255,23 @@
         <p class="muted mt-8">Accomplis des missions à chaque étape pour en gagner !</p>
       </div>
     </div>
+  </div>
+
+  <div class="panel" id="panel-souvenir">
+    <h3>📸 Carte souvenir</h3>
+    <p class="muted mt-8" style="font-size:12px;" id="souvenir-intro">Choisis un lieu, prends une photo, elle s'ajoute automatiquement dans le cadre !</p>
+    <div id="souvenir-grille" class="mt-16" style="display:grid; grid-template-columns: repeat(2, 1fr); gap:10px;"></div>
+
+    <div id="souvenir-apercu" class="mt-16" style="display:none; text-align:center;">
+      <canvas id="souvenir-canvas" style="max-width:100%; border-radius:12px; box-shadow:4px 4px 0 rgba(0,0,0,.2);"></canvas>
+      <div class="col mt-16">
+        <button class="btn btn--primary btn--block" id="btn-souvenir-photo">📷 Prendre la photo</button>
+        <button class="btn btn--accent btn--block mt-8" id="btn-souvenir-enregistrer" style="display:none;">💾 Ajouter à l'album</button>
+        <button class="btn btn--ghost btn--block mt-8" id="btn-souvenir-recommencer">↩️ Choisir un autre lieu</button>
+      </div>
+    </div>
+
+    <input type="file" accept="image/*" capture="environment" id="input-photo-souvenir" style="display:none;">
   </div>
 
   <div id="diplome-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:250;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;">
@@ -1206,6 +1223,7 @@
         tab.classList.add('active');
         document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
         if (tab.dataset.panel === 'position') initCartePosition();
+        if (tab.dataset.panel === 'souvenir') afficherGrilleSouvenirs();
       };
     });
 
@@ -1625,6 +1643,126 @@
           btn.className = 'btn btn--primary btn-choix-tfila';
         };
       });
+    };
+
+    // ------------------------------------------------------------
+    // CARTE SOUVENIR (choisir un template de lieu + prendre une photo)
+    // ------------------------------------------------------------
+    const SOUVENIR_TEMPLATES = [
+      { id: 'ein-harod',      nomFr: 'Ein Harod',       nomHe: 'עין חרוד' },
+      { id: 'givat-haim',     nomFr: 'Givat Haim',      nomHe: 'גבעת חיים' },
+      { id: 'herzliya',       nomFr: 'Herzliya',        nomHe: 'הרצליה' },
+      { id: 'netanya',        nomFr: 'Netanya',         nomHe: 'נתניה' },
+      { id: 'ein-modaa',      nomFr: 'Ein Modaa',       nomHe: 'עין מודע' },
+      { id: 'rob-roy',        nomFr: 'Rob Roy',         nomHe: 'רוב רוי' },
+      { id: 'tiberiade',      nomFr: 'Tibériade',       nomHe: 'טבריה' },
+      { id: 'harish',         nomFr: 'Harish',          nomHe: 'חריש' },
+      { id: 'maale-mikhmas',  nomFr: "Ma'ale Mikhmas",  nomHe: 'מעלה מכמש' },
+      { id: 'ein-feshkha',    nomFr: 'Ein Feshkha',     nomHe: 'עין פשחה' }
+    ];
+    // Position relative du cadre blanc (identique sur tous les templates)
+    const SOUVENIR_BOX = { x: 0.19, y: 0.365, w: 0.68, h: 0.37 };
+
+    let templateSouvenirActuel = null;
+    let imageTemplateSouvenirEl = null;
+
+    function afficherGrilleSouvenirs() {
+      const box = document.getElementById('souvenir-grille');
+      box.innerHTML = SOUVENIR_TEMPLATES.map(t => `
+        <div class="souvenir-vignette" data-id="${t.id}" style="cursor:pointer; border-radius:10px; overflow:hidden; border:3px solid var(--bark); position:relative;">
+          <img src="souvenirs/${t.id}.jpg" style="width:100%; display:block;" loading="lazy">
+          <div style="position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,.55); color:#fff; font-size:11px; text-align:center; padding:3px;">${LANGUE === 'he' ? t.nomHe : t.nomFr}</div>
+        </div>
+      `).join('');
+      box.querySelectorAll('.souvenir-vignette').forEach(el => {
+        el.onclick = () => choisirTemplateSouvenir(el.dataset.id);
+      });
+    }
+
+    function choisirTemplateSouvenir(id) {
+      templateSouvenirActuel = SOUVENIR_TEMPLATES.find(t => t.id === id);
+      document.getElementById('souvenir-grille').style.display = 'none';
+      document.getElementById('souvenir-apercu').style.display = 'block';
+      document.getElementById('btn-souvenir-enregistrer').style.display = 'none';
+      document.getElementById('btn-souvenir-photo').style.display = 'block';
+      document.getElementById('btn-souvenir-photo').textContent = LANGUE === 'he' ? '📷 צלם תמונה' : '📷 Prendre la photo';
+
+      const canvas = document.getElementById('souvenir-canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        imageTemplateSouvenirEl = img;
+      };
+      img.src = 'souvenirs/' + templateSouvenirActuel.id + '.jpg';
+    }
+
+    document.getElementById('btn-souvenir-photo').onclick = () => {
+      document.getElementById('input-photo-souvenir').click();
+    };
+
+    document.getElementById('input-photo-souvenir').onchange = async () => {
+      const fichier = document.getElementById('input-photo-souvenir').files[0];
+      if (!fichier || !imageTemplateSouvenirEl) return;
+      const blob = await compresserImage(fichier, 1600, 0.85);
+      const photo = new Image();
+      photo.onload = () => {
+        const canvas = document.getElementById('souvenir-canvas');
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(imageTemplateSouvenirEl, 0, 0);
+        const bx = SOUVENIR_BOX.x * canvas.width;
+        const by = SOUVENIR_BOX.y * canvas.height;
+        const bw = SOUVENIR_BOX.w * canvas.width;
+        const bh = SOUVENIR_BOX.h * canvas.height;
+        const scale = Math.max(bw / photo.width, bh / photo.height);
+        const pw = photo.width * scale, ph = photo.height * scale;
+        const px = bx + (bw - pw) / 2;
+        const py = by + (bh - ph) / 2;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(bx, by, bw, bh);
+        ctx.clip();
+        ctx.drawImage(photo, px, py, pw, ph);
+        ctx.restore();
+        document.getElementById('btn-souvenir-enregistrer').style.display = 'block';
+        document.getElementById('btn-souvenir-photo').textContent = LANGUE === 'he' ? '📷 צלם שוב' : '📷 Reprendre la photo';
+      };
+      photo.src = URL.createObjectURL(blob);
+    };
+
+    document.getElementById('btn-souvenir-enregistrer').onclick = async () => {
+      const canvas = document.getElementById('souvenir-canvas');
+      const btn = document.getElementById('btn-souvenir-enregistrer');
+      btn.disabled = true;
+      btn.textContent = LANGUE === 'he' ? 'שולח...' : 'Envoi en cours...';
+      canvas.toBlob(async (blob) => {
+        try {
+          const idUnique = 'souvenir_' + templateSouvenirActuel.id + '_' + Date.now();
+          const nomLieu = LANGUE === 'he' ? templateSouvenirActuel.nomHe : templateSouvenirActuel.nomFr;
+          const url = await uploaderPhotoMission(PROFIL_ID, idUnique, blob);
+          await enregistrerResultat({
+            profilId: PROFIL_ID, missionId: idUnique, statut: 'fait',
+            points: 0, note: nomLieu, mediaUrl: url
+          });
+          btn.textContent = LANGUE === 'he' ? '✅ נוסף לאלבום!' : "✅ Ajoutée à l'album !";
+          setTimeout(() => {
+            document.getElementById('souvenir-grille').style.display = 'grid';
+            document.getElementById('souvenir-apercu').style.display = 'none';
+            btn.disabled = false;
+            btn.textContent = LANGUE === 'he' ? 'הוסף לאלבום' : "Ajouter à l'album";
+          }, 1000);
+        } catch (e) {
+          btn.textContent = LANGUE === 'he' ? '❌ שגיאה' : "❌ Échec, réessaie";
+          btn.disabled = false;
+        }
+      }, 'image/jpeg', 0.88);
+    };
+
+    document.getElementById('btn-souvenir-recommencer').onclick = () => {
+      document.getElementById('souvenir-grille').style.display = 'grid';
+      document.getElementById('souvenir-apercu').style.display = 'none';
     };
 
     document.getElementById('btn-tefilat-haderekh').onclick = () => {
