@@ -121,6 +121,7 @@ export async function reinitialiserTousLesPoints() {
   for (const d of defisFaitsSnap.docs) {
     await deleteDoc(doc(db, "defisFaits", d.id));
   }
+  await setDoc(doc(db, "carSeatTracking", "current"), { activeTrip: null, totals: {} });
   return { success: true };
 }
 

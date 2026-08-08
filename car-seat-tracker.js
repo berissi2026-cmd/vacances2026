@@ -186,15 +186,21 @@ function injectCounterZone() {
 
 function updateTripUI() {
   const btn = document.getElementById('btn-changer-siege');
-  if (!btn) return;
-  if (state.activeTrip) {
-    btn.classList.add('active');
-    const c = CHILDREN.find(c => c.id === state.activeTrip.child);
-    btn.title = (langue === 'he' ? 'עצור — ' : 'Arrêt — ') + (c ? childLabel(c) : '');
-  } else {
-    btn.classList.remove('active');
-    btn.title = langue === 'he' ? 'מי יושב מאחור?' : 'Qui derrière ?';
+  if (btn) {
+    if (state.activeTrip) {
+      btn.classList.add('active');
+      const c = CHILDREN.find(c => c.id === state.activeTrip.child);
+      btn.title = (langue === 'he' ? 'עצור — ' : 'Arrêt — ') + (c ? childLabel(c) : '');
+    } else {
+      btn.classList.remove('active');
+      btn.title = langue === 'he' ? 'מי יושב מאחור?' : 'Qui derrière ?';
+    }
   }
+
+  document.querySelectorAll('.switch-profil-btn[data-profil-id]').forEach(el => {
+    const estDerriere = state.activeTrip && el.dataset.profilId === state.activeTrip.child;
+    el.classList.toggle('en-voiture-derriere', !!estDerriere);
+  });
 }
 
 function onMainButtonClick() {
@@ -342,4 +348,11 @@ export async function initCarSeatTracker({ profilId, role, langue: l }) {
   injectCounterZone();
   await ensureDoc();
   listen();
+}
+
+// À appeler après que le sélecteur d'avatars (switch-profil-row) a été construit,
+// pour que le surlignage "en voiture derrière" s'applique bien dessus.
+export function refreshCarSeatUI() {
+  updateTripUI();
+  updateCounters();
 }

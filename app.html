@@ -26,6 +26,8 @@
   .outil-icone { width: 40px; height: 40px; flex: 0 0 40px; border-radius: 50%; background: var(--sand-light); border: 3px solid var(--bark); font-size: 18px; display:flex; align-items:center; justify-content:center; cursor:pointer; text-decoration:none; color: var(--bark); }
   #barre-outils-haut a.outil-icone:first-child { background: var(--sunset); color: #fff; font-size: 20px; }
   .outil-icone-mini { width: 26px; height: 26px; border-radius: 50%; background: rgba(255,255,255,.15); border: 2px solid rgba(255,255,255,.5); font-size: 13px; display:flex; align-items:center; justify-content:center; cursor:pointer; text-decoration:none; color: #fff; }
+  #btn-musique-haut { width: 32px; height: 32px; font-size: 16px; background: var(--sunset); border-color: #fff; box-shadow: 0 0 0 3px rgba(230,126,34,.35); animation: pulseMusique 2.2s infinite; }
+  @keyframes pulseMusique { 0%,100% { transform: scale(1); } 50% { transform: scale(1.1); } }
   #progress-1000 { padding: 10px 20px 0; text-align: center; position: relative; }
   .progress-fill.pulse-gain { animation: pulseGain 0.6s ease; }
   @keyframes pulseGain { 0% { filter: brightness(1); } 50% { filter: brightness(1.5); } 100% { filter: brightness(1); } }
@@ -40,6 +42,8 @@
   .switch-profil-btn { width: 62px; height: 62px; flex: 0 0 62px; border-radius: 50%; background: var(--sand-light); border: 3px solid var(--bark); font-size: 30px; display:flex; align-items:center; justify-content:center; cursor:pointer; opacity:.55; overflow:hidden; }
   .switch-profil-btn img { width:100%; height:100%; object-fit:cover; border-radius:50%; }
   .switch-profil-btn.actif { opacity: 1; border-color: var(--sunset); box-shadow: 0 0 0 3px rgba(230,126,34,.3); }
+  .switch-profil-btn.en-voiture-derriere { opacity: 1; border-color: #2c7be5; box-shadow: 0 0 0 3px rgba(44,123,229,.4); position: relative; }
+  .switch-profil-btn.en-voiture-derriere::after { content: '🚗'; position:absolute; bottom:-6px; right:-6px; font-size:16px; background:#fff; border-radius:50%; padding:1px; }
 
   /* --- PISTE FACON JEU DE L'OIE --- */
   .trail-path { position: relative; max-width: 360px; margin: 10px auto; padding: 30px 0; }
@@ -161,6 +165,7 @@
         <div class="muted" style="color:#fff; opacity:0.7; font-size:11px;" id="mon-role"></div>
         <div id="mini-outils-haut" style="display:flex; gap:6px; margin-top:6px;">
           <button class="outil-icone-mini" id="btn-musique-haut" title="Musique">🎵</button>
+          <button class="outil-icone-mini" id="btn-tefilat-haderekh" title="Tefilat HaDerekh">🙏</button>
           <a href="admin.html" class="outil-icone-mini" id="lien-admin-icone" style="display:none;" title="Admin">⚙️</a>
           <button class="outil-icone-mini" id="btn-tfilot" title="Tfilot">✡️</button>
           <button class="outil-icone-mini" id="btn-changer-langue" title="FR / עברית">🌐</button>
@@ -270,7 +275,7 @@
       ecouterPointsLog, updateSettings, ecouterSettings, marquerDefiFait, ecouterDefisFaits
     } from './firebase-services.js';
     import { uploaderPhotoMission } from './imagekit-services.js';
-    import { initCarSeatTracker } from './car-seat-tracker.js';
+    import { initCarSeatTracker, refreshCarSeatUI } from './car-seat-tracker.js';
 
     const params = new URLSearchParams(window.location.search);
     const PROFIL_ID = params.get('profil');
@@ -437,6 +442,7 @@
       types.forEach(t => typesParId[t.TypeID] = t);
       profils.forEach(p => profilsCache[p.ProfilID] = p);
       afficherSelecteurProfils(profils);
+      refreshCarSeatUI();
       mettreAJourBadgesJeux();
 
       ecouterSettings(settings => {
@@ -486,6 +492,7 @@
       profils.forEach(p => {
         const btn = document.createElement('div');
         btn.className = 'switch-profil-btn' + (p.ProfilID === PROFIL_ID ? ' actif' : '');
+        btn.dataset.profilId = p.ProfilID;
         btn.innerHTML = p.PhotoURL ? `<img src="${p.PhotoURL}" alt="">` : (p.Avatar || '🦁');
         btn.title = LANGUE === 'he' ? (p.Nom_HE || p.Nom_FR) : p.Nom_FR;
         btn.onclick = () => {
@@ -1618,6 +1625,19 @@
           btn.className = 'btn btn--primary btn-choix-tfila';
         };
       });
+    };
+
+    document.getElementById('btn-tefilat-haderekh').onclick = () => {
+      const box = document.getElementById('modal-box');
+      document.getElementById('modal-bg').style.display = 'flex';
+      const texteHebreu = `יְהִי רָצוֹן מִלְּפָנֶיךָ ה' אֱלֹהֵינוּ וֵאלֹהֵי אֲבוֹתֵינוּ, שֶׁתּוֹלִיכֵנוּ לְשָׁלוֹם וְתַצְעִידֵנוּ לְשָׁלוֹם וְתַדְרִיכֵנוּ לְשָׁלוֹם, וְתַגִּיעֵנוּ לִמְחוֹז חֶפְצֵנוּ לְחַיִּים וּלְשִׂמְחָה וּלְשָׁלוֹם, וְתַצִּילֵנוּ מִכַּף כָּל אוֹיֵב וְאוֹרֵב וְלִסְטִים וְחַיּוֹת רָעוֹת בַּדֶּרֶךְ, וּמִכָּל מִינֵי פֻּרְעָנֻיּוֹת הַמִּתְרַגְּשׁוֹת לָבוֹא לָעוֹלָם, וְתִשְׁלַח בְּרָכָה בְּכָל מַעֲשֵׂה יָדֵינוּ, וְתִתְּנֵנוּ לְחֵן וּלְחֶסֶד וּלְרַחֲמִים בְּעֵינֶיךָ וּבְעֵינֵי כָל רֹאֵינוּ, וְתִשְׁמַע קוֹל תַּחֲנוּנֵינוּ, כִּי אֵל שׁוֹמֵעַ תְּפִלָּה וְתַחֲנוּן אָתָּה. בָּרוּךְ אַתָּה ה', שׁוֹמֵעַ תְּפִלָּה.`;
+      const texteFrancais = `Puisse-t-il être Ta volonté, Éternel notre Dieu et Dieu de nos pères, de nous mener en paix, de guider nos pas en paix, de nous conduire en paix, et de nous faire arriver à destination pour la vie, la joie et la paix. Protège-nous de tout ennemi, embuscade, brigand ou bête dangereuse sur la route, et de tout malheur qui menace le monde. Bénis l'œuvre de nos mains, et fais-nous trouver grâce, bonté et miséricorde à Tes yeux et aux yeux de tous ceux qui nous verront. Écoute la voix de nos supplications, car Tu es le Dieu qui écoute la prière et la supplication. Béni sois-Tu, Éternel, qui écoute la prière.`;
+
+      box.innerHTML = `<h2>🙏 ${LANGUE === 'he' ? 'תפילת הדרך' : 'Tefilat HaDerekh'}</h2>
+        <p class="muted mt-8" style="font-size:12px;">${LANGUE === 'he' ? 'תפילת הדרך למסע בטוח' : 'La prière du voyageur, pour un trajet protégé'}</p>
+        <div class="mission-card mt-16" style="text-align:center; font-size:19px; line-height:1.8; direction:rtl;">${texteHebreu}</div>
+        ${LANGUE !== 'he' ? `<div class="mission-card mt-16" style="text-align:right; font-size:14px; line-height:1.6;">${texteFrancais}</div>` : ''}
+        ${boutonFermer()}`;
     };
 
     function afficherProchainDefiSimple(type, liste, box, emoji, titre, verbeFait) {
