@@ -159,6 +159,10 @@ function injectStyles() {
     #btn-changer-siege.active { background:#e04b4b !important; }
     #compteur-voiture { color:#fff; opacity:0.85; font-size:11px; margin-top:2px; }
     #compteur-voiture .cv-ligne { white-space:nowrap; }
+    #compteur-voiture .cv-ligne-active { opacity:1; color:#fff; background:#2c7be5; border-radius:6px;
+      padding:2px 6px; margin:2px 0; display:inline-block; font-weight:700;
+      box-shadow:0 0 0 2px rgba(44,123,229,.4); animation:cstPulseLigne 1.6s infinite; }
+    @keyframes cstPulseLigne { 0%,100% { opacity:1; } 50% { opacity:.6; } }
   `;
   document.head.appendChild(style);
 }
@@ -327,11 +331,14 @@ function updateCounters() {
     zone.innerHTML = CHILDREN.map(c => {
       const label = childLabel(c);
       const val = minutesToStr(state.totals[c.id] || 0);
-      return `<div class="cv-ligne">🚗 ${label}: ${val}</div>`;
+      const estDerriere = state.activeTrip && state.activeTrip.child === c.id;
+      const classe = 'cv-ligne' + (estDerriere ? ' cv-ligne-active' : '');
+      return `<div class="${classe}">🚗 ${label}: ${val}${estDerriere ? ' 🔵' : ''}</div>`;
     }).join('');
   } else if (CHILDREN.some(c => c.id === myProfilId)) {
     const val = minutesToStr(state.totals[myProfilId] || 0);
-    zone.innerHTML = `<div class="cv-ligne">🚗 ${langue === 'he' ? 'מאחור השבוע' : 'derrière cette semaine'}: ${val}</div>`;
+    const estDerriere = state.activeTrip && state.activeTrip.child === myProfilId;
+    zone.innerHTML = `<div class="cv-ligne${estDerriere ? ' cv-ligne-active' : ''}">🚗 ${langue === 'he' ? 'מאחור השבוע' : 'derrière cette semaine'}: ${val}${estDerriere ? ' 🔵' : ''}</div>`;
   } else {
     zone.innerHTML = '';
   }
