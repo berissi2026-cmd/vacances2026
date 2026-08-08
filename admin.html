@@ -1148,18 +1148,28 @@ Mauvaise réponse 2"></textarea>
               <button class="btn btn--primary btn--block mt-8 btn-sauver-lieu">💾 Sauvegarder les modifications</button>
             </div>`;
           zone.querySelector('.btn-sauver-lieu').onclick = async () => {
-            await modifierLieu(l.LieuID, {
-              nomFr: zone.querySelector('.e-nomfr').value,
-              nomHe: zone.querySelector('.e-nomhe').value,
-              type: zone.querySelector('.e-type').value,
-              jour: zone.querySelector('.e-jour').value,
-              heure: zone.querySelector('.e-heure').value,
-              lat: zone.querySelector('.e-lat').value,
-              lng: zone.querySelector('.e-lng').value,
-              torahHe: zone.querySelector('.e-torahhe').value
-            });
-            alert('Lieu modifié !');
-            chargerLieux();
+            const btnSave = zone.querySelector('.btn-sauver-lieu');
+            btnSave.disabled = true;
+            btnSave.textContent = 'Enregistrement...';
+            try {
+              await modifierLieu(l.LieuID, {
+                nomFr: zone.querySelector('.e-nomfr').value,
+                nomHe: zone.querySelector('.e-nomhe').value,
+                type: zone.querySelector('.e-type').value,
+                jour: zone.querySelector('.e-jour').value,
+                heure: zone.querySelector('.e-heure').value,
+                lat: zone.querySelector('.e-lat').value,
+                lng: zone.querySelector('.e-lng').value,
+                torahHe: zone.querySelector('.e-torahhe').value
+              });
+              alert('Lieu modifié !');
+              chargerLieux();
+            } catch (e) {
+              console.error(e);
+              alert('❌ Échec de la sauvegarde : ' + (e.message || e));
+              btnSave.disabled = false;
+              btnSave.textContent = '💾 Sauvegarder les modifications';
+            }
           };
         };
         const inputAudio = item.querySelector('.input-audio');

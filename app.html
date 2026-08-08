@@ -624,8 +624,12 @@
               <div class="trail-label">${label}</div>
             </div>`;
           wrap.querySelector('.trail-node').onclick = () => {
-            if (lieuPrincipal) ouvrirLieu(lieuPrincipal.LieuID);
-            else ouvrirCaseVide(jourNom, momentLabels[moment]);
+            if (!lieuPrincipal) { ouvrirCaseVide(jourNom, momentLabels[moment]); return; }
+            if (casesLieux.length > 1) {
+              ouvrirChoixLieux(casesLieux);
+            } else {
+              ouvrirLieu(lieuPrincipal.LieuID);
+            }
           };
           path.appendChild(wrap);
         });
@@ -654,6 +658,25 @@
       if (a <= 8) return ['facile'];
       if (a <= 11) return ['facile', 'moyen'];
       return ['moyen', 'difficile'];
+    }
+
+    function ouvrirChoixLieux(casesLieux) {
+      const box = document.getElementById('modal-box');
+      document.getElementById('modal-bg').style.display = 'flex';
+      const titre = LANGUE === 'he' ? 'כמה מקומות באותה משבצת — לאן?' : 'Plusieurs lieux sur ce créneau — lequel ?';
+      box.innerHTML = `<h2>📍 ${titre}</h2>
+        <div class="col mt-16">
+          ${casesLieux.map(l => {
+            const type = typesParId[l.Type];
+            const icone = type ? type.Icone : '📍';
+            const nom = LANGUE === 'he' ? (l.Nom_HE || l.Nom_FR) : l.Nom_FR;
+            return `<button class="btn btn--ghost btn--block btn-choix-lieu" data-id="${l.LieuID}">${icone} ${nom}</button>`;
+          }).join('')}
+        </div>
+        ${boutonFermer()}`;
+      box.querySelectorAll('.btn-choix-lieu').forEach(btn => {
+        btn.onclick = () => ouvrirLieu(btn.dataset.id);
+      });
     }
 
     async function ouvrirLieu(lieuId) {

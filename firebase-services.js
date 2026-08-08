@@ -190,13 +190,18 @@ export async function updateLieuAudio(lieuId, audioUrl) {
 }
 
 export async function modifierLieu(lieuId, data) {
-  await updateDoc(doc(db, "lieux", lieuId), {
+  const maj = {
     Nom_FR: data.nomFr, Nom_HE: data.nomHe, Type: data.type,
     Jour: data.jour, Heure: data.heure || "",
-    Lat: data.lat || "", Lng: data.lng || "",
-    TorahTexte_FR: data.torahFr || "", TorahTexte_HE: data.torahHe || "",
-    FaitGeo_FR: data.faitGeoFr || "", FaitGeo_HE: data.faitGeoHe || ""
-  });
+    Lat: data.lat || "", Lng: data.lng || ""
+  };
+  // Ces champs ne sont pas tous présents dans le formulaire rapide de l'admin :
+  // on ne les touche que si explicitement fournis, pour ne pas écraser le texte existant.
+  if (data.torahFr !== undefined) maj.TorahTexte_FR = data.torahFr;
+  if (data.torahHe !== undefined) maj.TorahTexte_HE = data.torahHe;
+  if (data.faitGeoFr !== undefined) maj.FaitGeo_FR = data.faitGeoFr;
+  if (data.faitGeoHe !== undefined) maj.FaitGeo_HE = data.faitGeoHe;
+  await updateDoc(doc(db, "lieux", lieuId), maj);
   return { success: true };
 }
 
