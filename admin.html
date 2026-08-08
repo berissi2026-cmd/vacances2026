@@ -86,6 +86,7 @@
       <div class="admin-tab" data-p="defis">🚗 Défis route</div>
       <div class="admin-tab" data-p="progression">📊 Progression</div>
       <div class="admin-tab" data-p="voyage">🗺️ Voyage</div>
+      <div class="admin-tab" data-p="sieges">🚗 Sièges</div>
     </div>
 
     <!-- LIEUX -->
@@ -333,6 +334,29 @@ Mauvaise réponse 2"></textarea>
         <div id="plateau-admin" class="mt-16"></div>
       </div>
     </div>
+
+    <!-- SIÈGES VOITURE -->
+    <div class="admin-panel" id="p-sieges">
+      <h3>🚗 Qui est derrière ? — Réglages manuels</h3>
+      <p class="muted mt-8" style="font-size:12px;">Corrige ici si la détection automatique s'est trompée (embouteillage mal détecté, oubli d'appuyer sur arrêt, etc.)</p>
+
+      <div id="sieges-trajet-actif" class="mt-16" style="display:none;">
+        <div class="lieu-item">
+          <div class="top-row"><strong id="sieges-trajet-qui"></strong></div>
+          <p class="muted" style="font-size:12px;" id="sieges-trajet-depuis"></p>
+          <div class="field-row mt-8">
+            <button class="btn btn--primary" id="btn-sieges-arreter-maintenant">⏹️ Arrêter maintenant</button>
+            <button class="btn btn--ghost" id="btn-sieges-annuler-trajet" style="color:#c0392b;">✕ Annuler ce trajet (sans compter)</button>
+          </div>
+        </div>
+      </div>
+      <p class="muted mt-8" id="sieges-aucun-trajet" style="font-size:13px;">Aucun trajet en cours actuellement.</p>
+
+      <h3 class="mt-24">Totaux par enfant (minutes derrière)</h3>
+      <div class="col mt-16" id="sieges-totaux"></div>
+      <button class="btn btn--primary btn--block mt-16" id="btn-sieges-save-totaux">💾 Enregistrer les totaux</button>
+      <button class="btn btn--ghost btn--block mt-8" id="btn-sieges-reset-totaux" style="color:#c0392b;">🔄 Remettre les 3 totaux à zéro</button>
+    </div>
   </div>
 
   <script type="module">
@@ -342,7 +366,8 @@ Mauvaise réponse 2"></textarea>
       getTypesExcursion, ajouterTypeExcursion, seedTypesExcursionSiVide,
       getMissionsParLieu, ajouterMission, supprimerMission, getToutesMissions,
       getSettings, updateSettings, getPlaylistPourLieu, ajouterVideoPlaylist, supprimerVideoPlaylist,
-      updateLieuAudio, reinitialiserTousLesPoints, getDefisFaits, supprimerDefiFait
+      updateLieuAudio, reinitialiserTousLesPoints, getDefisFaits, supprimerDefiFait,
+      getCarSeatTracking, ecouterCarSeatTracking, setCarSeatTracking
     } from './firebase-services.js';
     import { uploaderAudioLieu, uploaderMusiqueVictoire } from './imagekit-services.js';
 
@@ -356,6 +381,7 @@ Mauvaise réponse 2"></textarea>
       chargerTypesListe();
       chargerReglagesVoyage();
       chargerPlaylistRoute();
+      chargerSieges();
     }
 
     async function tenterEntree() {
@@ -402,6 +428,84 @@ Mauvaise réponse 2"></textarea>
 
       afficherPlateauAdmin();
     }
+
+    // --- SIÈGES VOITURE ("Qui est derrière ?") ---
+    const SIEGES_ENFANTS = [
+      { id: 'p_elior', nom: 'Elior' },
+      { id: 'p_shaitsion', nom: 'Shai Tsion' },
+      { id: 'p_nava', nom: 'Nava' }
+    ];
+    let siegesDataActuelle = { activeTrip: null, totals: {} };
+
+    function afficherSieges(data) {
+      siegesDataActuelle = data;
+      const zoneActif = document.getElementById('sieges-trajet-actif');
+      const zoneAucun = document.getElementById('sieges-aucun-trajet');
+      if (data.activeTrip) {
+        zoneActif.style.display = 'block';
+        zoneAucun.style.display = 'none';
+        const enfant = SIEGES_ENFANTS.find(e => e.id === data.activeTrip.child);
+        document.getElementById('sieges-trajet-qui').textContent = '🚗 ' + (enfant ? enfant.nom : data.activeTrip.child) + ' est derrière depuis :';
+        document.getElementById('sieges-trajet-depuis').textContent = new Date(data.activeTrip.startTimeMs).toLocaleString('fr-FR');
+      } else {
+        zoneActif.style.display = 'none';
+        zoneAucun.style.display = 'block';
+      }
+
+      const box = document.getElementById('sieges-totaux');
+      box.innerHTML = '';
+      SIEGES_ENFANTS.forEach(e => {
+        const minutes = (data.totals && data.totals[e.id]) || 0;
+        const h = Math.floor(minutes / 60);
+        const m = minutes % 60;
+        const div = document.createElement('div');
+        div.className = 'field-row mt-8';
+        div.innerHTML = `
+          <div style="display:flex;align-items:center;font-weight:700;">${e.nom}</div>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input type="number" min="0" style="width:60px;" data-sieges-h="${e.id}" value="${h}"> h
+            <input type="number" min="0" max="59" style="width:60px;" data-sieges-m="${e.id}" value="${m}"> min
+          </div>`;
+        box.appendChild(div);
+      });
+    }
+
+    async function chargerSieges() {
+      ecouterCarSeatTracking(data => afficherSieges(data));
+    }
+
+    document.getElementById('btn-sieges-arreter-maintenant').onclick = async () => {
+      const data = siegesDataActuelle;
+      if (!data.activeTrip) return;
+      const minutes = Math.max(0, Math.round((Date.now() - data.activeTrip.startTimeMs) / 60000));
+      const totals = { ...(data.totals || {}) };
+      totals[data.activeTrip.child] = (totals[data.activeTrip.child] || 0) + minutes;
+      await setCarSeatTracking({ activeTrip: null, totals });
+      alert('Trajet arrêté, ' + minutes + ' min ajoutées.');
+    };
+
+    document.getElementById('btn-sieges-annuler-trajet').onclick = async () => {
+      if (!confirm('Annuler ce trajet sans compter le temps ?')) return;
+      await setCarSeatTracking({ activeTrip: null });
+    };
+
+    document.getElementById('btn-sieges-save-totaux').onclick = async () => {
+      const totals = {};
+      SIEGES_ENFANTS.forEach(e => {
+        const h = parseInt(document.querySelector(`[data-sieges-h="${e.id}"]`).value, 10) || 0;
+        const m = parseInt(document.querySelector(`[data-sieges-m="${e.id}"]`).value, 10) || 0;
+        totals[e.id] = h * 60 + m;
+      });
+      await setCarSeatTracking({ totals });
+      alert('Totaux enregistrés !');
+    };
+
+    document.getElementById('btn-sieges-reset-totaux').onclick = async () => {
+      if (!confirm('Remettre les 3 totaux à zéro ?')) return;
+      const totals = {};
+      SIEGES_ENFANTS.forEach(e => totals[e.id] = 0);
+      await setCarSeatTracking({ totals });
+    };
 
     function momentDepuisHeureAdmin(heureStr) {
       if (!heureStr) return 'matin';

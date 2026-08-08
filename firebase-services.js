@@ -452,3 +452,24 @@ export async function initialiserDonneesSiVide() {
 
   return { success: true, deja: false };
 }
+
+// ============================================================
+// SUIVI "QUI EST DERRIÈRE ?" (siège voiture)
+// ============================================================
+
+export async function getCarSeatTracking() {
+  const snap = await getDoc(doc(db, "carSeatTracking", "current"));
+  if (!snap.exists()) return { activeTrip: null, totals: {} };
+  return snap.data();
+}
+
+export function ecouterCarSeatTracking(callback) {
+  return onSnapshot(doc(db, "carSeatTracking", "current"), snap => {
+    callback(snap.exists() ? snap.data() : { activeTrip: null, totals: {} });
+  });
+}
+
+export async function setCarSeatTracking(data) {
+  await setDoc(doc(db, "carSeatTracking", "current"), data, { merge: true });
+}
+
