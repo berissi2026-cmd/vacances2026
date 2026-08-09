@@ -484,3 +484,30 @@ export async function setCarSeatTracking(data) {
   await setDoc(doc(db, "carSeatTracking", "current"), data, { merge: true });
 }
 
+// ============================================================
+// TEMPLATES "CARTE SOUVENIR" AJOUTÉS DEPUIS L'ADMIN
+// ============================================================
+
+export async function getSouvenirTemplates() {
+  const snap = await getDocs(collection(db, "souvenirTemplates"));
+  return snap.docs.map(d => ({ TemplateID: d.id, ...d.data() }));
+}
+
+export function ecouterSouvenirTemplates(callback) {
+  return onSnapshot(collection(db, "souvenirTemplates"), snap => {
+    callback(snap.docs.map(d => ({ TemplateID: d.id, ...d.data() })));
+  });
+}
+
+export async function ajouterSouvenirTemplate(data) {
+  const ref = await addDoc(collection(db, "souvenirTemplates"), {
+    Nom_FR: data.nomFr, Nom_HE: data.nomHe || "", ImageURL: data.imageUrl
+  });
+  return { success: true, templateId: ref.id };
+}
+
+export async function supprimerSouvenirTemplate(templateId) {
+  await deleteDoc(doc(db, "souvenirTemplates", templateId));
+  return { success: true };
+}
+

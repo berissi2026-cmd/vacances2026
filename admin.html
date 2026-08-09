@@ -88,6 +88,7 @@
       <div class="admin-tab" data-p="voyage">🗺️ Voyage</div>
       <div class="admin-tab" data-p="sieges">🚗 Sièges</div>
       <div class="admin-tab" data-p="album">📷 Album</div>
+      <div class="admin-tab" data-p="souvenirs">🖼️ Souvenirs</div>
     </div>
 
     <!-- LIEUX -->
@@ -227,6 +228,10 @@ Mauvaise réponse 2"></textarea>
         <h3 class="mt-24">Missions existantes pour ce lieu</h3>
         <div id="liste-missions" class="mt-16"></div>
       </div>
+
+      <h3 class="mt-24">📋 Toutes les missions (tous lieux confondus)</h3>
+      <div id="toutes-missions-filtre" class="mt-8" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
+      <div id="toutes-missions-liste" class="mt-16"></div>
     </div>
 
     <!-- TYPES D'EXCURSION -->
@@ -283,6 +288,10 @@ Mauvaise réponse 2"></textarea>
 
         <button class="btn btn--primary btn--block mt-16" id="btn-ajouter-defi">➕ Ajouter</button>
       </div>
+
+      <h3 class="mt-24">📋 Tous les défis existants</h3>
+      <div id="tous-defis-filtre" class="mt-8" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
+      <div id="tous-defis-liste" class="mt-16"></div>
 
       <h3 class="mt-24">🎵 Playlist musique de la route</h3>
       <div class="col mt-16">
@@ -367,6 +376,27 @@ Mauvaise réponse 2"></textarea>
       <div id="album-admin-grille" class="mt-16" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px;"></div>
       <p class="muted mt-16" id="album-admin-vide" style="display:none;">Aucune photo pour l'instant.</p>
     </div>
+
+    <!-- TEMPLATES CARTE SOUVENIR -->
+    <div class="admin-panel" id="p-souvenirs">
+      <h3>🖼️ Ajouter une image souvenir</h3>
+      <p class="muted mt-8" style="font-size:12px;">Ajoute un nouveau modèle de carte souvenir (en plus des 10 déjà intégrés). Prépare une image avec un cadre blanc au même endroit que les autres si tu veux que la photo s'y insère bien.</p>
+      <div class="col mt-16">
+        <div class="field-row">
+          <div><label>Nom du lieu (FR)</label><input id="sv-nomfr" placeholder="ex: Akko"></div>
+          <div><label>Nom du lieu (HE)</label><input id="sv-nomhe" placeholder="עכו"></div>
+        </div>
+        <button class="btn btn--accent btn--block mt-8" id="btn-sv-choisir-image">🖼️ Choisir une image</button>
+        <input type="file" accept="image/*" id="sv-input-image" style="display:none;">
+        <img id="sv-apercu-image" style="display:none; max-width:200px; border-radius:8px; margin:8px auto; display:block;">
+        <button class="btn btn--primary btn--block mt-8" id="btn-sv-ajouter">➕ Ajouter cette image souvenir</button>
+        <div id="sv-statut" class="muted mt-8" style="font-size:13px;"></div>
+      </div>
+
+      <h3 class="mt-24">Images souvenir ajoutées</h3>
+      <div id="sv-liste" class="mt-16" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px;"></div>
+      <p class="muted mt-16" id="sv-liste-vide" style="display:none;">Aucune image ajoutée pour l'instant (les 10 lieux de base restent disponibles dans l'app).</p>
+    </div>
   </div>
 
   <script type="module">
@@ -380,7 +410,8 @@ Mauvaise réponse 2"></textarea>
       getCarSeatTracking, ecouterCarSeatTracking, setCarSeatTracking,
       ecouterTousResultats, supprimerResultat
     } from './firebase-services.js';
-    import { uploaderAudioLieu, uploaderMusiqueVictoire } from './imagekit-services.js';
+    import { uploaderAudioLieu, uploaderMusiqueVictoire, uploaderImageSouvenir } from './imagekit-services.js';
+    import { getSouvenirTemplates, ecouterSouvenirTemplates, ajouterSouvenirTemplate, supprimerSouvenirTemplate } from './firebase-services.js';
 
     // --- Écran de mot de passe ---
     function demarrerAdmin() {
@@ -394,6 +425,8 @@ Mauvaise réponse 2"></textarea>
       chargerPlaylistRoute();
       chargerSieges();
       chargerAlbumAdmin();
+      chargerToutesMissions();
+      chargerTousDefis();
     }
 
     async function tenterEntree() {
@@ -963,6 +996,7 @@ Mauvaise réponse 2"></textarea>
         statut.textContent = `⏳ ${ok}/${defis.length} supprimés...`;
       }
       statut.textContent = `✅ ${ok} défi(s) supprimé(s).`;
+      chargerTousDefis();
     };
 
     document.getElementById('btn-importer-defis').onclick = async () => {
@@ -997,6 +1031,7 @@ Mauvaise réponse 2"></textarea>
       btn.disabled = false;
       statut.textContent = `✅ ${ok} défi(s) importé(s).`;
       if (ok > 0) zone.value = '';
+      chargerTousDefis();
     };
 
     // --- RECHERCHE YOUTUBE ---
@@ -1204,6 +1239,7 @@ Mauvaise réponse 2"></textarea>
         statut.textContent = `⏳ ${ok}/${missions.length} supprimées...`;
       }
       statut.textContent = `✅ ${ok} mission(s) supprimée(s).`;
+      chargerToutesMissions();
     };
 
     document.getElementById('btn-importer-missions').onclick = async () => {
@@ -1245,6 +1281,7 @@ Mauvaise réponse 2"></textarea>
       btn.disabled = false;
       statut.textContent = `✅ ${ok} mission(s) importée(s).` + (erreurs.length ? ` ⚠️ Erreurs : ${erreurs.join(', ')}` : '');
       if (ok > 0) zone.value = '';
+      chargerToutesMissions();
     };
 
     // --- MISSIONS ---
@@ -1288,6 +1325,7 @@ Mauvaise réponse 2"></textarea>
        'm-quiz-question','m-quiz-reponses','m-badgefr','m-badgehe','m-badgeemoji']
         .forEach(id => document.getElementById(id).value = '');
       chargerMissions(lieuId);
+      chargerToutesMissions();
     };
 
     async function chargerMissions(lieuId) {
@@ -1308,7 +1346,45 @@ Mauvaise réponse 2"></textarea>
       });
     }
 
-    // --- DEFIS ROUTE ---
+    async function chargerToutesMissions(filtreLieuId) {
+      const [missions, lieux] = await Promise.all([getToutesMissions(), getLieux()]);
+      const lieuxParId = Object.fromEntries(lieux.map(l => [l.LieuID, l]));
+      const icones = { photo: '📸', chasse: '🔎', animaux: '🐸', quiz: '❓', note: '⭐' };
+
+      const filtreBox = document.getElementById('toutes-missions-filtre');
+      if (!filtreBox.dataset.rempli) {
+        filtreBox.dataset.rempli = '1';
+        filtreBox.innerHTML = `<button class="admin-tab active" data-lieu="" style="padding:6px 12px; font-size:12px;">Tous les lieux</button>` +
+          lieux.map(l => `<button class="admin-tab" data-lieu="${l.LieuID}" style="padding:6px 12px; font-size:12px;">📍 ${l.Nom_FR}</button>`).join('');
+        filtreBox.querySelectorAll('button[data-lieu]').forEach(b => {
+          b.onclick = () => {
+            filtreBox.querySelectorAll('button[data-lieu]').forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+            chargerToutesMissions(b.dataset.lieu || null);
+          };
+        });
+      }
+
+      const liste = filtreLieuId ? missions.filter(m => m.LieuID === filtreLieuId) : missions;
+      const box = document.getElementById('toutes-missions-liste');
+      box.innerHTML = liste.length ? '' : '<p class="muted">Aucune mission.</p>';
+      liste
+        .sort((a, b) => (lieuxParId[a.LieuID]?.Nom_FR || '').localeCompare(lieuxParId[b.LieuID]?.Nom_FR || ''))
+        .forEach(m => {
+          const lieu = lieuxParId[m.LieuID];
+          const el = document.createElement('div');
+          el.className = 'mission-item';
+          el.innerHTML = `<b>${icones[m.Type] || ''} ${m.Titre_FR || m.Type}</b>
+            — 📍 ${lieu ? lieu.Nom_FR : '(lieu supprimé)'} — ${m.Difficulte || 'moyen'} — ${m.Points || 0} pts
+            <button style="float:inline-end; border:none; background:none; cursor:pointer;" data-id="${m.MissionID}">🗑️</button>`;
+          el.querySelector('button').onclick = async () => {
+            if (!confirm('Supprimer cette mission ?')) return;
+            await supprimerMission(m.MissionID);
+            chargerToutesMissions(filtreLieuId);
+          };
+          box.appendChild(el);
+        });
+    }
     function construireQcmOptions() {
       const zone = document.getElementById('d-qcm-options');
       zone.innerHTML = '';
@@ -1352,7 +1428,45 @@ Mauvaise réponse 2"></textarea>
       ['d-fr', 'd-he'].forEach(id => document.getElementById(id).value = '');
       construireQcmOptions();
       alert('Défi ajouté !');
+      chargerTousDefis();
     };
+
+    async function chargerTousDefis(filtreType) {
+      const defis = await getDefisRoute();
+      const icones = { bingo_item: '🎲', roue: '🎡', enigme: '🧩' };
+      const labels = { bingo_item: 'Bingo', roue: 'Roue', enigme: 'Énigme' };
+
+      const filtreBox = document.getElementById('tous-defis-filtre');
+      if (!filtreBox.dataset.rempli) {
+        filtreBox.dataset.rempli = '1';
+        filtreBox.innerHTML = `<button class="admin-tab active" data-type="" style="padding:6px 12px; font-size:12px;">Tous</button>` +
+          Object.keys(labels).map(t => `<button class="admin-tab" data-type="${t}" style="padding:6px 12px; font-size:12px;">${icones[t]} ${labels[t]}</button>`).join('');
+        filtreBox.querySelectorAll('button[data-type]').forEach(b => {
+          b.onclick = () => {
+            filtreBox.querySelectorAll('button[data-type]').forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+            chargerTousDefis(b.dataset.type || null);
+          };
+        });
+      }
+
+      const liste = filtreType ? defis.filter(d => d.Type === filtreType) : defis;
+      const box = document.getElementById('tous-defis-liste');
+      box.innerHTML = liste.length ? '' : '<p class="muted">Aucun défi.</p>';
+      liste.forEach(d => {
+        const el = document.createElement('div');
+        el.className = 'mission-item';
+        el.innerHTML = `<b>${icones[d.Type] || ''} ${labels[d.Type] || d.Type}</b> — ${d.Contenu_FR || ''}
+          ${d.Jour ? ' · 📅 ' + d.Jour : ''} — ${d.Points || 0} pts
+          <button style="float:inline-end; border:none; background:none; cursor:pointer;" data-id="${d.DefiID}">🗑️</button>`;
+        el.querySelector('button').onclick = async () => {
+          if (!confirm('Supprimer ce défi ?')) return;
+          await supprimerDefiRoute(d.DefiID);
+          chargerTousDefis(filtreType);
+        };
+        box.appendChild(el);
+      });
+    }
 
     // --- PROGRESSION ---
     document.getElementById('btn-reset-points').onclick = async () => {
@@ -1441,6 +1555,75 @@ Mauvaise réponse 2"></textarea>
     }
 
     function val(id) { return document.getElementById(id).value; }
+
+    // --- TEMPLATES CARTE SOUVENIR ---
+    let fichierSouvenirChoisi = null;
+
+    document.getElementById('btn-sv-choisir-image').onclick = () => {
+      document.getElementById('sv-input-image').click();
+    };
+
+    document.getElementById('sv-input-image').onchange = () => {
+      const fichier = document.getElementById('sv-input-image').files[0];
+      if (!fichier) return;
+      fichierSouvenirChoisi = fichier;
+      const apercu = document.getElementById('sv-apercu-image');
+      apercu.src = URL.createObjectURL(fichier);
+      apercu.style.display = 'block';
+    };
+
+    document.getElementById('btn-sv-ajouter').onclick = async () => {
+      const nomFr = val('sv-nomfr').trim();
+      const nomHe = val('sv-nomhe').trim();
+      const statut = document.getElementById('sv-statut');
+      if (!nomFr) { statut.textContent = '❌ Le nom (FR) est obligatoire.'; return; }
+      if (!fichierSouvenirChoisi) { statut.textContent = '❌ Choisis une image.'; return; }
+
+      const btn = document.getElementById('btn-sv-ajouter');
+      btn.disabled = true;
+      statut.textContent = '⏳ Envoi de l\'image...';
+      try {
+        const idTmp = 'sv_' + Date.now();
+        const imageUrl = await uploaderImageSouvenir(idTmp, fichierSouvenirChoisi);
+        await ajouterSouvenirTemplate({ nomFr, nomHe, imageUrl });
+        statut.textContent = '✅ Image souvenir ajoutée !';
+        document.getElementById('sv-nomfr').value = '';
+        document.getElementById('sv-nomhe').value = '';
+        document.getElementById('sv-apercu-image').style.display = 'none';
+        document.getElementById('sv-input-image').value = '';
+        fichierSouvenirChoisi = null;
+      } catch (e) {
+        console.error(e);
+        statut.textContent = '❌ Échec : ' + (e.message || e);
+      }
+      btn.disabled = false;
+    };
+
+    function afficherListeSouvenirsAdmin(templates) {
+      const box = document.getElementById('sv-liste');
+      const vide = document.getElementById('sv-liste-vide');
+      if (!templates.length) {
+        box.innerHTML = '';
+        vide.style.display = 'block';
+        return;
+      }
+      vide.style.display = 'none';
+      box.innerHTML = templates.map(t => `
+        <div style="position:relative; border-radius:8px; overflow:hidden; border:2px solid var(--bark);">
+          <img src="${t.ImageURL}" style="width:100%; aspect-ratio:9/16; object-fit:cover; display:block;">
+          <button data-del="${t.TemplateID}" style="position:absolute; top:4px; right:4px; background:#c0392b; color:#fff; border:none; border-radius:50%; width:26px; height:26px; font-size:13px; cursor:pointer;">🗑️</button>
+          <div style="position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,.55); color:#fff; font-size:10px; text-align:center; padding:3px;">${t.Nom_FR}</div>
+        </div>`).join('');
+      box.querySelectorAll('button[data-del]').forEach(b => {
+        b.onclick = async () => {
+          if (!confirm('Supprimer cette image souvenir ?')) return;
+          b.disabled = true;
+          await supprimerSouvenirTemplate(b.dataset.del);
+        };
+      });
+    }
+
+    ecouterSouvenirTemplates(afficherListeSouvenirsAdmin);
 
     chargerLieuxPourMissions();
   </script>

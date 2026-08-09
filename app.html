@@ -43,6 +43,7 @@
   .switch-profil-btn.actif { opacity: 1; border-color: var(--sunset); box-shadow: 0 0 0 3px rgba(230,126,34,.3); }
   .switch-profil-btn.en-voiture-derriere { opacity: 1; border-color: #2c7be5; box-shadow: 0 0 0 3px rgba(44,123,229,.4); position: relative; }
   .switch-profil-btn.en-voiture-derriere::after { content: '🚗'; position:absolute; bottom:-6px; right:-6px; font-size:16px; background:#fff; border-radius:50%; padding:1px; }
+  .souvenir-vignette-nom { background: var(--bark); color:#fff; font-family: var(--font-display); font-weight:700; font-size:12px; text-align:center; padding:5px 4px; }
 
   /* --- PISTE FACON JEU DE L'OIE --- */
   .trail-path { position: relative; max-width: 360px; margin: 10px auto; padding: 30px 0; }
@@ -289,7 +290,8 @@
       getProfil, getProfils, ecouterScoreFamille, ecouterProfil, getDefisRoute, ecouterLieux,
       getMissionsParLieu, getResultatsProfil, enregistrerResultat, getTypesExcursion,
       ecouterTousResultats, getSettings, ajouterBadgeProfil, getPlaylistPourLieu, ajouterScoreProfil,
-      ecouterPointsLog, updateSettings, ecouterSettings, marquerDefiFait, ecouterDefisFaits
+      ecouterPointsLog, updateSettings, ecouterSettings, marquerDefiFait, ecouterDefisFaits,
+      ecouterSouvenirTemplates
     } from './firebase-services.js';
     import { uploaderPhotoMission } from './imagekit-services.js';
     import { initCarSeatTracker, refreshCarSeatUI } from './car-seat-tracker.js';
@@ -1671,30 +1673,42 @@
     // ------------------------------------------------------------
     // CARTE SOUVENIR (choisir un template de lieu + prendre une photo)
     // ------------------------------------------------------------
-    const SOUVENIR_TEMPLATES = [
-      { id: 'ein-harod',      nomFr: 'Ein Harod',       nomHe: 'עין חרוד' },
-      { id: 'givat-haim',     nomFr: 'Givat Haim',      nomHe: 'גבעת חיים' },
-      { id: 'herzliya',       nomFr: 'Herzliya',        nomHe: 'הרצליה' },
-      { id: 'netanya',        nomFr: 'Netanya',         nomHe: 'נתניה' },
-      { id: 'ein-modaa',      nomFr: 'Ein Modaa',       nomHe: 'עין מודע' },
-      { id: 'rob-roy',        nomFr: 'Rob Roy',         nomHe: 'רוב רוי' },
-      { id: 'tiberiade',      nomFr: 'Tibériade',       nomHe: 'טבריה' },
-      { id: 'harish',         nomFr: 'Harish',          nomHe: 'חריש' },
-      { id: 'maale-mikhmas',  nomFr: "Ma'ale Mikhmas",  nomHe: 'מעלה מכמש' },
-      { id: 'ein-feshkha',    nomFr: 'Ein Feshkha',     nomHe: 'עין פשחה' }
+    const SOUVENIR_TEMPLATES_BASE = [
+      { id: 'ein-harod',      nomFr: 'Ein Harod',       nomHe: 'עין חרוד',    url: 'souvenirs/ein-harod.jpg' },
+      { id: 'givat-haim',     nomFr: 'Givat Haim',      nomHe: 'גבעת חיים',   url: 'souvenirs/givat-haim.jpg' },
+      { id: 'herzliya',       nomFr: 'Herzliya',        nomHe: 'הרצליה',      url: 'souvenirs/herzliya.jpg' },
+      { id: 'netanya',        nomFr: 'Netanya',         nomHe: 'נתניה',       url: 'souvenirs/netanya.jpg' },
+      { id: 'gan-hashlosha',  nomFr: 'Gan Hashlosha',   nomHe: 'גן השלושה',   url: 'souvenirs/gan-hashlosha.jpg' },
+      { id: 'rob-roy',        nomFr: 'Rob Roy',         nomHe: 'רוב רוי',     url: 'souvenirs/rob-roy.jpg' },
+      { id: 'tiberiade',      nomFr: 'Tibériade',       nomHe: 'טבריה',       url: 'souvenirs/tiberiade.jpg' },
+      { id: 'harish',         nomFr: 'Harish',          nomHe: 'חריש',        url: 'souvenirs/harish.jpg' },
+      { id: 'maale-mikhmas',  nomFr: "Ma'ale Mikhmas",  nomHe: 'מעלה מכמש',   url: 'souvenirs/maale-mikhmas.jpg' },
+      { id: 'ein-feshkha',    nomFr: 'Ein Feshkha',     nomHe: 'עין פשחה',    url: 'souvenirs/ein-feshkha.jpg' }
     ];
     // Position relative du cadre blanc (identique sur tous les templates)
     const SOUVENIR_BOX = { x: 0.19, y: 0.365, w: 0.68, h: 0.37 };
 
+    let templatesSouvenirPerso = [];
     let templateSouvenirActuel = null;
     let imageTemplateSouvenirEl = null;
 
+    ecouterSouvenirTemplates(templates => {
+      templatesSouvenirPerso = templates.map(t => ({
+        id: t.TemplateID, nomFr: t.Nom_FR, nomHe: t.Nom_HE || t.Nom_FR, url: t.ImageURL
+      }));
+      if (document.getElementById('panel-souvenir').classList.contains('active')) afficherGrilleSouvenirs();
+    });
+
+    function tousLesTemplatesSouvenir() {
+      return [...SOUVENIR_TEMPLATES_BASE, ...templatesSouvenirPerso];
+    }
+
     function afficherGrilleSouvenirs() {
       const box = document.getElementById('souvenir-grille');
-      box.innerHTML = SOUVENIR_TEMPLATES.map(t => `
-        <div class="souvenir-vignette" data-id="${t.id}" style="cursor:pointer; border-radius:10px; overflow:hidden; border:3px solid var(--bark); position:relative;">
-          <img src="souvenirs/${t.id}.jpg" style="width:100%; display:block;" loading="lazy">
-          <div style="position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,.55); color:#fff; font-size:11px; text-align:center; padding:3px;">${LANGUE === 'he' ? t.nomHe : t.nomFr}</div>
+      box.innerHTML = tousLesTemplatesSouvenir().map(t => `
+        <div class="souvenir-vignette" data-id="${t.id}" style="cursor:pointer; border-radius:10px; overflow:hidden; border:3px solid var(--bark);">
+          <img src="${t.url}" style="width:100%; aspect-ratio:9/16; object-fit:cover; display:block;" loading="lazy">
+          <div class="souvenir-vignette-nom">${LANGUE === 'he' ? (t.nomHe || t.nomFr) : t.nomFr}</div>
         </div>
       `).join('');
       box.querySelectorAll('.souvenir-vignette').forEach(el => {
@@ -1703,7 +1717,7 @@
     }
 
     function choisirTemplateSouvenir(id) {
-      templateSouvenirActuel = SOUVENIR_TEMPLATES.find(t => t.id === id);
+      templateSouvenirActuel = tousLesTemplatesSouvenir().find(t => t.id === id);
       document.getElementById('souvenir-grille').style.display = 'none';
       document.getElementById('souvenir-apercu').style.display = 'block';
       document.getElementById('btn-souvenir-enregistrer').style.display = 'none';
@@ -1713,13 +1727,14 @@
       const canvas = document.getElementById('souvenir-canvas');
       const ctx = canvas.getContext('2d');
       const img = new Image();
+      img.crossOrigin = 'anonymous';
       img.onload = () => {
         canvas.width = img.width;
         canvas.height = img.height;
         ctx.drawImage(img, 0, 0);
         imageTemplateSouvenirEl = img;
       };
-      img.src = 'souvenirs/' + templateSouvenirActuel.id + '.jpg';
+      img.src = templateSouvenirActuel.url;
     }
 
     document.getElementById('btn-souvenir-photo').onclick = () => {

@@ -58,6 +58,11 @@ export async function uploaderMusiqueVictoire(fichier) {
   return uploaderFichierAudioGenerique('victoire_1000', fichier, '/vacances2026/audio');
 }
 
+// Upload d'une image de template "carte souvenir" ajoutée depuis l'admin
+export async function uploaderImageSouvenir(id, blob) {
+  return uploaderVersImageKit('/vacances2026/souvenirs', id, blob);
+}
+
 async function uploaderFichierAudioGenerique(id, fichier, dossier) {
   const authRes = await fetch(AUTH_ENDPOINT);
   if (!authRes.ok) throw new Error("Service d'authentification ImageKit indisponible");
