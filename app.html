@@ -393,10 +393,9 @@
       if (settings.PositionManuelle && settings.PositionManuelle !== 'route') {
         return calculerPositionPionBase(settings);
       }
-      if (settings.PositionManuelle === 'route' || (!settings.PositionManuelle && settings.PositionGeoloc === 'route')) {
-        // "En route" : pas d'étape précise en surbrillance, mais on garde le bon jour
-        // (basé sur la date/heure) pour continuer à débloquer les jeux normalement.
-        const base = calculerPositionPionBase({ ...settings, PositionGeoloc: settings.PositionGeoloc === 'route' ? '' : settings.PositionGeoloc });
+      if (settings.PositionManuelle === 'route') {
+        // "En route" : pas d'étape précise en surbrillance, mais on garde le bon jour (date réelle)
+        const base = calculerPositionPionBase({});
         return { jourIndex: base.jourIndex, moment: null, enRoute: true };
       }
       return calculerPositionPionBase(settings);
@@ -408,11 +407,9 @@
         const jourIndex = JOURS.indexOf(j);
         if (jourIndex !== -1 && MOMENTS.includes(m)) return { jourIndex, moment: m };
       }
-      if (settings.PositionGeoloc) {
-        const [j, m] = settings.PositionGeoloc.split('|');
-        const jourIndex = JOURS.indexOf(j);
-        if (jourIndex !== -1 && MOMENTS.includes(m)) return { jourIndex, moment: m };
-      }
+      // Le jour du voyage se calcule uniquement à partir de la date réelle du téléphone
+      // (plus de géolocalisation ici : trop de lieux partagent les mêmes coordonnées sur
+      // plusieurs jours différents, ex. "Nuit à Harish" plusieurs soirs de suite).
       if (settings.DateDebutVoyage) {
         const debut = new Date(settings.DateDebutVoyage + 'T00:00:00');
         const maintenant = new Date();
@@ -1470,7 +1467,9 @@
           } else {
             marqueurMoi.setLatLng([latitude, longitude]);
           }
-          mettreAJourPositionAutoParGeoloc(latitude, longitude);
+          // Note: on n'utilise plus la géolocalisation pour déterminer/débloquer le jour du voyage
+          // (trop de lieux partagent les mêmes coordonnées sur plusieurs jours — ex: "Nuit à Harish").
+          // Le jour se règle uniquement à la main dans l'admin, ou automatiquement selon la date réelle.
         },
         () => {
           statut.textContent = LANGUE === 'he' ? 'לא הצלחנו לאתר את המיקום שלכם. בדקו את ההרשאות.' : "Impossible d'accéder à ta position (vérifie l'autorisation de géolocalisation).";
@@ -2288,6 +2287,6 @@
 
     init();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 14:28</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 14:42</div>
 </body>
 </html>

@@ -319,15 +319,20 @@ Mauvaise réponse 2"></textarea>
     <!-- VOYAGE -->
     <div class="admin-panel" id="p-voyage">
       <h3>🗺️ Plateau du voyage (pion voiture)</h3>
-      <p class="muted mt-8" style="font-size:12px;">Le pion se positionne automatiquement selon ta géolocalisation dès que tu es à moins de 5km d'un lieu connu. Utilise les réglages ci-dessous seulement si tu veux forcer une position toi-même.</p>
+      <p class="muted mt-8" style="font-size:12px;">Le pion avance automatiquement d'un jour chaque jour, à partir de la date de début du voyage ci-dessous. Utilise "Forcer la position" seulement si vous êtes en avance/retard sur le programme.</p>
       <div class="col mt-16">
+        <div class="mt-16">
+          <label>Date de début du voyage</label>
+          <input type="date" id="v-date-debut">
+          <p class="muted mt-8" style="font-size:12px;">Utilisée par le mode "Automatique" ci-dessous pour savoir quel jour du voyage on est, sans dépendre de la géolocalisation.</p>
+        </div>
         <div class="mt-16">
           <label>Forcer la position du pion (optionnel)</label>
           <select id="v-position-manuelle">
-            <option value="">🔄 Automatique (selon la géolocalisation)</option>
+            <option value="">🔄 Automatique (selon la date)</option>
             <option value="route">🚗 En route (entre deux étapes)</option>
           </select>
-          <p class="muted mt-8" style="font-size:12px;">Utile si vous êtes en retard/avance sur le programme.</p>
+          <p class="muted mt-8" style="font-size:12px;">Utile si vous êtes en retard/avance sur le programme, ou pour choisir précisément le jour à débloquer.</p>
         </div>
         <button class="btn btn--primary btn--block mt-16" id="btn-save-voyage">💾 Enregistrer</button>
 
@@ -475,8 +480,9 @@ Mauvaise réponse 2"></textarea>
       });
 
       const settings = await getSettings();
-      // Le pion se base uniquement sur la géolocalisation ou une position forcée manuellement
+      // Le pion se base sur une position forcée manuellement, ou sinon sur la date de début du voyage
       if (settings.PositionManuelle) select.value = settings.PositionManuelle;
+      if (settings.DateDebutVoyage) document.getElementById('v-date-debut').value = settings.DateDebutVoyage;
 
       afficherPlateauAdmin();
     }
@@ -832,6 +838,8 @@ Mauvaise réponse 2"></textarea>
     document.getElementById('btn-save-voyage').onclick = async () => {
       const btn = document.getElementById('btn-save-voyage');
       btn.disabled = true; btn.textContent = 'Enregistrement...';
+      const dateDebut = document.getElementById('v-date-debut').value;
+      await updateSettings({ DateDebutVoyage: dateDebut || '' });
       await appliquerPositionAvecRembobinage(document.getElementById('v-position-manuelle').value || '');
       btn.disabled = false; btn.textContent = '💾 Enregistrer';
       afficherPlateauAdmin();
@@ -1742,6 +1750,6 @@ Mauvaise réponse 2"></textarea>
 
     chargerLieuxPourMissions();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 14:28</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 14:42</div>
 </body>
 </html>
