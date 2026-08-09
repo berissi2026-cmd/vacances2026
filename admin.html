@@ -1066,7 +1066,8 @@ Mauvaise réponse 2"></textarea>
             lat: entree.lat || '', lng: entree.lng || '',
             photoUrl: entree.photoUrl || '',
             torahFr: entree.torahFr || '', torahHe: entree.torahHe || '',
-            faitGeoFr: entree.faitGeoFr || '', faitGeoHe: entree.faitGeoHe || ''
+            faitGeoFr: entree.faitGeoFr || '', faitGeoHe: entree.faitGeoHe || '',
+            profilsCibles: entree.profilsCibles || []
           };
           await ajouterLieu(data);
           ok++;
@@ -1235,6 +1236,7 @@ Mauvaise réponse 2"></textarea>
     async function chargerLieux() {
       const lieux = await getLieux();
       const typesDispo = await getTypesExcursion();
+      const profilsDispo = await getProfils();
       const box = document.getElementById('liste-lieux');
       box.innerHTML = lieux.length ? '' : '<p class="muted">Aucun lieu ajouté pour l\'instant.</p>';
       lieux.forEach(l => {
@@ -1281,6 +1283,16 @@ Mauvaise réponse 2"></textarea>
                 <div><label>Longitude</label><input class="e-lng" value="${l.Lng || ''}"></div>
               </div>
               <div><label>Histoire du lieu (HE)</label><textarea class="e-torahhe" rows="5">${l.TorahTexte_HE || ''}</textarea></div>
+              <div class="mt-8">
+                <label>Qui va à ce lieu ? (laisse tout décoché = tout le monde — utile quand 2 lieux partagent le même créneau et que la famille se sépare)</label>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:4px;">
+                  ${profilsDispo.map(p => `
+                    <label style="display:flex; align-items:center; gap:4px; font-weight:normal;">
+                      <input type="checkbox" class="e-profil-cible" value="${p.ProfilID}" ${(l.ProfilsCibles || []).includes(p.ProfilID) ? 'checked' : ''}>
+                      ${p.Avatar || ''} ${p.Nom_FR}
+                    </label>`).join('')}
+                </div>
+              </div>
               <button class="btn btn--primary btn--block mt-8 btn-sauver-lieu">💾 Sauvegarder les modifications</button>
             </div>`;
           zone.querySelector('.btn-sauver-lieu').onclick = async () => {
@@ -1288,6 +1300,7 @@ Mauvaise réponse 2"></textarea>
             btnSave.disabled = true;
             btnSave.textContent = 'Enregistrement...';
             try {
+              const profilsCibles = Array.from(zone.querySelectorAll('.e-profil-cible:checked')).map(c => c.value);
               await modifierLieu(l.LieuID, {
                 nomFr: zone.querySelector('.e-nomfr').value,
                 nomHe: zone.querySelector('.e-nomhe').value,
@@ -1296,7 +1309,8 @@ Mauvaise réponse 2"></textarea>
                 heure: zone.querySelector('.e-heure').value,
                 lat: zone.querySelector('.e-lat').value,
                 lng: zone.querySelector('.e-lng').value,
-                torahHe: zone.querySelector('.e-torahhe').value
+                torahHe: zone.querySelector('.e-torahhe').value,
+                profilsCibles
               });
               alert('Lieu modifié !');
               chargerLieux();
@@ -1728,6 +1742,6 @@ Mauvaise réponse 2"></textarea>
 
     chargerLieuxPourMissions();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 13:33</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 13:47</div>
 </body>
 </html>

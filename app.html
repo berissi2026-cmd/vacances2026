@@ -574,8 +574,13 @@
       afficherAlbum();
 
       // Regroupe les lieux par case (jour + moment de la journée)
+      // Un lieu avec ProfilsCibles rempli n'est affiché sur le plateau que pour ces profils-là
+      // (utile quand la famille se sépare sur le même créneau, ex: 2 lieux en même temps)
+      const lieuxVisiblesPourMoi = lieux.filter(l =>
+        !l.ProfilsCibles || l.ProfilsCibles.length === 0 || l.ProfilsCibles.includes(PROFIL_ID)
+      );
       const lieuxParCase = {};
-      lieux.forEach(l => {
+      lieuxVisiblesPourMoi.forEach(l => {
         const jourIndex = JOURS.indexOf(l.Jour);
         if (jourIndex === -1) return;
         const moment = momentDepuisHeure(l.Heure);
@@ -2141,6 +2146,6 @@
 
     init();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 13:33</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 13:47</div>
 </body>
 </html>

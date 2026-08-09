@@ -179,6 +179,7 @@ export async function ajouterLieu(data) {
     PhotoURL: data.photoUrl || "", AudioURL: data.audioUrl || "",
     TorahTexte_FR: data.torahFr || "", TorahTexte_HE: data.torahHe || "",
     FaitGeo_FR: data.faitGeoFr || "", FaitGeo_HE: data.faitGeoHe || "",
+    ProfilsCibles: data.profilsCibles || [],
     Ordre: tousLieux.length + 1
   });
   return { success: true, lieuId: ref.id };
@@ -195,6 +196,7 @@ export async function modifierLieu(lieuId, data) {
     Jour: data.jour, Heure: data.heure || "",
     Lat: data.lat || "", Lng: data.lng || ""
   };
+  if (data.profilsCibles !== undefined) maj.ProfilsCibles = data.profilsCibles;
   // Ces champs ne sont pas tous présents dans le formulaire rapide de l'admin :
   // on ne les touche que si explicitement fournis, pour ne pas écraser le texte existant.
   if (data.torahFr !== undefined) maj.TorahTexte_FR = data.torahFr;
