@@ -229,7 +229,10 @@
       <img id="preview-photo-album" style="width:100%;border-radius:12px;display:none;">
       <input type="text" id="titre-photo-album" placeholder="Titre de la photo (ex: Baignade à Ein Harod)" class="mt-8" style="width:100%;">
       <textarea id="commentaire-photo-album" placeholder="Commentaire (optionnel)" rows="2" class="mt-8" style="width:100%;"></textarea>
-      <p class="muted mt-8" id="lieu-detecte-album" style="font-size:12px;"></p>
+      <div class="mt-8">
+        <label style="font-size:12px;" id="lieu-detecte-album-label">📍 Lieu</label>
+        <input type="text" id="lieu-detecte-album" placeholder="Détection du lieu..." style="width:100%;">
+      </div>
       <button class="btn btn--primary btn--block mt-8" id="btn-publier-photo-album">✅ Publier dans l'album</button>
       <div class="muted mt-8" id="statut-photo-album" style="text-align:center;font-size:12px;"></div>
     </div>
@@ -268,7 +271,9 @@
       <canvas id="souvenir-canvas" style="max-width:100%; border-radius:12px; box-shadow:4px 4px 0 rgba(0,0,0,.2); touch-action:none; display:block; margin:0 auto;"></canvas>
       <div id="souvenir-zoom-zone" class="mt-8" style="display:none;">
         <p class="muted" style="font-size:11px;">🔍 Zoom / 👆 Glisse la photo pour la recentrer</p>
-        <input type="range" id="souvenir-zoom" min="100" max="300" value="100" style="width:100%;">
+        <input type="range" id="souvenir-zoom" min="40" max="300" value="100" style="width:100%;">
+        <label style="font-size:12px;">📍 Lieu</label>
+        <input type="text" id="souvenir-lieu-input" style="width:100%;">
       </div>
       <div class="col mt-16">
         <button class="btn btn--primary btn--block" id="btn-souvenir-photo">📷 Prendre la photo</button>
@@ -1039,17 +1044,19 @@
       document.getElementById('commentaire-photo-album').value = '';
       document.getElementById('statut-photo-album').textContent = '';
 
-      const lieuTxt = document.getElementById('lieu-detecte-album');
-      lieuTxt.textContent = LANGUE === 'he' ? '📍 מזהה מיקום...' : '📍 Détection du lieu...';
+      const lieuInput = document.getElementById('lieu-detecte-album');
+      lieuInput.value = '';
+      lieuInput.placeholder = LANGUE === 'he' ? '📍 מזהה מיקום...' : '📍 Détection du lieu...';
       lieuDetectePourAlbum = { lieu: '', lat: '', lng: '' };
       detecterLieuEtCoords().then(res => {
         lieuDetectePourAlbum = res;
         if (res.lieu) {
-          lieuTxt.textContent = '📍 ' + (LANGUE === 'he' ? 'זוהה: ' : 'Détecté : ') + res.lieu;
+          if (!lieuInput.value) lieuInput.value = res.lieu;
+          lieuInput.placeholder = LANGUE === 'he' ? '📍 מיקום' : '📍 Lieu';
         } else if (res.lat) {
-          lieuTxt.textContent = LANGUE === 'he' ? '📍 מיקום לא זוהה (בדרכים)' : '📍 Lieu non identifié (en route)';
+          lieuInput.placeholder = LANGUE === 'he' ? '📍 לא זוהה — כתבו את המקום' : '📍 Non identifié — écris le lieu';
         } else {
-          lieuTxt.textContent = LANGUE === 'he' ? '📍 מיקום לא זמין' : '📍 Position indisponible';
+          lieuInput.placeholder = LANGUE === 'he' ? '📍 מיקום לא זמין — כתבו את המקום' : '📍 Position indisponible — écris le lieu';
         }
       });
     };
@@ -1063,13 +1070,14 @@
       try {
         const titreSaisi = document.getElementById('titre-photo-album').value.trim();
         const commentaireSaisi = document.getElementById('commentaire-photo-album').value.trim();
-        const titreFinal = titreSaisi || lieuDetectePourAlbum.lieu || (LANGUE === 'he' ? 'תמונה' : 'Photo souvenir');
+        const lieuSaisi = document.getElementById('lieu-detecte-album').value.trim();
+        const titreFinal = titreSaisi || lieuSaisi || (LANGUE === 'he' ? 'תמונה' : 'Photo souvenir');
         const idUnique = 'album_' + Date.now();
         const url = await uploaderPhotoMission(PROFIL_ID, idUnique, blobPhotoAlbumEnAttente);
         await enregistrerResultat({
           profilId: PROFIL_ID, missionId: idUnique, statut: 'fait',
           points: 0, note: titreFinal, commentaire: commentaireSaisi,
-          lieu: lieuDetectePourAlbum.lieu, lat: lieuDetectePourAlbum.lat, lng: lieuDetectePourAlbum.lng,
+          lieu: lieuSaisi, lat: lieuDetectePourAlbum.lat, lng: lieuDetectePourAlbum.lng,
           mediaUrl: url
         });
         statut.textContent = LANGUE === 'he' ? '✅ נוסף לאלבום!' : "✅ Ajoutée à l'album !";
@@ -1692,12 +1700,14 @@
     };
 
     function determinerVilleTfilaParCoords(lat, lng) {
+      const SEUIL_KM = 15; // au-delà, on considère qu'on n'est pas vraiment dans cette ville
       let plusProche = 'Harish', distMin = Infinity;
       Object.entries(COORDS_VILLES_TFILA).forEach(([ville, [vlat, vlng]]) => {
+        if (ville === 'Harish') return; // Harish est le repli par défaut, pas une cible de détection
         const d = distanceKm(lat, lng, vlat, vlng);
         if (d < distMin) { distMin = d; plusProche = ville; }
       });
-      return plusProche;
+      return distMin <= SEUIL_KM ? plusProche : 'Harish';
     }
 
     function determinerVilleTfila() {
@@ -1865,9 +1875,16 @@
       };
       img.src = templateSouvenirActuel.url;
 
+      const lieuInput = document.getElementById('souvenir-lieu-input');
+      const nomTemplateInitial = LANGUE === 'he' ? templateSouvenirActuel.nomHe : templateSouvenirActuel.nomFr;
+      lieuInput.value = nomTemplateInitial;
+
       // Détection du lieu + coordonnées en fond, sans bloquer l'affichage
       souvenirLieuDetecte = { lieu: '', lat: '', lng: '' };
-      detecterLieuEtCoords().then(res => { souvenirLieuDetecte = res; });
+      detecterLieuEtCoords().then(res => {
+        souvenirLieuDetecte = res;
+        if (res.lieu && lieuInput.value === nomTemplateInitial) lieuInput.value = res.lieu;
+      });
     }
 
     document.getElementById('btn-souvenir-photo').onclick = () => {
@@ -1936,11 +1953,12 @@
         try {
           const idUnique = 'souvenir_' + templateSouvenirActuel.id + '_' + Date.now();
           const nomLieuTemplate = LANGUE === 'he' ? templateSouvenirActuel.nomHe : templateSouvenirActuel.nomFr;
+          const lieuSaisi = document.getElementById('souvenir-lieu-input').value.trim() || nomLieuTemplate;
           const url = await uploaderPhotoMission(PROFIL_ID, idUnique, blob);
           await enregistrerResultat({
             profilId: PROFIL_ID, missionId: idUnique, statut: 'fait',
-            points: 0, note: nomLieuTemplate,
-            lieu: souvenirLieuDetecte.lieu || nomLieuTemplate,
+            note: lieuSaisi, points: 0,
+            lieu: lieuSaisi,
             lat: souvenirLieuDetecte.lat, lng: souvenirLieuDetecte.lng,
             mediaUrl: url
           });
