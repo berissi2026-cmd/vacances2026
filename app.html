@@ -223,8 +223,12 @@
   </div>
 
   <div class="panel" id="panel-album">
-    <input type="file" accept="image/*" id="input-photo-album" style="display:none;">
-    <button class="btn btn--accent btn--block" id="btn-ajouter-photo-album">📸 Ajouter une photo</button>
+    <input type="file" accept="image/*" capture="environment" id="input-photo-album-camera" style="display:none;">
+    <input type="file" accept="image/*" id="input-photo-album-galerie" style="display:none;">
+    <div class="field-row">
+      <button class="btn btn--accent btn--block" id="btn-camera-photo-album">📷 Prendre une photo</button>
+      <button class="btn btn--ghost btn--block" id="btn-ajouter-photo-album">🖼️ Depuis la galerie</button>
+    </div>
     <div id="form-photo-album" style="display:none;" class="card mt-16">
       <img id="preview-photo-album" style="width:100%;border-radius:12px;display:none;">
       <input type="text" id="titre-photo-album" placeholder="Titre de la photo (ex: Baignade à Ein Harod)" class="mt-8" style="width:100%;">
@@ -276,13 +280,17 @@
         <input type="text" id="souvenir-lieu-input" style="width:100%;">
       </div>
       <div class="col mt-16">
-        <button class="btn btn--primary btn--block" id="btn-souvenir-photo">📷 Prendre la photo</button>
+        <div class="field-row" id="souvenir-boutons-photo">
+          <button class="btn btn--primary btn--block" id="btn-souvenir-photo">📷 Prendre la photo</button>
+          <button class="btn btn--ghost btn--block" id="btn-souvenir-galerie">🖼️ Galerie</button>
+        </div>
         <button class="btn btn--accent btn--block mt-8" id="btn-souvenir-enregistrer" style="display:none;">💾 Ajouter à l'album</button>
         <button class="btn btn--ghost btn--block mt-8" id="btn-souvenir-recommencer">↩️ Choisir un autre lieu</button>
       </div>
     </div>
 
-    <input type="file" accept="image/*" id="input-photo-souvenir" style="display:none;">
+    <input type="file" accept="image/*" capture="environment" id="input-photo-souvenir-camera" style="display:none;">
+    <input type="file" accept="image/*" id="input-photo-souvenir-galerie" style="display:none;">
   </div>
 
   <div id="diplome-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:250;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;">
@@ -1021,12 +1029,14 @@
     let blobPhotoAlbumEnAttente = null;
     let lieuDetectePourAlbum = { lieu: '', lat: '', lng: '' };
 
+    document.getElementById('btn-camera-photo-album').onclick = () => {
+      document.getElementById('input-photo-album-camera').click();
+    };
     document.getElementById('btn-ajouter-photo-album').onclick = () => {
-      document.getElementById('input-photo-album').click();
+      document.getElementById('input-photo-album-galerie').click();
     };
 
-    document.getElementById('input-photo-album').onchange = async () => {
-      const fichier = document.getElementById('input-photo-album').files[0];
+    async function onFichierPhotoAlbumChoisi(fichier) {
       if (!fichier) return;
       let blob;
       try {
@@ -1059,6 +1069,13 @@
           lieuInput.placeholder = LANGUE === 'he' ? '📍 מיקום לא זמין — כתבו את המקום' : '📍 Position indisponible — écris le lieu';
         }
       });
+    }
+
+    document.getElementById('input-photo-album-camera').onchange = () => {
+      onFichierPhotoAlbumChoisi(document.getElementById('input-photo-album-camera').files[0]);
+    };
+    document.getElementById('input-photo-album-galerie').onchange = () => {
+      onFichierPhotoAlbumChoisi(document.getElementById('input-photo-album-galerie').files[0]);
     };
 
     document.getElementById('btn-publier-photo-album').onclick = async () => {
@@ -1888,11 +1905,13 @@
     }
 
     document.getElementById('btn-souvenir-photo').onclick = () => {
-      document.getElementById('input-photo-souvenir').click();
+      document.getElementById('input-photo-souvenir-camera').click();
+    };
+    document.getElementById('btn-souvenir-galerie').onclick = () => {
+      document.getElementById('input-photo-souvenir-galerie').click();
     };
 
-    document.getElementById('input-photo-souvenir').onchange = async () => {
-      const fichier = document.getElementById('input-photo-souvenir').files[0];
+    async function onFichierPhotoSouvenirChoisi(fichier) {
       if (!fichier || !imageTemplateSouvenirEl) return;
       let blob;
       try {
@@ -1912,6 +1931,13 @@
         document.getElementById('btn-souvenir-photo').textContent = LANGUE === 'he' ? '📷 צלם שוב' : '📷 Reprendre la photo';
       };
       photo.src = URL.createObjectURL(blob);
+    }
+
+    document.getElementById('input-photo-souvenir-camera').onchange = () => {
+      onFichierPhotoSouvenirChoisi(document.getElementById('input-photo-souvenir-camera').files[0]);
+    };
+    document.getElementById('input-photo-souvenir-galerie').onchange = () => {
+      onFichierPhotoSouvenirChoisi(document.getElementById('input-photo-souvenir-galerie').files[0]);
     };
 
     document.getElementById('souvenir-zoom').oninput = (e) => {
