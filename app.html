@@ -695,7 +695,9 @@
             const type = typesParId[l.Type];
             const icone = type ? type.Icone : '📍';
             const nom = LANGUE === 'he' ? (l.Nom_HE || l.Nom_FR) : l.Nom_FR;
-            return `<button class="btn btn--ghost btn--block btn-choix-lieu" data-id="${l.LieuID}">${icone} ${nom}</button>`;
+            const jourLieuIndex = JOURS.indexOf(l.Jour);
+            const verrouille = monProfil.Role !== 'parent' && jourLieuIndex !== -1 && !joursDebloques().includes(l.Jour);
+            return `<button class="btn btn--ghost btn--block btn-choix-lieu" data-id="${l.LieuID}">${verrouille ? '🔒' : icone} ${nom}</button>`;
           }).join('')}
         </div>
         ${boutonFermer()}`;
@@ -706,14 +708,27 @@
 
     async function ouvrirLieu(lieuId) {
       const lieu = lieuxCache.find(l => l.LieuID === lieuId);
+      const box = document.getElementById('modal-box');
+      document.getElementById('modal-bg').style.display = 'flex';
+      const nom = LANGUE === 'he' ? (lieu.Nom_HE || lieu.Nom_FR) : lieu.Nom_FR;
+
+      // Verrouillage par jour : un enfant ne voit pas encore le contenu d'un jour futur
+      // (les parents peuvent tout prévisualiser à l'avance)
+      const jourLieuIndex = JOURS.indexOf(lieu.Jour);
+      const estDebloque = monProfil.Role === 'parent' || jourLieuIndex === -1 || joursDebloques().includes(lieu.Jour);
+      if (!estDebloque) {
+        const jourNom = LANGUE === 'he' ? JOURS_HE[jourLieuIndex] : lieu.Jour;
+        box.innerHTML = `<h2>🔒 ${nom}</h2>
+          <p class="muted mt-16">${LANGUE === 'he' ? `ייפתח ביום ${jourNom}` : `Se débloquera le jour de ${jourNom} !`}</p>
+          ${boutonFermer()}`;
+        return;
+      }
+
       const missionsToutes = missionsParLieuCache[lieuId] || [];
       const tranches = tranchesDifficultePourAge(monProfil.Age, monProfil.Role);
       const missionsFiltrees = tranches ? missionsToutes.filter(m => tranches.includes(m.Difficulte || 'moyen')) : missionsToutes;
       const missions = missionsFiltrees.length ? missionsFiltrees : missionsToutes;
-      const box = document.getElementById('modal-box');
-      document.getElementById('modal-bg').style.display = 'flex';
 
-      const nom = LANGUE === 'he' ? (lieu.Nom_HE || lieu.Nom_FR) : lieu.Nom_FR;
       const torah = lieu.TorahTexte_HE || lieu.TorahTexte_FR;
 
       let html = `<h2>📍 ${nom}</h2>`;
@@ -2146,6 +2161,6 @@
 
     init();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 13:47</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 13:55</div>
 </body>
 </html>
