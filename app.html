@@ -240,6 +240,10 @@
       <button class="btn btn--primary btn--block mt-8" id="btn-publier-photo-album">✅ Publier dans l'album</button>
       <div class="muted mt-8" id="statut-photo-album" style="text-align:center;font-size:12px;"></div>
     </div>
+    <div class="mt-16" style="display:flex; gap:8px; justify-content:center;">
+      <button class="btn btn--ghost" id="btn-vue-livre" style="padding:6px 14px; font-size:13px;">📖 Livre</button>
+      <button class="btn btn--ghost" id="btn-vue-galerie" style="padding:6px 14px; font-size:13px;">🔲 Galerie</button>
+    </div>
     <div id="album-container" class="mt-16">
       <div class="empty-state card">
         <div style="font-size:40px;">📷</div>
@@ -247,6 +251,7 @@
         <p class="muted mt-8" id="album-vide-txt">Les photos de mission de toute la famille apparaîtront ici !</p>
       </div>
     </div>
+    <div id="album-galerie" class="mt-16" style="display:none; grid-template-columns: repeat(3, 1fr); gap:8px;"></div>
   </div>
 
   <div id="lightbox-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;align-items:flex-start;justify-content:center;flex-direction:column;padding:20px;overflow-y:auto;">
@@ -958,8 +963,13 @@
     }
 
     let pageAlbumActuelle = 0;
+    let vueAlbumActuelle = 'livre';
 
     function afficherAlbum() {
+      if (vueAlbumActuelle === 'galerie') {
+        afficherAlbumGalerie();
+        return;
+      }
       const box = document.getElementById('album-container');
       if (!box) return;
       if (!resultatsPhotoCache.length) {
@@ -1005,6 +1015,47 @@
       if (btnPrec) btnPrec.onclick = () => { pageAlbumActuelle++; afficherAlbum(); };
       if (btnSuiv) btnSuiv.onclick = () => { pageAlbumActuelle--; afficherAlbum(); };
     }
+
+    function afficherAlbumGalerie() {
+      const box = document.getElementById('album-galerie');
+      if (!box) return;
+      if (!resultatsPhotoCache.length) {
+        box.innerHTML = `<div class="empty-state card" style="grid-column:1/-1;">
+          <div style="font-size:40px;">📷</div>
+          <h3 class="mt-16">${LANGUE === 'he' ? 'עדיין אין תמונות' : "Aucune photo pour l'instant"}</h3>
+        </div>`;
+        return;
+      }
+      const tries = [...resultatsPhotoCache].sort((a, b) => (b.Date || '').localeCompare(a.Date || ''));
+      box.innerHTML = tries.map((r, i) => {
+        const profil = profilsCache[r.ProfilID];
+        return `<div class="album-galerie-vignette" data-i="${i}" style="cursor:pointer; border-radius:8px; overflow:hidden; border:2px solid var(--bark); position:relative; aspect-ratio:1;">
+          <img src="${r.MediaURL}" style="width:100%; height:100%; object-fit:cover; display:block;" loading="lazy">
+          ${profil && profil.Avatar ? `<span style="position:absolute; bottom:3px; left:3px; font-size:16px; background:rgba(255,255,255,.85); border-radius:50%; padding:1px 4px;">${profil.Avatar}</span>` : ''}
+        </div>`;
+      }).join('');
+      box.querySelectorAll('.album-galerie-vignette').forEach(el => {
+        el.onclick = () => ouvrirDetailPhotoAlbum(tries[Number(el.dataset.i)]);
+      });
+    }
+
+    document.getElementById('btn-vue-livre').onclick = () => {
+      vueAlbumActuelle = 'livre';
+      document.getElementById('btn-vue-livre').classList.add('btn--primary');
+      document.getElementById('btn-vue-galerie').classList.remove('btn--primary');
+      document.getElementById('album-container').style.display = 'block';
+      document.getElementById('album-galerie').style.display = 'none';
+      afficherAlbum();
+    };
+    document.getElementById('btn-vue-galerie').onclick = () => {
+      vueAlbumActuelle = 'galerie';
+      document.getElementById('btn-vue-galerie').classList.add('btn--primary');
+      document.getElementById('btn-vue-livre').classList.remove('btn--primary');
+      document.getElementById('album-container').style.display = 'none';
+      document.getElementById('album-galerie').style.display = 'grid';
+      afficherAlbum();
+    };
+    document.getElementById('btn-vue-livre').classList.add('btn--primary');
 
     function ouvrirDetailPhotoAlbum(r) {
       const profil = profilsCache[r.ProfilID];
@@ -2221,6 +2272,6 @@
 
     init();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 14:05</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 14:15</div>
 </body>
 </html>
