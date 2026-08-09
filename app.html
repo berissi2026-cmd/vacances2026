@@ -85,7 +85,8 @@
   .game-badge { font-size: 11px; margin-top: 6px; color: var(--bark); opacity: .75; line-height:1.4; }
   .game-badge .neuf { color: var(--sunset); font-weight: 700; }
   .game-tile.tuile-active { background: #dbeeff; border-color: #3d7fc4; }
-  .game-tile.tuile-grise { opacity: .5; cursor: default; }
+  .game-tile.tuile-grise { opacity: .6; cursor: default; }
+  .game-tile.tuile-grise::after { content: '🔒'; position:absolute; top:6px; right:8px; font-size:16px; }
   .stats-jeu { margin-bottom: 16px; }
   .stats-jeu h4 { font-family: var(--font-display); margin-bottom: 8px; }
   .stats-grid-enigmes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; margin-bottom: 12px; }
@@ -190,7 +191,7 @@
   <div class="tabs">
     <div class="tab active" data-panel="carte">🗺️ Carte</div>
     <div class="tab" data-panel="position">🧭 Position</div>
-    <div class="tab" data-panel="voiture">🎮 Jeux</div>
+    <div class="tab" data-panel="voiture" id="tab-jeux">🎮 Jeux</div>
     <div class="tab" data-panel="album">📷 Album</div>
     <div class="tab" data-panel="badges">🎖️ Badges</div>
     <div class="tab" data-panel="souvenir">📸 Souvenir</div>
@@ -430,10 +431,18 @@
 
     function traduireUIStatique() {
       const t = LANGUE === 'he';
-      const tabs = document.querySelectorAll('.tab');
-      const labelsFr = ['🗺️ Carte', '🧭 Position', '🎮 Jeux', '📷 Album', '🎖️ Badges'];
-      const labelsHe = ['🗺️ מפה', '🧭 מיקום', '🎮 משחקים', '📷 אלבום', '🎖️ תגים'];
-      tabs.forEach((tab, i) => { tab.textContent = t ? labelsHe[i] : labelsFr[i]; });
+      const labels = {
+        carte: ['🗺️ Carte', '🗺️ מפה'],
+        position: ['🧭 Position', '🧭 מיקום'],
+        voiture: [' Jeux', ' משחקים'], // le cadenas/emoji jeu est géré séparément dans mettreAJourBadgesJeux
+        album: ['📷 Album', '📷 אלבום'],
+        badges: ['🎖️ Badges', '🎖️ תגים'],
+        souvenir: ['📸 Souvenir', '📸 זיכרון']
+      };
+      document.querySelectorAll('.tab').forEach(tab => {
+        const paire = labels[tab.dataset.panel];
+        if (paire && tab.id !== 'tab-jeux') tab.textContent = t ? paire[1] : paire[0];
+      });
       const btnDiplome = document.getElementById('btn-voir-diplome');
       if (btnDiplome) btnDiplome.textContent = t ? '🏆 התעודה שלי' : '🏆 Voir mon diplôme';
       const tuiles = { 'txt-tuile-bingo': ['Bingo', 'ביינגו'], 'txt-tuile-roue': ['Roue des défis', 'גלגל האתגרים'], 'txt-tuile-enigme': ['Énigmes', 'חידות'] };
@@ -1698,8 +1707,8 @@
         const jouable = p.jouable;
         if (!jouable.length) {
           const texte = QUOTAS_JOUR[type]
-            ? (LANGUE === 'he' ? '😴 אין עוד היום' : "😴 Rien de plus aujourd'hui")
-            : (LANGUE === 'he' ? '✅ הכל נעשה' : 'Tout fait !');
+            ? (LANGUE === 'he' ? '🔒 אין עוד היום' : "🔒 Rien de plus aujourd'hui")
+            : (LANGUE === 'he' ? '🔒 הכל נעשה' : '🔒 Tout fait !');
           badge.innerHTML = `<span>${texte}</span>`;
           if (tuile) { tuile.classList.add('tuile-grise'); tuile.classList.remove('tuile-active'); }
         } else {
@@ -1717,6 +1726,13 @@
       afficherStatsJeu('enigme', toutLesDefis.enigme, 'stats-enigmes', true);
       afficherStatsJeu('bingo', toutLesDefis.bingo, 'stats-bingo', false);
       afficherStatsJeu('roue', toutLesDefis.roue, 'stats-roue', false);
+
+      // Cadenas global sur l'onglet Jeux quand bingo + roue + énigmes sont tous épuisés pour aujourd'hui
+      const tabJeux = document.getElementById('tab-jeux');
+      if (tabJeux) {
+        const toutEpuise = ['bingo', 'roue', 'enigme'].every(t => !poolAvecQuota(t, toutLesDefis[t]).jouable.length);
+        tabJeux.textContent = toutEpuise ? (LANGUE === 'he' ? '🔒 משחקים' : '🔒 Jeux') : (LANGUE === 'he' ? '🎮 משחקים' : '🎮 Jeux');
+      }
     }
 
     const TITRES_STATS = {
@@ -2171,8 +2187,8 @@
       if (!p.jouable.length) {
         const msg = p.quotaAtteint
           ? (LANGUE === 'he' ? `😴 השלמתם את המכסה היומית (${p.maxAutorise}). חזרו מחר!` : `😴 Quota du jour atteint (${p.maxAutorise} max). Reviens demain !`)
-          : (LANGUE === 'he' ? 'אין עוד אתגרים זמינים.' : "Pas de nouveaux défis disponibles.");
-        box.innerHTML = `<h3>${emoji} ${titre}</h3><p class="muted mt-8">${msg}</p>${boutonFermer()}`;
+          : (LANGUE === 'he' ? 'הכל נעשה! חזרו מחר לעוד אתגרים.' : "Tout est fait ! Reviens demain pour de nouveaux défis.");
+        box.innerHTML = `<h3>🔒 ${titre}</h3><p class="muted mt-8">${msg}</p>${boutonFermer()}`;
         return;
       }
       const defi = p.jouable[Math.floor(Math.random() * p.jouable.length)];
@@ -2215,7 +2231,7 @@
       }
 
       if (!liste.length) {
-        box.innerHTML = `<h3>❓ ${LANGUE === 'he' ? 'חידה' : 'Énigme'}</h3><p class="muted mt-8">${LANGUE === 'he' ? 'אין עוד חידות היום.' : "Pas de nouvelles énigmes aujourd'hui."}</p>${boutonFermer()}`;
+        box.innerHTML = `<h3>🔒 ${LANGUE === 'he' ? 'חידה' : 'Énigme'}</h3><p class="muted mt-8">${LANGUE === 'he' ? 'הכל נעשה! חזרו מחר לעוד חידות.' : "Tout est fait ! Reviens demain pour de nouvelles énigmes."}</p>${boutonFermer()}`;
         return;
       }
       const e = liste[Math.floor(Math.random() * liste.length)];
@@ -2272,6 +2288,6 @@
 
     init();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 14:15</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 14:28</div>
 </body>
 </html>
