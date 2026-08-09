@@ -285,12 +285,22 @@ export async function enregistrerResultat(data) {
     ProfilID: data.profilId, MissionID: data.missionId,
     Statut: data.statut || "fait", MediaURL: data.mediaUrl || "",
     Reponse: data.reponse || "", Note: data.note || "",
+    Commentaire: data.commentaire || "",
+    Lieu: data.lieu || "", Lat: data.lat || "", Lng: data.lng || "",
     Date: new Date().toISOString()
   });
   if (data.statut === "fait" && data.points) {
     await ajouterScoreProfil(data.profilId, data.points);
   }
   return { success: true, resultId: ref.id };
+}
+
+export async function modifierResultat(resultId, data) {
+  const maj = {};
+  if (data.note !== undefined) maj.Note = data.note;
+  if (data.commentaire !== undefined) maj.Commentaire = data.commentaire;
+  await updateDoc(doc(db, "resultats", resultId), maj);
+  return { success: true };
 }
 
 export async function getResultatsProfil(profilId) {
@@ -508,6 +518,40 @@ export async function ajouterSouvenirTemplate(data) {
 
 export async function supprimerSouvenirTemplate(templateId) {
   await deleteDoc(doc(db, "souvenirTemplates", templateId));
+  return { success: true };
+}
+
+// ============================================================
+// HISTORIQUE DES TRAJETS VOITURE (chaque étape "qui est derrière")
+// ============================================================
+
+export async function ajouterTrajetVoiture(data) {
+  const ref = await addDoc(collection(db, "carSeatTrips"), {
+    ProfilID: data.profilId, Minutes: data.minutes,
+    StartTimeMs: data.startTimeMs, EndTimeMs: data.endTimeMs,
+    Date: new Date(data.startTimeMs).toISOString()
+  });
+  return { success: true, trajetId: ref.id };
+}
+
+export async function getTrajetsVoiture() {
+  const snap = await getDocs(collection(db, "carSeatTrips"));
+  return snap.docs.map(d => ({ TrajetID: d.id, ...d.data() }));
+}
+
+export function ecouterTrajetsVoiture(callback) {
+  return onSnapshot(collection(db, "carSeatTrips"), snap => {
+    callback(snap.docs.map(d => ({ TrajetID: d.id, ...d.data() })));
+  });
+}
+
+export async function modifierTrajetVoiture(trajetId, minutes) {
+  await updateDoc(doc(db, "carSeatTrips", trajetId), { Minutes: minutes });
+  return { success: true };
+}
+
+export async function supprimerTrajetVoiture(trajetId) {
+  await deleteDoc(doc(db, "carSeatTrips", trajetId));
   return { success: true };
 }
 

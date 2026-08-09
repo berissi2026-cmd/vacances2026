@@ -366,6 +366,12 @@ Mauvaise réponse 2"></textarea>
       <div class="col mt-16" id="sieges-totaux"></div>
       <button class="btn btn--primary btn--block mt-16" id="btn-sieges-save-totaux">💾 Enregistrer les totaux</button>
       <button class="btn btn--ghost btn--block mt-8" id="btn-sieges-reset-totaux" style="color:#c0392b;">🔄 Remettre les 3 totaux à zéro</button>
+
+      <h3 class="mt-24">📜 Historique des trajets (par étape)</h3>
+      <p class="muted mt-8" style="font-size:12px;">Modifie la durée d'une étape si besoin — le total de l'enfant se recalcule automatiquement.</p>
+      <div id="sieges-trajets-filtre" class="mt-8" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
+      <div id="sieges-trajets-liste" class="mt-16"></div>
+      <p class="muted mt-16" id="sieges-trajets-vide" style="display:none;">Aucun trajet enregistré pour l'instant.</p>
     </div>
 
     <!-- ALBUM PHOTO -->
@@ -408,6 +414,7 @@ Mauvaise réponse 2"></textarea>
       getSettings, updateSettings, getPlaylistPourLieu, ajouterVideoPlaylist, supprimerVideoPlaylist,
       updateLieuAudio, reinitialiserTousLesPoints, getDefisFaits, supprimerDefiFait,
       getCarSeatTracking, ecouterCarSeatTracking, setCarSeatTracking,
+      ajouterTrajetVoiture, getTrajetsVoiture, ecouterTrajetsVoiture, modifierTrajetVoiture, supprimerTrajetVoiture,
       ecouterTousResultats, supprimerResultat
     } from './firebase-services.js';
     import { uploaderAudioLieu, uploaderMusiqueVictoire, uploaderImageSouvenir } from './imagekit-services.js';
@@ -522,10 +529,15 @@ Mauvaise réponse 2"></textarea>
     document.getElementById('btn-sieges-arreter-maintenant').onclick = async () => {
       const data = siegesDataActuelle;
       if (!data.activeTrip) return;
-      const minutes = Math.max(0, Math.round((Date.now() - data.activeTrip.startTimeMs) / 60000));
+      const maintenant = Date.now();
+      const minutes = Math.max(0, Math.round((maintenant - data.activeTrip.startTimeMs) / 60000));
       const totals = { ...(data.totals || {}) };
       totals[data.activeTrip.child] = (totals[data.activeTrip.child] || 0) + minutes;
       await setCarSeatTracking({ activeTrip: null, totals });
+      await ajouterTrajetVoiture({
+        profilId: data.activeTrip.child, minutes,
+        startTimeMs: data.activeTrip.startTimeMs, endTimeMs: maintenant
+      });
       alert('Trajet arrêté, ' + minutes + ' min ajoutées.');
     };
 
@@ -546,11 +558,100 @@ Mauvaise réponse 2"></textarea>
     };
 
     document.getElementById('btn-sieges-reset-totaux').onclick = async () => {
-      if (!confirm('Remettre les 3 totaux à zéro ?')) return;
+      if (!confirm('Remettre les 3 totaux à zéro ? Cela supprime aussi tout l\'historique des trajets.')) return;
       const totals = {};
       SIEGES_ENFANTS.forEach(e => totals[e.id] = 0);
       await setCarSeatTracking({ totals });
+      const trajets = await getTrajetsVoiture();
+      for (const t of trajets) await supprimerTrajetVoiture(t.TrajetID);
     };
+
+    // --- HISTORIQUE DES TRAJETS ---
+    let trajetsSiegesCache = [];
+    let filtreTrajetActuel = '';
+
+    function afficherFiltreTrajets() {
+      const filtreBox = document.getElementById('sieges-trajets-filtre');
+      if (filtreBox.dataset.rempli) return;
+      filtreBox.dataset.rempli = '1';
+      filtreBox.innerHTML = `<button class="admin-tab active" data-enfant="" style="padding:6px 12px; font-size:12px;">Tous</button>` +
+        SIEGES_ENFANTS.map(e => `<button class="admin-tab" data-enfant="${e.id}" style="padding:6px 12px; font-size:12px;">${e.nom}</button>`).join('');
+      filtreBox.querySelectorAll('button[data-enfant]').forEach(b => {
+        b.onclick = () => {
+          filtreBox.querySelectorAll('button[data-enfant]').forEach(x => x.classList.remove('active'));
+          b.classList.add('active');
+          filtreTrajetActuel = b.dataset.enfant;
+          afficherTrajetsListe();
+        };
+      });
+    }
+
+    async function recalculerTotalEnfant(profilId) {
+      const total = trajetsSiegesCache.filter(t => t.ProfilID === profilId).reduce((s, t) => s + (Number(t.Minutes) || 0), 0);
+      const data = await getCarSeatTracking();
+      const totals = { ...(data.totals || {}) };
+      totals[profilId] = total;
+      await setCarSeatTracking({ totals });
+    }
+
+    function afficherTrajetsListe() {
+      const box = document.getElementById('sieges-trajets-liste');
+      const vide = document.getElementById('sieges-trajets-vide');
+      let liste = [...trajetsSiegesCache].sort((a, b) => (b.StartTimeMs || 0) - (a.StartTimeMs || 0));
+      if (filtreTrajetActuel) liste = liste.filter(t => t.ProfilID === filtreTrajetActuel);
+
+      if (!liste.length) { box.innerHTML = ''; vide.style.display = 'block'; return; }
+      vide.style.display = 'none';
+
+      box.innerHTML = liste.map(t => {
+        const enfant = SIEGES_ENFANTS.find(e => e.id === t.ProfilID);
+        const debut = t.StartTimeMs ? new Date(t.StartTimeMs) : null;
+        const dateAff = debut ? debut.toLocaleDateString('fr-FR') : '';
+        const heureAff = debut ? debut.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+        return `
+          <div class="lieu-item">
+            <div class="top-row">
+              <span>🚗 <b>${enfant ? enfant.nom : t.ProfilID}</b> — ${dateAff} à ${heureAff}</span>
+              <button data-del="${t.TrajetID}" style="border:none; background:none; cursor:pointer;">🗑️</button>
+            </div>
+            <div class="field-row mt-8" style="align-items:center;">
+              <input type="number" min="0" style="width:80px;" data-min="${t.TrajetID}" value="${t.Minutes || 0}"> min
+              <button class="btn btn--ghost" data-save="${t.TrajetID}" style="padding:6px 12px; font-size:12px;">💾 Sauver</button>
+            </div>
+          </div>`;
+      }).join('');
+
+      box.querySelectorAll('button[data-del]').forEach(b => {
+        b.onclick = async () => {
+          if (!confirm('Supprimer ce trajet ?')) return;
+          const id = b.dataset.del;
+          const t = trajetsSiegesCache.find(x => x.TrajetID === id);
+          await supprimerTrajetVoiture(id);
+          if (t) await recalculerTotalEnfant(t.ProfilID);
+        };
+      });
+      box.querySelectorAll('button[data-save]').forEach(b => {
+        b.onclick = async () => {
+          const id = b.dataset.save;
+          const input = box.querySelector(`[data-min="${id}"]`);
+          const minutes = Math.max(0, Number(input.value) || 0);
+          const t = trajetsSiegesCache.find(x => x.TrajetID === id);
+          await modifierTrajetVoiture(id, minutes);
+          if (t) {
+            t.Minutes = minutes;
+            await recalculerTotalEnfant(t.ProfilID);
+          }
+          b.textContent = '✅';
+          setTimeout(() => { b.textContent = '💾 Sauver'; }, 1200);
+        };
+      });
+    }
+
+    afficherFiltreTrajets();
+    ecouterTrajetsVoiture(trajets => {
+      trajetsSiegesCache = trajets;
+      afficherTrajetsListe();
+    });
 
     function momentDepuisHeureAdmin(heureStr) {
       if (!heureStr) return 'matin';

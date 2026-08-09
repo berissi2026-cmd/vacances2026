@@ -78,7 +78,7 @@
       <h2 id="onboard-title">Bienvenue !</h2>
       <p class="muted mt-8" id="txt-choisir">Choisis ton animal, ou prends une photo !</p>
       <img id="photo-preview" class="photo-profil-preview" style="display:none;">
-      <input type="file" accept="image/*" capture="user" id="input-photo-profil" style="display:none;">
+      <input type="file" accept="image/*" id="input-photo-profil" style="display:none;">
       <button class="btn btn--ghost btn--block mt-16" id="btn-prendre-photo">📷 <span id="txt-photo-btn">Prendre une photo</span></button>
       <div class="mt-24">
         <div class="avatar-grid" id="avatar-grid"></div>
@@ -214,11 +214,15 @@
     document.getElementById('input-photo-profil').onchange = async (e) => {
       const fichier = e.target.files[0];
       if (!fichier) return;
-      const blob = await compresserImagePetite(fichier);
-      photoBlobChoisi = blob;
-      const preview = document.getElementById('photo-preview');
-      preview.src = URL.createObjectURL(blob);
-      preview.style.display = 'block';
+      try {
+        const blob = await compresserImagePetite(fichier);
+        photoBlobChoisi = blob;
+        const preview = document.getElementById('photo-preview');
+        preview.src = URL.createObjectURL(blob);
+        preview.style.display = 'block';
+      } catch (err) {
+        alert(langue === 'he' ? 'שגיאה בקריאת התמונה, נסו תמונה אחרת.' : "Impossible de lire cette photo, essaie une autre image (ou reprends une photo).");
+      }
     };
 
     function compresserImagePetite(fichier, maxLargeur = 500, qualite = 0.8) {

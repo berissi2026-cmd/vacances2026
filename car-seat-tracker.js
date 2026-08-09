@@ -4,7 +4,7 @@
    firebase-services.js.
    ============================================================ */
 
-import { db } from './firebase-services.js';
+import { db, ajouterTrajetVoiture } from './firebase-services.js';
 import {
   doc, getDoc, setDoc, onSnapshot
 } from 'https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js';
@@ -136,6 +136,9 @@ function finalizeTrip(stopTimeMs) {
   state.totals[trip.child] = (state.totals[trip.child] || 0) + minutes;
   state.activeTrip = null;
   saveState();
+  ajouterTrajetVoiture({
+    profilId: trip.child, minutes, startTimeMs: trip.startTimeMs, endTimeMs: stopTimeMs
+  }).catch(e => console.error('CarSeatTracker: erreur enregistrement historique', e));
   stopGeoTracking();
   updateCounters();
   updateTripUI();
@@ -322,6 +325,23 @@ function minutesToStr(minutes) {
   return langue === 'he' ? `${h} ש' ${m} דק'` : `${h}h${String(m).padStart(2, '0')}`;
 }
 
+function formatDureeLive(ms) {
+  const totalSec = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  const pad = n => String(n).padStart(2, '0');
+  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+}
+
+setInterval(() => {
+  document.querySelectorAll('.cv-chrono').forEach(el => {
+    const start = Number(el.dataset.start);
+    if (!start) return;
+    el.textContent = ' ⏱️ ' + formatDureeLive(Date.now() - start);
+  });
+}, 1000);
+
 function updateCounters() {
   const zone = document.getElementById('compteur-voiture');
   if (!zone) return;
@@ -333,12 +353,14 @@ function updateCounters() {
       const val = minutesToStr(state.totals[c.id] || 0);
       const estDerriere = state.activeTrip && state.activeTrip.child === c.id;
       const classe = 'cv-ligne' + (estDerriere ? ' cv-ligne-active' : '');
-      return `<div class="${classe}">🚗 ${label}: ${val}${estDerriere ? ' 🔵' : ''}</div>`;
+      const chrono = estDerriere ? `<span class="cv-chrono" data-start="${state.activeTrip.startTimeMs}"></span>` : '';
+      return `<div class="${classe}">🚗 ${label}: ${val}${estDerriere ? ' 🔵' : ''}${chrono}</div>`;
     }).join('');
   } else if (CHILDREN.some(c => c.id === myProfilId)) {
     const val = minutesToStr(state.totals[myProfilId] || 0);
     const estDerriere = state.activeTrip && state.activeTrip.child === myProfilId;
-    zone.innerHTML = `<div class="cv-ligne${estDerriere ? ' cv-ligne-active' : ''}">🚗 ${langue === 'he' ? 'מאחור השבוע' : 'derrière cette semaine'}: ${val}${estDerriere ? ' 🔵' : ''}</div>`;
+    const chrono = estDerriere ? `<span class="cv-chrono" data-start="${state.activeTrip.startTimeMs}"></span>` : '';
+    zone.innerHTML = `<div class="cv-ligne${estDerriere ? ' cv-ligne-active' : ''}">🚗 ${langue === 'he' ? 'מאחור השבוע' : 'derrière cette semaine'}: ${val}${estDerriere ? ' 🔵' : ''}${chrono}</div>`;
   } else {
     zone.innerHTML = '';
   }

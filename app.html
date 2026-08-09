@@ -223,11 +223,12 @@
   </div>
 
   <div class="panel" id="panel-album">
-    <input type="file" accept="image/*" capture="environment" id="input-photo-album" style="display:none;">
+    <input type="file" accept="image/*" id="input-photo-album" style="display:none;">
     <button class="btn btn--accent btn--block" id="btn-ajouter-photo-album">📸 Ajouter une photo</button>
     <div id="form-photo-album" style="display:none;" class="card mt-16">
       <img id="preview-photo-album" style="width:100%;border-radius:12px;display:none;">
       <input type="text" id="titre-photo-album" placeholder="Titre de la photo (ex: Baignade à Ein Harod)" class="mt-8" style="width:100%;">
+      <textarea id="commentaire-photo-album" placeholder="Commentaire (optionnel)" rows="2" class="mt-8" style="width:100%;"></textarea>
       <p class="muted mt-8" id="lieu-detecte-album" style="font-size:12px;"></p>
       <button class="btn btn--primary btn--block mt-8" id="btn-publier-photo-album">✅ Publier dans l'album</button>
       <div class="muted mt-8" id="statut-photo-album" style="text-align:center;font-size:12px;"></div>
@@ -264,7 +265,11 @@
     <div id="souvenir-grille" class="mt-16" style="display:grid; grid-template-columns: repeat(2, 1fr); gap:10px;"></div>
 
     <div id="souvenir-apercu" class="mt-16" style="display:none; text-align:center;">
-      <canvas id="souvenir-canvas" style="max-width:100%; border-radius:12px; box-shadow:4px 4px 0 rgba(0,0,0,.2);"></canvas>
+      <canvas id="souvenir-canvas" style="max-width:100%; border-radius:12px; box-shadow:4px 4px 0 rgba(0,0,0,.2); touch-action:none; display:block; margin:0 auto;"></canvas>
+      <div id="souvenir-zoom-zone" class="mt-8" style="display:none;">
+        <p class="muted" style="font-size:11px;">🔍 Zoom / 👆 Glisse la photo pour la recentrer</p>
+        <input type="range" id="souvenir-zoom" min="100" max="300" value="100" style="width:100%;">
+      </div>
       <div class="col mt-16">
         <button class="btn btn--primary btn--block" id="btn-souvenir-photo">📷 Prendre la photo</button>
         <button class="btn btn--accent btn--block mt-8" id="btn-souvenir-enregistrer" style="display:none;">💾 Ajouter à l'album</button>
@@ -272,7 +277,7 @@
       </div>
     </div>
 
-    <input type="file" accept="image/*" capture="environment" id="input-photo-souvenir" style="display:none;">
+    <input type="file" accept="image/*" id="input-photo-souvenir" style="display:none;">
   </div>
 
   <div id="diplome-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:250;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;">
@@ -291,7 +296,7 @@
       getMissionsParLieu, getResultatsProfil, enregistrerResultat, getTypesExcursion,
       ecouterTousResultats, getSettings, ajouterBadgeProfil, getPlaylistPourLieu, ajouterScoreProfil,
       ecouterPointsLog, updateSettings, ecouterSettings, marquerDefiFait, ecouterDefisFaits,
-      ecouterSouvenirTemplates
+      ecouterSouvenirTemplates, modifierResultat
     } from './firebase-services.js';
     import { uploaderPhotoMission } from './imagekit-services.js';
     import { initCarSeatTracker, refreshCarSeatUI } from './car-seat-tracker.js';
@@ -939,7 +944,7 @@
       box.innerHTML = `
         <div class="livre-album">
           <div class="page-album">
-            <img src="${r.MediaURL}" alt="">
+            <img src="${r.MediaURL}" alt="" id="img-album-active" style="cursor:pointer;">
             <div class="page-titre">${titre}</div>
             <div class="page-legende">${profil ? (profil.Avatar || '') : ''} ${nomProfil} · ${dateAffichee}</div>
           </div>
@@ -950,17 +955,66 @@
           </div>
         </div>`;
 
+      const imgActive = document.getElementById('img-album-active');
+      if (imgActive) imgActive.onclick = () => ouvrirDetailPhotoAlbum(r);
+
       const btnPrec = document.getElementById('btn-page-precedente');
       const btnSuiv = document.getElementById('btn-page-suivante');
       if (btnPrec) btnPrec.onclick = () => { pageAlbumActuelle++; afficherAlbum(); };
       if (btnSuiv) btnSuiv.onclick = () => { pageAlbumActuelle--; afficherAlbum(); };
     }
 
+    function ouvrirDetailPhotoAlbum(r) {
+      const profil = profilsCache[r.ProfilID];
+      const nomProfil = profil ? (LANGUE === 'he' ? (profil.Nom_HE || profil.Nom_FR) : profil.Nom_FR) : '';
+      const dateObj = r.Date ? new Date(r.Date) : null;
+      const dateAff = dateObj ? dateObj.toLocaleDateString(LANGUE === 'he' ? 'he-IL' : 'fr-FR') : '';
+      const heureAff = dateObj ? dateObj.toLocaleTimeString(LANGUE === 'he' ? 'he-IL' : 'fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+      const lienGps = (r.Lat && r.Lng) ? `https://www.google.com/maps?q=${r.Lat},${r.Lng}` : null;
+
+      const box = document.getElementById('modal-box');
+      document.getElementById('modal-bg').style.display = 'flex';
+      box.innerHTML = `
+        <img src="${r.MediaURL}" style="width:100%; border-radius:12px; margin-bottom:12px;">
+        <div style="font-size:13px; line-height:1.9;">
+          <div>${profil ? (profil.Avatar || '') : ''} <b>${nomProfil}</b></div>
+          <div>🗓️ ${dateAff} · 🕐 ${heureAff}</div>
+          ${r.Lieu ? `<div>📍 ${r.Lieu}</div>` : ''}
+          ${lienGps ? `<div><a href="${lienGps}" target="_blank">🗺️ ${LANGUE === 'he' ? 'פתח במפה' : 'Voir sur la carte'}</a></div>` : ''}
+        </div>
+        <div class="mt-16">
+          <label style="font-size:12px;">${LANGUE === 'he' ? 'שם התמונה' : 'Nom de la photo'}</label>
+          <input id="detail-photo-nom" value="${(r.Note || '').replace(/"/g, '&quot;')}" style="width:100%;">
+        </div>
+        <div class="mt-8">
+          <label style="font-size:12px;">${LANGUE === 'he' ? 'הערה' : 'Commentaire'}</label>
+          <textarea id="detail-photo-commentaire" rows="2" style="width:100%;">${r.Commentaire || ''}</textarea>
+        </div>
+        <button class="btn btn--primary btn--block mt-8" id="btn-detail-photo-save">💾 ${LANGUE === 'he' ? 'שמור' : 'Enregistrer'}</button>
+        ${boutonFermer()}`;
+
+      document.getElementById('btn-detail-photo-save').onclick = async () => {
+        const nom = document.getElementById('detail-photo-nom').value.trim();
+        const commentaire = document.getElementById('detail-photo-commentaire').value.trim();
+        const btn = document.getElementById('btn-detail-photo-save');
+        btn.disabled = true;
+        try {
+          await modifierResultat(r.ResultID, { note: nom, commentaire });
+          r.Note = nom; r.Commentaire = commentaire;
+          document.getElementById('modal-bg').style.display = 'none';
+          afficherAlbum();
+        } catch (e) {
+          console.error(e);
+          btn.disabled = false;
+        }
+      };
+    }
+
     // ------------------------------------------------------------
     // AJOUT DE PHOTO LIBRE DANS L'ALBUM (avec titre + lieu détecté par géolocalisation)
     // ------------------------------------------------------------
     let blobPhotoAlbumEnAttente = null;
-    let lieuDetectePourAlbum = null;
+    let lieuDetectePourAlbum = { lieu: '', lat: '', lng: '' };
 
     document.getElementById('btn-ajouter-photo-album').onclick = () => {
       document.getElementById('input-photo-album').click();
@@ -969,37 +1023,35 @@
     document.getElementById('input-photo-album').onchange = async () => {
       const fichier = document.getElementById('input-photo-album').files[0];
       if (!fichier) return;
-      const blob = await compresserImage(fichier);
+      let blob;
+      try {
+        blob = await compresserImage(fichier);
+      } catch (err) {
+        alert(LANGUE === 'he' ? 'שגיאה בקריאת התמונה, נסו תמונה אחרת.' : "Impossible de lire cette photo, essaie une autre image.");
+        return;
+      }
       blobPhotoAlbumEnAttente = blob;
       const preview = document.getElementById('preview-photo-album');
       preview.src = URL.createObjectURL(blob);
       preview.style.display = 'block';
       document.getElementById('form-photo-album').style.display = 'block';
       document.getElementById('titre-photo-album').value = '';
+      document.getElementById('commentaire-photo-album').value = '';
       document.getElementById('statut-photo-album').textContent = '';
 
       const lieuTxt = document.getElementById('lieu-detecte-album');
       lieuTxt.textContent = LANGUE === 'he' ? '📍 מזהה מיקום...' : '📍 Détection du lieu...';
-      lieuDetectePourAlbum = null;
-      if ('geolocation' in navigator) {
-        navigator.geolocation.getCurrentPosition(pos => {
-          const { latitude, longitude } = pos.coords;
-          const avecCoords = lieuxCache.filter(l => l.Lat && l.Lng);
-          let plusProche = null, distanceMin = Infinity;
-          avecCoords.forEach(l => {
-            const d = distanceKm(latitude, longitude, Number(l.Lat), Number(l.Lng));
-            if (d < distanceMin) { distanceMin = d; plusProche = l; }
-          });
-          if (plusProche && distanceMin <= 5) {
-            lieuDetectePourAlbum = plusProche.Nom_FR;
-            lieuTxt.textContent = '📍 ' + (LANGUE === 'he' ? 'זוהה: ' : 'Détecté : ') + plusProche.Nom_FR;
-          } else {
-            lieuTxt.textContent = LANGUE === 'he' ? '📍 מיקום לא זוהה (בדרכים)' : '📍 Lieu non identifié (en route)';
-          }
-        }, () => {
+      lieuDetectePourAlbum = { lieu: '', lat: '', lng: '' };
+      detecterLieuEtCoords().then(res => {
+        lieuDetectePourAlbum = res;
+        if (res.lieu) {
+          lieuTxt.textContent = '📍 ' + (LANGUE === 'he' ? 'זוהה: ' : 'Détecté : ') + res.lieu;
+        } else if (res.lat) {
+          lieuTxt.textContent = LANGUE === 'he' ? '📍 מיקום לא זוהה (בדרכים)' : '📍 Lieu non identifié (en route)';
+        } else {
           lieuTxt.textContent = LANGUE === 'he' ? '📍 מיקום לא זמין' : '📍 Position indisponible';
-        });
-      }
+        }
+      });
     };
 
     document.getElementById('btn-publier-photo-album').onclick = async () => {
@@ -1010,20 +1062,25 @@
       statut.textContent = LANGUE === 'he' ? 'שולח...' : 'Envoi en cours...';
       try {
         const titreSaisi = document.getElementById('titre-photo-album').value.trim();
-        const titreFinal = titreSaisi || lieuDetectePourAlbum || (LANGUE === 'he' ? 'תמונה' : 'Photo souvenir');
+        const commentaireSaisi = document.getElementById('commentaire-photo-album').value.trim();
+        const titreFinal = titreSaisi || lieuDetectePourAlbum.lieu || (LANGUE === 'he' ? 'תמונה' : 'Photo souvenir');
         const idUnique = 'album_' + Date.now();
         const url = await uploaderPhotoMission(PROFIL_ID, idUnique, blobPhotoAlbumEnAttente);
         await enregistrerResultat({
           profilId: PROFIL_ID, missionId: idUnique, statut: 'fait',
-          points: 0, note: titreFinal, mediaUrl: url
+          points: 0, note: titreFinal, commentaire: commentaireSaisi,
+          lieu: lieuDetectePourAlbum.lieu, lat: lieuDetectePourAlbum.lat, lng: lieuDetectePourAlbum.lng,
+          mediaUrl: url
         });
         statut.textContent = LANGUE === 'he' ? '✅ נוסף לאלבום!' : "✅ Ajoutée à l'album !";
         blobPhotoAlbumEnAttente = null;
         setTimeout(() => {
           document.getElementById('form-photo-album').style.display = 'none';
           pageAlbumActuelle = 0;
+          btn.disabled = false;
         }, 800);
       } catch (e) {
+        console.error(e);
         statut.textContent = LANGUE === 'he' ? '❌ שגיאה בשליחה' : "❌ Échec de l'envoi, réessaie.";
         btn.disabled = false;
       }
@@ -1307,6 +1364,25 @@
       const dLng = (lng2 - lng1) * Math.PI / 180;
       const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
       return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    // Détecte le lieu le plus proche (parmi les lieux du voyage) + coordonnées GPS brutes.
+    // Utilisé pour préremplir automatiquement le lieu des photos (album, souvenir, etc.)
+    function detecterLieuEtCoords() {
+      return new Promise(resolve => {
+        if (!('geolocation' in navigator)) { resolve({ lieu: '', lat: '', lng: '' }); return; }
+        navigator.geolocation.getCurrentPosition(pos => {
+          const { latitude, longitude } = pos.coords;
+          const avecCoords = lieuxCache.filter(l => l.Lat && l.Lng);
+          let plusProche = null, distanceMin = Infinity;
+          avecCoords.forEach(l => {
+            const d = distanceKm(latitude, longitude, Number(l.Lat), Number(l.Lng));
+            if (d < distanceMin) { distanceMin = d; plusProche = l; }
+          });
+          const lieu = (plusProche && distanceMin <= 5) ? plusProche.Nom_FR : '';
+          resolve({ lieu, lat: latitude, lng: longitude });
+        }, () => resolve({ lieu: '', lat: '', lng: '' }), { timeout: 6000, maximumAge: 60000 });
+      });
     }
 
     let dernierePositionAutoEnvoyee = null;
@@ -1615,6 +1691,15 @@
       Tiberiade: [32.7896, 35.5311]
     };
 
+    function determinerVilleTfilaParCoords(lat, lng) {
+      let plusProche = 'Harish', distMin = Infinity;
+      Object.entries(COORDS_VILLES_TFILA).forEach(([ville, [vlat, vlng]]) => {
+        const d = distanceKm(lat, lng, vlat, vlng);
+        if (d < distMin) { distMin = d; plusProche = ville; }
+      });
+      return plusProche;
+    }
+
     function determinerVilleTfila() {
       const pion = calculerPositionPion(settingsVoyage);
       const lieuActuel = lieuxCache.find(l => {
@@ -1622,12 +1707,7 @@
         return jourIndex === pion.jourIndex && momentDepuisHeure(l.Heure) === pion.moment;
       });
       if (lieuActuel && lieuActuel.Lat && lieuActuel.Lng) {
-        let plusProche = 'Harish', distMin = Infinity;
-        Object.entries(COORDS_VILLES_TFILA).forEach(([ville, [lat, lng]]) => {
-          const d = distanceKm(Number(lieuActuel.Lat), Number(lieuActuel.Lng), lat, lng);
-          if (d < distMin) { distMin = d; plusProche = ville; }
-        });
-        return plusProche;
+        return determinerVilleTfilaParCoords(Number(lieuActuel.Lat), Number(lieuActuel.Lng));
       }
       // Repli si pas de coordonnées sur ce lieu : on regarde le nom
       const nom = lieuActuel ? lieuActuel.Nom_FR : '';
@@ -1639,8 +1719,24 @@
     document.getElementById('btn-tfilot').onclick = () => {
       const box = document.getElementById('modal-box');
       document.getElementById('modal-bg').style.display = 'flex';
+      box.innerHTML = `<h2>✡️ ...</h2><p class="muted mt-8">📍 ${LANGUE === 'he' ? 'מאתר מיקום...' : 'Localisation...'}</p>${boutonFermer()}`;
+
+      const ouvrirAvecVille = (ville) => afficherModaleTfilot(ville);
+
+      if ('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          pos => ouvrirAvecVille(determinerVilleTfilaParCoords(pos.coords.latitude, pos.coords.longitude)),
+          () => ouvrirAvecVille(determinerVilleTfila()),
+          { timeout: 5000, maximumAge: 60000 }
+        );
+      } else {
+        ouvrirAvecVille(determinerVilleTfila());
+      }
+    };
+
+    function afficherModaleTfilot(ville) {
+      const box = document.getElementById('modal-box');
       const moment = determinerMomentTfila();
-      const ville = determinerVilleTfila();
       const data = TFILOT_TEXTES[ville];
       const labels = { chaharit: 'שחרית / Chaharit', minha: 'מנחה / Minha', arvit: 'ערבית / Arvit' };
       const nomVille = LANGUE === 'he' ? data.nom_he : data.nom_fr;
@@ -1674,19 +1770,19 @@
     // CARTE SOUVENIR (choisir un template de lieu + prendre une photo)
     // ------------------------------------------------------------
     const SOUVENIR_TEMPLATES_BASE = [
-      { id: 'ein-harod',      nomFr: 'Ein Harod',       nomHe: 'עין חרוד',    url: 'souvenirs/ein-harod.jpg' },
-      { id: 'givat-haim',     nomFr: 'Givat Haim',      nomHe: 'גבעת חיים',   url: 'souvenirs/givat-haim.jpg' },
-      { id: 'herzliya',       nomFr: 'Herzliya',        nomHe: 'הרצליה',      url: 'souvenirs/herzliya.jpg' },
-      { id: 'netanya',        nomFr: 'Netanya',         nomHe: 'נתניה',       url: 'souvenirs/netanya.jpg' },
-      { id: 'gan-hashlosha',  nomFr: 'Gan Hashlosha',   nomHe: 'גן השלושה',   url: 'souvenirs/gan-hashlosha.jpg' },
-      { id: 'rob-roy',        nomFr: 'Rob Roy',         nomHe: 'רוב רוי',     url: 'souvenirs/rob-roy.jpg' },
-      { id: 'tiberiade',      nomFr: 'Tibériade',       nomHe: 'טבריה',       url: 'souvenirs/tiberiade.jpg' },
-      { id: 'harish',         nomFr: 'Harish',          nomHe: 'חריש',        url: 'souvenirs/harish.jpg' },
-      { id: 'maale-mikhmas',  nomFr: "Ma'ale Mikhmas",  nomHe: 'מעלה מכמש',   url: 'souvenirs/maale-mikhmas.jpg' },
-      { id: 'ein-feshkha',    nomFr: 'Ein Feshkha',     nomHe: 'עין פשחה',    url: 'souvenirs/ein-feshkha.jpg' }
+      { id: 'ein-harod',      nomFr: 'Ein Harod',       nomHe: 'עין חרוד',    url: 'souvenirs/ein-harod.jpg',      box: { x:0.2297, y:0.3934, w:0.5558, h:0.3079 } },
+      { id: 'givat-haim',     nomFr: 'Givat Haim',      nomHe: 'גבעת חיים',   url: 'souvenirs/givat-haim.jpg',     box: { x:0.2258, y:0.4042, w:0.5609, h:0.3050 } },
+      { id: 'herzliya',       nomFr: 'Herzliya',        nomHe: 'הרצליה',      url: 'souvenirs/herzliya.jpg',       box: { x:0.2269, y:0.3886, w:0.5546, h:0.3244 } },
+      { id: 'netanya',        nomFr: 'Netanya',         nomHe: 'נתניה',       url: 'souvenirs/netanya.jpg',        box: { x:0.2293, y:0.3975, w:0.5456, h:0.3129 } },
+      { id: 'gan-hashlosha',  nomFr: 'Gan Hashlosha',   nomHe: 'גן השלושה',   url: 'souvenirs/gan-hashlosha.jpg',  box: { x:0.2302, y:0.4349, w:0.5341, h:0.2928 } },
+      { id: 'rob-roy',        nomFr: 'Rob Roy',         nomHe: 'רוב רוי',     url: 'souvenirs/rob-roy.jpg',        box: { x:0.2217, y:0.3838, w:0.5635, h:0.3208 } },
+      { id: 'tiberiade',      nomFr: 'Tibériade',       nomHe: 'טבריה',       url: 'souvenirs/tiberiade.jpg',      box: { x:0.2148, y:0.3924, w:0.5635, h:0.3215 } },
+      { id: 'harish',         nomFr: 'Harish',          nomHe: 'חריש',        url: 'souvenirs/harish.jpg',         box: { x:0.2311, y:0.3959, w:0.5546, h:0.3122 } },
+      { id: 'maale-mikhmas',  nomFr: "Ma'ale Mikhmas",  nomHe: 'מעלה מכמש',   url: 'souvenirs/maale-mikhmas.jpg',  box: { x:0.2176, y:0.4328, w:0.5648, h:0.2971 } },
+      { id: 'ein-feshkha',    nomFr: 'Ein Feshkha',     nomHe: 'עין פשחה',    url: 'souvenirs/ein-feshkha.jpg',    box: { x:0.2227, y:0.3565, w:0.5546, h:0.3410 } }
     ];
-    // Position relative du cadre blanc (identique sur tous les templates)
-    const SOUVENIR_BOX = { x: 0.19, y: 0.365, w: 0.68, h: 0.37 };
+    // Boîte par défaut pour les templates ajoutés depuis l'admin (sans détection automatique)
+    const SOUVENIR_BOX_DEFAUT = { x: 0.22, y: 0.39, w: 0.56, h: 0.31 };
 
     let templatesSouvenirPerso = [];
     let templateSouvenirActuel = null;
@@ -1716,13 +1812,46 @@
       });
     }
 
+    let photoSouvenirImg = null;
+    let souvenirZoom = 1;
+    let souvenirOffsetX = 0, souvenirOffsetY = 0;
+    let souvenirLieuDetecte = { lieu: '', lat: '', lng: '' };
+
+    function boiteSouvenirActuelle() {
+      return (templateSouvenirActuel && templateSouvenirActuel.box) || SOUVENIR_BOX_DEFAUT;
+    }
+
+    function redessinerSouvenir() {
+      const canvas = document.getElementById('souvenir-canvas');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (imageTemplateSouvenirEl) ctx.drawImage(imageTemplateSouvenirEl, 0, 0);
+      if (!photoSouvenirImg) return;
+      const box = boiteSouvenirActuelle();
+      const bx = box.x * canvas.width, by = box.y * canvas.height, bw = box.w * canvas.width, bh = box.h * canvas.height;
+      const baseScale = Math.max(bw / photoSouvenirImg.width, bh / photoSouvenirImg.height);
+      const scale = baseScale * souvenirZoom;
+      const pw = photoSouvenirImg.width * scale, ph = photoSouvenirImg.height * scale;
+      const px = bx + (bw - pw) / 2 + souvenirOffsetX;
+      const py = by + (bh - ph) / 2 + souvenirOffsetY;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(bx, by, bw, bh);
+      ctx.clip();
+      ctx.drawImage(photoSouvenirImg, px, py, pw, ph);
+      ctx.restore();
+    }
+
     function choisirTemplateSouvenir(id) {
       templateSouvenirActuel = tousLesTemplatesSouvenir().find(t => t.id === id);
       document.getElementById('souvenir-grille').style.display = 'none';
       document.getElementById('souvenir-apercu').style.display = 'block';
       document.getElementById('btn-souvenir-enregistrer').style.display = 'none';
+      document.getElementById('souvenir-zoom-zone').style.display = 'none';
       document.getElementById('btn-souvenir-photo').style.display = 'block';
       document.getElementById('btn-souvenir-photo').textContent = LANGUE === 'he' ? '📷 צלם תמונה' : '📷 Prendre la photo';
+      photoSouvenirImg = null;
+      souvenirZoom = 1; souvenirOffsetX = 0; souvenirOffsetY = 0;
 
       const canvas = document.getElementById('souvenir-canvas');
       const ctx = canvas.getContext('2d');
@@ -1735,6 +1864,10 @@
         imageTemplateSouvenirEl = img;
       };
       img.src = templateSouvenirActuel.url;
+
+      // Détection du lieu + coordonnées en fond, sans bloquer l'affichage
+      souvenirLieuDetecte = { lieu: '', lat: '', lng: '' };
+      detecterLieuEtCoords().then(res => { souvenirLieuDetecte = res; });
     }
 
     document.getElementById('btn-souvenir-photo').onclick = () => {
@@ -1744,31 +1877,55 @@
     document.getElementById('input-photo-souvenir').onchange = async () => {
       const fichier = document.getElementById('input-photo-souvenir').files[0];
       if (!fichier || !imageTemplateSouvenirEl) return;
-      const blob = await compresserImage(fichier, 1600, 0.85);
+      let blob;
+      try {
+        blob = await compresserImage(fichier, 1600, 0.85);
+      } catch (err) {
+        alert(LANGUE === 'he' ? 'שגיאה בקריאת התמונה, נסו תמונה אחרת.' : "Impossible de lire cette photo, essaie une autre image.");
+        return;
+      }
       const photo = new Image();
       photo.onload = () => {
-        const canvas = document.getElementById('souvenir-canvas');
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(imageTemplateSouvenirEl, 0, 0);
-        const bx = SOUVENIR_BOX.x * canvas.width;
-        const by = SOUVENIR_BOX.y * canvas.height;
-        const bw = SOUVENIR_BOX.w * canvas.width;
-        const bh = SOUVENIR_BOX.h * canvas.height;
-        const scale = Math.max(bw / photo.width, bh / photo.height);
-        const pw = photo.width * scale, ph = photo.height * scale;
-        const px = bx + (bw - pw) / 2;
-        const py = by + (bh - ph) / 2;
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(bx, by, bw, bh);
-        ctx.clip();
-        ctx.drawImage(photo, px, py, pw, ph);
-        ctx.restore();
+        photoSouvenirImg = photo;
+        souvenirZoom = 1; souvenirOffsetX = 0; souvenirOffsetY = 0;
+        document.getElementById('souvenir-zoom').value = 100;
+        redessinerSouvenir();
         document.getElementById('btn-souvenir-enregistrer').style.display = 'block';
+        document.getElementById('souvenir-zoom-zone').style.display = 'block';
         document.getElementById('btn-souvenir-photo').textContent = LANGUE === 'he' ? '📷 צלם שוב' : '📷 Reprendre la photo';
       };
       photo.src = URL.createObjectURL(blob);
     };
+
+    document.getElementById('souvenir-zoom').oninput = (e) => {
+      souvenirZoom = Number(e.target.value) / 100;
+      redessinerSouvenir();
+    };
+
+    // Glisser pour recentrer la photo (souris + tactile via Pointer Events)
+    (function initDragSouvenir() {
+      const canvas = document.getElementById('souvenir-canvas');
+      let dragActif = false, startX = 0, startY = 0, baseOffsetX = 0, baseOffsetY = 0;
+
+      canvas.addEventListener('pointerdown', e => {
+        if (!photoSouvenirImg) return;
+        dragActif = true;
+        startX = e.clientX; startY = e.clientY;
+        baseOffsetX = souvenirOffsetX; baseOffsetY = souvenirOffsetY;
+        canvas.setPointerCapture(e.pointerId);
+      });
+      canvas.addEventListener('pointermove', e => {
+        if (!dragActif) return;
+        const rect = canvas.getBoundingClientRect();
+        const fx = canvas.width / rect.width, fy = canvas.height / rect.height;
+        souvenirOffsetX = baseOffsetX + (e.clientX - startX) * fx;
+        souvenirOffsetY = baseOffsetY + (e.clientY - startY) * fy;
+        redessinerSouvenir();
+      });
+      ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => {
+        canvas.addEventListener(ev, () => { dragActif = false; });
+      });
+    })();
 
     document.getElementById('btn-souvenir-enregistrer').onclick = async () => {
       const canvas = document.getElementById('souvenir-canvas');
@@ -1778,11 +1935,14 @@
       canvas.toBlob(async (blob) => {
         try {
           const idUnique = 'souvenir_' + templateSouvenirActuel.id + '_' + Date.now();
-          const nomLieu = LANGUE === 'he' ? templateSouvenirActuel.nomHe : templateSouvenirActuel.nomFr;
+          const nomLieuTemplate = LANGUE === 'he' ? templateSouvenirActuel.nomHe : templateSouvenirActuel.nomFr;
           const url = await uploaderPhotoMission(PROFIL_ID, idUnique, blob);
           await enregistrerResultat({
             profilId: PROFIL_ID, missionId: idUnique, statut: 'fait',
-            points: 0, note: nomLieu, mediaUrl: url
+            points: 0, note: nomLieuTemplate,
+            lieu: souvenirLieuDetecte.lieu || nomLieuTemplate,
+            lat: souvenirLieuDetecte.lat, lng: souvenirLieuDetecte.lng,
+            mediaUrl: url
           });
           btn.textContent = LANGUE === 'he' ? '✅ נוסף לאלבום!' : "✅ Ajoutée à l'album !";
           setTimeout(() => {
@@ -1792,6 +1952,7 @@
             btn.textContent = LANGUE === 'he' ? 'הוסף לאלבום' : "Ajouter à l'album";
           }, 1000);
         } catch (e) {
+          console.error(e);
           btn.textContent = LANGUE === 'he' ? '❌ שגיאה' : "❌ Échec, réessaie";
           btn.disabled = false;
         }
