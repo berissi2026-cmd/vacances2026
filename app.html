@@ -285,6 +285,7 @@
           <button class="btn btn--ghost btn--block" id="btn-souvenir-galerie">🖼️ Galerie</button>
         </div>
         <button class="btn btn--accent btn--block mt-8" id="btn-souvenir-enregistrer" style="display:none;">💾 Ajouter à l'album</button>
+        <button class="btn btn--ghost btn--block mt-8" id="btn-souvenir-partager" style="display:none;">📤 Partager sur WhatsApp</button>
         <button class="btn btn--ghost btn--block mt-8" id="btn-souvenir-recommencer">↩️ Choisir un autre lieu</button>
       </div>
     </div>
@@ -987,6 +988,7 @@
             <img src="${r.MediaURL}" alt="" id="img-album-active" style="cursor:pointer;">
             <div class="page-titre">${titre}</div>
             <div class="page-legende">${profil ? (profil.Avatar || '') : ''} ${nomProfil} · ${dateAffichee}</div>
+            ${boutonPartagerHTML(r.MediaURL, titre)}
           </div>
           <div class="livre-nav">
             <button id="btn-page-precedente" ${pageAlbumActuelle >= tries.length - 1 ? 'disabled' : ''}>◀️</button>
@@ -1022,6 +1024,7 @@
           ${r.Lieu ? `<div>📍 ${r.Lieu}</div>` : ''}
           ${lienGps ? `<div><a href="${lienGps}" target="_blank">🗺️ ${LANGUE === 'he' ? 'פתח במפה' : 'Voir sur la carte'}</a></div>` : ''}
         </div>
+        ${boutonPartagerHTML(r.MediaURL, r.Note || nomProfil)}
         <div class="mt-16">
           <label style="font-size:12px;">${LANGUE === 'he' ? 'שם התמונה' : 'Nom de la photo'}</label>
           <input id="detail-photo-nom" value="${(r.Note || '').replace(/"/g, '&quot;')}" style="width:100%;">
@@ -1417,6 +1420,52 @@
     }
 
     // Distance à vol d'oiseau en km (formule de Haversine)
+    // Partage une image (photo album, carte souvenir...) via le sélecteur natif du téléphone,
+    // qui inclut WhatsApp parmi les options si l'app est installée.
+    async function partagerBlob(blob, titre) {
+      try {
+        if (navigator.share && navigator.canShare) {
+          const fichier = new File([blob], 'photo.jpg', { type: blob.type || 'image/jpeg' });
+          if (navigator.canShare({ files: [fichier] })) {
+            await navigator.share({ files: [fichier], title: titre, text: titre });
+            return true;
+          }
+        }
+      } catch (err) {
+        if (err && err.name === 'AbortError') return true;
+      }
+      return false;
+    }
+
+    async function partagerImage(url, titre) {
+      titre = titre || (LANGUE === 'he' ? 'תמונה מהטיול' : 'Photo du voyage');
+      try {
+        const res = await fetch(url);
+        const blob = await res.blob();
+        if (await partagerBlob(blob, titre)) return;
+        if (navigator.share) {
+          await navigator.share({ title: titre, text: titre, url });
+          return;
+        }
+      } catch (err) {
+        if (err && err.name === 'AbortError') return;
+      }
+      // Repli : ouvre WhatsApp avec un lien vers la photo (fonctionne partout, même sans Web Share API)
+      window.open('https://wa.me/?text=' + encodeURIComponent(titre + ' ' + url), '_blank');
+    }
+
+    function boutonPartagerHTML(url, titre) {
+      return `<button class="btn btn--ghost btn-partager-img" data-url="${url}" data-titre="${encodeURIComponent(titre || '')}" style="margin-top:8px;">📤 ${LANGUE === 'he' ? 'שתף בוואטסאפ' : 'Partager sur WhatsApp'}</button>`;
+    }
+
+    // Délégation d'événement globale : capte le clic sur n'importe quel bouton de partage,
+    // même ceux créés dynamiquement via innerHTML (album, lightbox, souvenir...)
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('.btn-partager-img');
+      if (!btn) return;
+      partagerImage(btn.dataset.url, decodeURIComponent(btn.dataset.titre || ''));
+    });
+
     function distanceKm(lat1, lng1, lat2, lng2) {
       const R = 6371;
       const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -1908,6 +1957,7 @@
       document.getElementById('souvenir-grille').style.display = 'none';
       document.getElementById('souvenir-apercu').style.display = 'block';
       document.getElementById('btn-souvenir-enregistrer').style.display = 'none';
+      document.getElementById('btn-souvenir-partager').style.display = 'none';
       document.getElementById('souvenir-zoom-zone').style.display = 'none';
       document.getElementById('btn-souvenir-photo').style.display = 'block';
       document.getElementById('btn-souvenir-photo').textContent = LANGUE === 'he' ? '📷 צלם תמונה' : '📷 Prendre la photo';
@@ -1961,6 +2011,7 @@
         document.getElementById('souvenir-zoom').value = 100;
         redessinerSouvenir();
         document.getElementById('btn-souvenir-enregistrer').style.display = 'block';
+        document.getElementById('btn-souvenir-partager').style.display = 'block';
         document.getElementById('souvenir-zoom-zone').style.display = 'block';
         document.getElementById('btn-souvenir-photo').textContent = LANGUE === 'he' ? '📷 צלם שוב' : '📷 Reprendre la photo';
       };
@@ -2034,6 +2085,15 @@
           btn.textContent = LANGUE === 'he' ? '❌ שגיאה' : "❌ Échec, réessaie";
           btn.disabled = false;
         }
+      }, 'image/jpeg', 0.88);
+    };
+
+    document.getElementById('btn-souvenir-partager').onclick = () => {
+      const canvas = document.getElementById('souvenir-canvas');
+      const titre = document.getElementById('souvenir-lieu-input').value.trim() ||
+        (templateSouvenirActuel ? (LANGUE === 'he' ? templateSouvenirActuel.nomHe : templateSouvenirActuel.nomFr) : '');
+      canvas.toBlob(blob => {
+        if (blob) partagerBlob(blob, titre);
       }, 'image/jpeg', 0.88);
     };
 
@@ -2161,6 +2221,6 @@
 
     init();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 13:55</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 14:05</div>
 </body>
 </html>
