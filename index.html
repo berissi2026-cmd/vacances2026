@@ -78,8 +78,12 @@
       <h2 id="onboard-title">Bienvenue !</h2>
       <p class="muted mt-8" id="txt-choisir">Choisis ton animal, ou prends une photo !</p>
       <img id="photo-preview" class="photo-profil-preview" style="display:none;">
-      <input type="file" accept="image/*" id="input-photo-profil" style="display:none;">
-      <button class="btn btn--ghost btn--block mt-16" id="btn-prendre-photo">📷 <span id="txt-photo-btn">Prendre une photo</span></button>
+      <input type="file" accept="image/*" capture="user" id="input-photo-profil-camera" style="display:none;">
+      <input type="file" accept="image/*" id="input-photo-profil-galerie" style="display:none;">
+      <div class="mt-16" style="display:flex;gap:8px;">
+        <button class="btn btn--ghost btn--block" id="btn-prendre-photo">📷 <span id="txt-photo-btn">Prendre une photo</span></button>
+        <button class="btn btn--ghost btn--block" id="btn-galerie-photo-profil">🖼️ <span id="txt-galerie-btn">Galerie</span></button>
+      </div>
       <div class="mt-24">
         <div class="avatar-grid" id="avatar-grid"></div>
       </div>
@@ -208,11 +212,13 @@
     }
 
     document.getElementById('btn-prendre-photo').onclick = () => {
-      document.getElementById('input-photo-profil').click();
+      document.getElementById('input-photo-profil-camera').click();
+    };
+    document.getElementById('btn-galerie-photo-profil').onclick = () => {
+      document.getElementById('input-photo-profil-galerie').click();
     };
 
-    document.getElementById('input-photo-profil').onchange = async (e) => {
-      const fichier = e.target.files[0];
+    async function onFichierPhotoProfilChoisi(fichier) {
       if (!fichier) return;
       try {
         const blob = await compresserImagePetite(fichier);
@@ -223,7 +229,9 @@
       } catch (err) {
         alert(langue === 'he' ? 'שגיאה בקריאת התמונה, נסו תמונה אחרת.' : "Impossible de lire cette photo, essaie une autre image (ou reprends une photo).");
       }
-    };
+    }
+    document.getElementById('input-photo-profil-camera').onchange = (e) => onFichierPhotoProfilChoisi(e.target.files[0]);
+    document.getElementById('input-photo-profil-galerie').onchange = (e) => onFichierPhotoProfilChoisi(e.target.files[0]);
 
     function compresserImagePetite(fichier, maxLargeur = 500, qualite = 0.8) {
       return new Promise((resolve, reject) => {

@@ -775,17 +775,19 @@
     const blobsPhotoEnAttente = {};
 
     function cablerMissionPhoto(el, m, lieuId) {
-      const input = el.querySelector('.input-photo-mission');
-      if (!input) return;
+      const inputCamera = el.querySelector('.input-photo-mission-camera');
+      const inputGalerie = el.querySelector('.input-photo-mission-galerie');
+      if (!inputCamera) return;
       const preview = el.querySelector('.photo-preview');
       const btnChoisir = el.querySelector('.btn-choisir-photo');
+      const btnGalerie = el.querySelector('.btn-galerie-photo');
       const btnEnvoyer = el.querySelector('.btn-envoyer-photo');
       const statut = el.querySelector('.statut-envoi');
 
-      btnChoisir.onclick = () => input.click();
+      btnChoisir.onclick = () => inputCamera.click();
+      btnGalerie.onclick = () => inputGalerie.click();
 
-      input.onchange = async () => {
-        const fichier = input.files[0];
+      const traiterFichier = async (fichier) => {
         if (!fichier) return;
         statut.textContent = LANGUE === 'he' ? 'מכין תמונה…' : 'Préparation de la photo…';
         try {
@@ -800,6 +802,8 @@
           statut.textContent = LANGUE === 'he' ? 'שגיאה בתמונה, נסה שוב' : "Erreur avec la photo, réessaie";
         }
       };
+      inputCamera.onchange = () => traiterFichier(inputCamera.files[0]);
+      inputGalerie.onchange = () => traiterFichier(inputGalerie.files[0]);
 
       btnEnvoyer.onclick = async () => {
         const blob = blobsPhotoEnAttente[m.MissionID];
@@ -846,15 +850,18 @@
       if (m.Type === 'photo') {
         const consigne = (heb && c.consigneHe) ? c.consigneHe : (c.consigne || '');
         const txtPrendre = heb ? '📸 צלם תמונה' : '📸 Prendre une photo';
+        const txtGalerie = heb ? '🖼️ גלריה' : '🖼️ Galerie';
         const txtEnvoyer = heb ? '✅ שלח' : '✅ Envoyer';
         const txtRefaire = heb ? '🔄 תמונה אחרת' : '🔄 Reprendre';
         return `<p class="muted mt-8">${consigne}</p>
-          <input type="file" accept="image/*" capture="environment" class="input-photo-mission" data-mission="${m.MissionID}" style="display:none">
+          <input type="file" accept="image/*" capture="environment" class="input-photo-mission-camera" data-mission="${m.MissionID}" style="display:none">
+          <input type="file" accept="image/*" class="input-photo-mission-galerie" data-mission="${m.MissionID}" style="display:none">
           <img class="photo-preview mt-8" style="display:none;max-width:100%;border-radius:12px;">
           <div class="row-photo-btns mt-8" style="display:flex;gap:8px;">
             <button class="btn btn--accent btn--block btn-choisir-photo" data-mission="${m.MissionID}" data-txt-prendre="${txtPrendre}" data-txt-refaire="${txtRefaire}">${txtPrendre}</button>
-            <button class="btn btn--ghost btn--block btn-envoyer-photo" data-mission="${m.MissionID}" style="display:none;">${txtEnvoyer}</button>
+            <button class="btn btn--ghost btn--block btn-galerie-photo" data-mission="${m.MissionID}">${txtGalerie}</button>
           </div>
+          <button class="btn btn--primary btn--block mt-8 btn-envoyer-photo" data-mission="${m.MissionID}" style="display:none;">${txtEnvoyer}</button>
           <div class="muted mt-8 statut-envoi" data-mission="${m.MissionID}"></div>`;
       }
       if (m.Type === 'chasse') {
@@ -1238,9 +1245,13 @@
         <div style="font-size:22px; font-family: var(--font-display);">${msg.titre}</div>
         <p class="mt-16">${msg.texte}</p>
         ${blocParticipants}
-        <input type="file" accept="image/*" capture="environment" id="input-photo-palier" style="display:none;">
+        <input type="file" accept="image/*" capture="environment" id="input-photo-palier-camera" style="display:none;">
+        <input type="file" accept="image/*" id="input-photo-palier-galerie" style="display:none;">
         <img id="preview-photo-palier" style="display:none;max-width:100%;border-radius:12px;margin-top:10px;">
-        <button class="btn btn--accent btn--block mt-16" id="btn-photo-palier">${txtPhoto}</button>
+        <div class="mt-16" style="display:flex;gap:8px;">
+          <button class="btn btn--accent btn--block" id="btn-photo-palier">${txtPhoto}</button>
+          <button class="btn btn--ghost btn--block" id="btn-photo-palier-galerie">🖼️ ${LANGUE === 'he' ? 'גלריה' : 'Galerie'}</button>
+        </div>
         <div class="muted mt-8" id="statut-photo-palier" style="font-size:12px;"></div>
         <button class="btn btn--primary btn--block mt-16" id="btn-fermer-palier">${LANGUE === 'he' ? 'סגור' : 'Super !'}</button>`;
       document.getElementById('palier-bg').style.display = 'flex';
@@ -1259,12 +1270,13 @@
         document.getElementById('palier-bg').style.display = 'none';
       };
 
-      const input = document.getElementById('input-photo-palier');
+      const inputCamera = document.getElementById('input-photo-palier-camera');
+      const inputGalerie = document.getElementById('input-photo-palier-galerie');
       const preview = document.getElementById('preview-photo-palier');
       const statut = document.getElementById('statut-photo-palier');
-      document.getElementById('btn-photo-palier').onclick = () => input.click();
-      input.onchange = async () => {
-        const fichier = input.files[0];
+      document.getElementById('btn-photo-palier').onclick = () => inputCamera.click();
+      document.getElementById('btn-photo-palier-galerie').onclick = () => inputGalerie.click();
+      const traiterFichierPalier = async (fichier) => {
         if (!fichier) return;
         statut.textContent = LANGUE === 'he' ? 'שולח תמונה...' : 'Envoi de la photo...';
         try {
@@ -1281,6 +1293,8 @@
           statut.textContent = LANGUE === 'he' ? '❌ שגיאה בשליחה' : "❌ Échec de l'envoi, réessaie.";
         }
       };
+      inputCamera.onchange = () => traiterFichierPalier(inputCamera.files[0]);
+      inputGalerie.onchange = () => traiterFichierPalier(inputGalerie.files[0]);
     }
 
     function ouvrirDiplome() {
