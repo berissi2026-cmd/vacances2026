@@ -225,17 +225,19 @@
 
   <div class="panel" id="panel-album">
     <input type="file" accept="image/*" capture="environment" id="input-photo-album-camera" style="display:none;">
-    <input type="file" accept="image/*" id="input-photo-album-galerie" style="display:none;">
+    <input type="file" accept="image/*" multiple id="input-photo-album-galerie" style="display:none;">
     <div class="field-row">
       <button class="btn btn--accent btn--block" id="btn-camera-photo-album">📷 Prendre une photo</button>
       <button class="btn btn--ghost btn--block" id="btn-ajouter-photo-album">🖼️ Depuis la galerie</button>
     </div>
     <div id="form-photo-album" style="display:none;" class="card mt-16">
       <img id="preview-photo-album" style="width:100%;border-radius:12px;display:none;">
+      <div id="preview-photo-album-multi" style="display:none; grid-template-columns: repeat(4, 1fr); gap:6px;"></div>
+      <p class="muted mt-8" id="preview-photo-album-compteur" style="display:none; font-size:12px;"></p>
       <input type="text" id="titre-photo-album" placeholder="Titre de la photo (ex: Baignade à Ein Harod)" class="mt-8" style="width:100%;">
-      <textarea id="commentaire-photo-album" placeholder="Commentaire (optionnel)" rows="2" class="mt-8" style="width:100%;"></textarea>
+      <textarea id="commentaire-photo-album" placeholder="Commentaire (optionnel, appliqué à toutes)" rows="2" class="mt-8" style="width:100%;"></textarea>
       <div class="mt-8">
-        <label style="font-size:12px;" id="lieu-detecte-album-label">📍 Lieu</label>
+        <label style="font-size:12px;" id="lieu-detecte-album-label">📍 Lieu (appliqué à toutes les photos ajoutées)</label>
         <input type="text" id="lieu-detecte-album" placeholder="Détection du lieu..." style="width:100%;">
       </div>
       <button class="btn btn--primary btn--block mt-8" id="btn-publier-photo-album">✅ Publier dans l'album</button>
@@ -1121,7 +1123,7 @@
     // ------------------------------------------------------------
     // AJOUT DE PHOTO LIBRE DANS L'ALBUM (avec titre + lieu détecté par géolocalisation)
     // ------------------------------------------------------------
-    let blobPhotoAlbumEnAttente = null;
+    let blobsPhotoAlbumEnAttente = [];
     let lieuDetectePourAlbum = { lieu: '', lat: '', lng: '' };
 
     document.getElementById('btn-camera-photo-album').onclick = () => {
@@ -1131,21 +1133,48 @@
       document.getElementById('input-photo-album-galerie').click();
     };
 
-    async function onFichierPhotoAlbumChoisi(fichier) {
-      if (!fichier) return;
-      let blob;
-      try {
-        blob = await compresserImage(fichier);
-      } catch (err) {
-        alert(LANGUE === 'he' ? 'שגיאה בקריאת התמונה, נסו תמונה אחרת.' : "Impossible de lire cette photo, essaie une autre image.");
+    async function onFichiersPhotoAlbumChoisis(fichiers) {
+      const liste = Array.from(fichiers || []);
+      if (!liste.length) return;
+
+      const blobs = [];
+      for (const fichier of liste) {
+        try {
+          blobs.push(await compresserImage(fichier));
+        } catch (err) {
+          // on ignore juste celle qui échoue, pour ne pas bloquer les autres
+        }
+      }
+      if (!blobs.length) {
+        alert(LANGUE === 'he' ? 'שגיאה בקריאת התמונות, נסו תמונות אחרות.' : "Impossible de lire ces photos, essaie d'autres images.");
         return;
       }
-      blobPhotoAlbumEnAttente = blob;
-      const preview = document.getElementById('preview-photo-album');
-      preview.src = URL.createObjectURL(blob);
-      preview.style.display = 'block';
+      blobsPhotoAlbumEnAttente = blobs;
+
+      const previewSeule = document.getElementById('preview-photo-album');
+      const previewMulti = document.getElementById('preview-photo-album-multi');
+      const compteur = document.getElementById('preview-photo-album-compteur');
+      const titreInput = document.getElementById('titre-photo-album');
+
+      if (blobs.length === 1) {
+        previewSeule.src = URL.createObjectURL(blobs[0]);
+        previewSeule.style.display = 'block';
+        previewMulti.style.display = 'none';
+        compteur.style.display = 'none';
+        titreInput.placeholder = LANGUE === 'he' ? 'שם התמונה (אופציונלי)' : 'Titre de la photo (ex: Baignade à Ein Harod)';
+      } else {
+        previewSeule.style.display = 'none';
+        previewMulti.style.display = 'grid';
+        previewMulti.innerHTML = blobs.map(b =>
+          `<img src="${URL.createObjectURL(b)}" style="width:100%; aspect-ratio:1; object-fit:cover; border-radius:8px;">`
+        ).join('');
+        compteur.style.display = 'block';
+        compteur.textContent = LANGUE === 'he' ? `📸 ${blobs.length} תמונות נבחרו` : `📸 ${blobs.length} photos sélectionnées`;
+        titreInput.placeholder = LANGUE === 'he' ? 'שם משותף לכל התמונות (אופציונלי)' : 'Titre commun à toutes (optionnel)';
+      }
+
       document.getElementById('form-photo-album').style.display = 'block';
-      document.getElementById('titre-photo-album').value = '';
+      titreInput.value = '';
       document.getElementById('commentaire-photo-album').value = '';
       document.getElementById('statut-photo-album').textContent = '';
 
@@ -1167,43 +1196,54 @@
     }
 
     document.getElementById('input-photo-album-camera').onchange = () => {
-      onFichierPhotoAlbumChoisi(document.getElementById('input-photo-album-camera').files[0]);
+      onFichiersPhotoAlbumChoisis(document.getElementById('input-photo-album-camera').files);
     };
     document.getElementById('input-photo-album-galerie').onchange = () => {
-      onFichierPhotoAlbumChoisi(document.getElementById('input-photo-album-galerie').files[0]);
+      onFichiersPhotoAlbumChoisis(document.getElementById('input-photo-album-galerie').files);
     };
 
     document.getElementById('btn-publier-photo-album').onclick = async () => {
-      if (!blobPhotoAlbumEnAttente) return;
+      if (!blobsPhotoAlbumEnAttente.length) return;
       const btn = document.getElementById('btn-publier-photo-album');
       const statut = document.getElementById('statut-photo-album');
       btn.disabled = true;
-      statut.textContent = LANGUE === 'he' ? 'שולח...' : 'Envoi en cours...';
-      try {
-        const titreSaisi = document.getElementById('titre-photo-album').value.trim();
-        const commentaireSaisi = document.getElementById('commentaire-photo-album').value.trim();
-        const lieuSaisi = document.getElementById('lieu-detecte-album').value.trim();
-        const titreFinal = titreSaisi || lieuSaisi || (LANGUE === 'he' ? 'תמונה' : 'Photo souvenir');
-        const idUnique = 'album_' + Date.now();
-        const url = await uploaderPhotoMission(PROFIL_ID, idUnique, blobPhotoAlbumEnAttente);
-        await enregistrerResultat({
-          profilId: PROFIL_ID, missionId: idUnique, statut: 'fait',
-          points: 0, note: titreFinal, commentaire: commentaireSaisi,
-          lieu: lieuSaisi, lat: lieuDetectePourAlbum.lat, lng: lieuDetectePourAlbum.lng,
-          mediaUrl: url
-        });
-        statut.textContent = LANGUE === 'he' ? '✅ נוסף לאלבום!' : "✅ Ajoutée à l'album !";
-        blobPhotoAlbumEnAttente = null;
-        setTimeout(() => {
-          document.getElementById('form-photo-album').style.display = 'none';
-          pageAlbumActuelle = 0;
-          btn.disabled = false;
-        }, 800);
-      } catch (e) {
-        console.error(e);
-        statut.textContent = LANGUE === 'he' ? '❌ שגיאה בשליחה' : "❌ Échec de l'envoi, réessaie.";
-        btn.disabled = false;
+
+      const titreSaisi = document.getElementById('titre-photo-album').value.trim();
+      const commentaireSaisi = document.getElementById('commentaire-photo-album').value.trim();
+      const lieuSaisi = document.getElementById('lieu-detecte-album').value.trim();
+      const total = blobsPhotoAlbumEnAttente.length;
+      let envoyees = 0, echecs = 0;
+
+      for (let i = 0; i < total; i++) {
+        statut.textContent = (LANGUE === 'he' ? `שולח ${i + 1}/${total}...` : `Envoi ${i + 1}/${total}...`);
+        try {
+          const titreFinal = titreSaisi || lieuSaisi || (LANGUE === 'he' ? 'תמונה' : 'Photo souvenir');
+          const idUnique = 'album_' + Date.now() + '_' + i;
+          const url = await uploaderPhotoMission(PROFIL_ID, idUnique, blobsPhotoAlbumEnAttente[i]);
+          await enregistrerResultat({
+            profilId: PROFIL_ID, missionId: idUnique, statut: 'fait',
+            points: 0, note: titreFinal, commentaire: commentaireSaisi,
+            lieu: lieuSaisi, lat: lieuDetectePourAlbum.lat, lng: lieuDetectePourAlbum.lng,
+            mediaUrl: url
+          });
+          envoyees++;
+        } catch (e) {
+          console.error(e);
+          echecs++;
+        }
       }
+
+      if (echecs === 0) {
+        statut.textContent = LANGUE === 'he' ? `✅ ${envoyees} נוספו לאלבום!` : `✅ ${envoyees} photo${envoyees > 1 ? 's' : ''} ajoutée${envoyees > 1 ? 's' : ''} à l'album !`;
+      } else {
+        statut.textContent = LANGUE === 'he' ? `⚠️ ${envoyees} envoyées, ${echecs} échec(s)` : `⚠️ ${envoyees} envoyée(s), ${echecs} échec(s), réessaie pour les manquantes.`;
+      }
+      blobsPhotoAlbumEnAttente = [];
+      setTimeout(() => {
+        document.getElementById('form-photo-album').style.display = 'none';
+        pageAlbumActuelle = 0;
+        btn.disabled = false;
+      }, 1000);
     };
 
     function ouvrirLightbox(url, legende) {
@@ -2302,6 +2342,6 @@
 
     init();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 15:12</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 15:22</div>
 </body>
 </html>
