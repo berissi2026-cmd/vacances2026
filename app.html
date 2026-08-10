@@ -459,13 +459,20 @@
       initCarSeatTracker({ profilId: PROFIL_ID, role: p.Role, langue: LANGUE });
 
       let dernierScoreFamilleConnu = null;
-      ecouterScoreFamille(s => {
+      let scoreFamilleConnu = 0;
+
+      function rafraichirBarreProgression(s) {
         document.getElementById('score-famille').textContent = s;
         const OBJECTIF = Number(settingsVoyage.ObjectifPoints) || 1000;
         const pct = Math.min(100, Math.round((s / OBJECTIF) * 100));
         document.getElementById('progress-fill').style.width = pct + '%';
         document.getElementById('progress-label').textContent =
           (LANGUE === 'he' ? `${s} / ${OBJECTIF} נקודות` : `${s} / ${OBJECTIF} points`) + (s >= OBJECTIF ? ' 🏆' : '');
+      }
+
+      ecouterScoreFamille(s => {
+        scoreFamilleConnu = s;
+        rafraichirBarreProgression(s);
         if (dernierScoreFamilleConnu !== null && s > dernierScoreFamilleConnu) {
           const gain = s - dernierScoreFamilleConnu;
           afficherGainPoints(gain);
@@ -496,6 +503,7 @@
 
       ecouterSettings(settings => {
         settingsVoyage = settings;
+        rafraichirBarreProgression(scoreFamilleConnu);
         if (lieuxCache.length) afficherPiste(lieuxCache);
         mettreAJourBadgesJeux();
       });
@@ -2294,6 +2302,6 @@
 
     init();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 15:05</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 15:12</div>
 </body>
 </html>
