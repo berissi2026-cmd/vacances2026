@@ -289,6 +289,7 @@ export async function enregistrerResultat(data) {
     Reponse: data.reponse || "", Note: data.note || "",
     Commentaire: data.commentaire || "",
     Lieu: data.lieu || "", Lat: data.lat || "", Lng: data.lng || "",
+    TailleOctets: data.tailleOctets || 0,
     Date: new Date().toISOString()
   });
   if (data.statut === "fait" && data.points) {
