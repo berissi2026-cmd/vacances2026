@@ -334,14 +334,19 @@ Mauvaise réponse 2"></textarea>
           </select>
           <p class="muted mt-8" style="font-size:12px;">Utile si vous êtes en retard/avance sur le programme, ou pour choisir précisément le jour à débloquer.</p>
         </div>
+        <div class="mt-16">
+          <label>🎯 Objectif de points familial</label>
+          <input type="number" id="v-objectif-points" min="1" step="50" placeholder="1000">
+          <p class="muted mt-8" style="font-size:12px;">Les paliers de célébration (25%/50%/75%/100%) se recalculent automatiquement selon ce nombre.</p>
+        </div>
         <button class="btn btn--primary btn--block mt-16" id="btn-save-voyage">💾 Enregistrer</button>
 
-        <h3 class="mt-24">🎉 Musique de victoire (1000 points)</h3>
-        <p class="muted mt-8" style="font-size:12px;">Se joue automatiquement quand la famille atteint 1000 points.</p>
+        <h3 class="mt-24">🎉 Musique de victoire (objectif atteint)</h3>
+        <p class="muted mt-8" style="font-size:12px;">Se joue automatiquement quand la famille atteint l'objectif de points ci-dessus.</p>
         <input type="file" accept="audio/*" id="input-musique-victoire" style="display:none;">
         <button class="btn btn--accent btn--block mt-8" id="btn-choisir-musique-victoire">🎵 Choisir un fichier audio</button>
         <div id="statut-musique-victoire" class="muted mt-8" style="font-size:12px;"></div>
-        <button class="btn btn--ghost btn--block mt-8" id="btn-apercu-victoire">👁️ Voir l'aperçu de la célébration à 1000 pts</button>
+        <button class="btn btn--ghost btn--block mt-8" id="btn-apercu-victoire">👁️ Voir l'aperçu de la célébration finale</button>
 
         <h3 class="mt-24">🗺️ Ou clique directement sur le plateau</h3>
         <p class="muted mt-8" style="font-size:12px;">Clique sur une étape pour y placer la voiture immédiatement.</p>
@@ -483,6 +488,7 @@ Mauvaise réponse 2"></textarea>
       // Le pion se base sur une position forcée manuellement, ou sinon sur la date de début du voyage
       if (settings.PositionManuelle) select.value = settings.PositionManuelle;
       if (settings.DateDebutVoyage) document.getElementById('v-date-debut').value = settings.DateDebutVoyage;
+      document.getElementById('v-objectif-points').value = settings.ObjectifPoints || 1000;
 
       afficherPlateauAdmin();
     }
@@ -839,7 +845,8 @@ Mauvaise réponse 2"></textarea>
       const btn = document.getElementById('btn-save-voyage');
       btn.disabled = true; btn.textContent = 'Enregistrement...';
       const dateDebut = document.getElementById('v-date-debut').value;
-      await updateSettings({ DateDebutVoyage: dateDebut || '' });
+      const objectif = Number(document.getElementById('v-objectif-points').value) || 1000;
+      await updateSettings({ DateDebutVoyage: dateDebut || '', ObjectifPoints: objectif });
       await appliquerPositionAvecRembobinage(document.getElementById('v-position-manuelle').value || '');
       btn.disabled = false; btn.textContent = '💾 Enregistrer';
       afficherPlateauAdmin();
@@ -1750,6 +1757,6 @@ Mauvaise réponse 2"></textarea>
 
     chargerLieuxPourMissions();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 14:42</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 15:05</div>
 </body>
 </html>

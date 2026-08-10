@@ -461,7 +461,7 @@
       let dernierScoreFamilleConnu = null;
       ecouterScoreFamille(s => {
         document.getElementById('score-famille').textContent = s;
-        const OBJECTIF = 1000;
+        const OBJECTIF = Number(settingsVoyage.ObjectifPoints) || 1000;
         const pct = Math.min(100, Math.round((s / OBJECTIF) * 100));
         document.getElementById('progress-fill').style.width = pct + '%';
         document.getElementById('progress-label').textContent =
@@ -1241,21 +1241,26 @@
       box.appendChild(grid);
     }
 
-    const PALIERS = [250, 500, 750, 1000];
-    const PALIER_MESSAGES = {
-      fr: {
-        250: { titre: "🎉 250 points !", texte: "Premier quart parcouru — continuez comme ça !" },
-        500: { titre: "🎊 500 points !", texte: "La moitié du chemin vers l'objectif !" },
-        750: { titre: "🔥 750 points !", texte: "Plus que 250 points, vous y êtes presque !" },
-        1000: { titre: "🏆 1000 points !", texte: "Objectif atteint ! Toute la famille a gagné, bravo à tous !" }
-      },
-      he: {
-        250: { titre: "🎉 250 נקודות!", texte: "רבע מהדרך — כל הכבוד, תמשיכו כך!" },
-        500: { titre: "🎊 500 נקודות!", texte: "חצי מהדרך ליעד!" },
-        750: { titre: "🔥 750 נקודות!", texte: "עוד 250 נקודות ואתם שם!" },
-        1000: { titre: "🏆 1000 נקודות!", texte: "הגעתם ליעד! כל המשפחה ניצחה, כל הכבוד לכולם!" }
-      }
-    };
+    function seuilsPaliers() {
+      const objectif = Number(settingsVoyage.ObjectifPoints) || 1000;
+      return [Math.round(objectif * 0.25), Math.round(objectif * 0.5), Math.round(objectif * 0.75), objectif];
+    }
+
+    function messagePalier(index, valeur) {
+      const fr = [
+        { titre: `🎉 ${valeur} points !`, texte: "Premier quart parcouru — continuez comme ça !" },
+        { titre: `🎊 ${valeur} points !`, texte: "La moitié du chemin vers l'objectif !" },
+        { titre: `🔥 ${valeur} points !`, texte: "Vous y êtes presque !" },
+        { titre: `🏆 ${valeur} points !`, texte: "Objectif atteint ! Toute la famille a gagné, bravo à tous !" }
+      ];
+      const he = [
+        { titre: `🎉 ${valeur} נקודות!`, texte: "רבע מהדרך — כל הכבוד, תמשיכו כך!" },
+        { titre: `🎊 ${valeur} נקודות!`, texte: "חצי מהדרך ליעד!" },
+        { titre: `🔥 ${valeur} נקודות!`, texte: "כמעט הגעתם!" },
+        { titre: `🏆 ${valeur} נקודות!`, texte: "הגעתם ליעד! כל המשפחה ניצחה, כל הכבוד לכולם!" }
+      ];
+      return (LANGUE === 'he' ? he : fr)[index];
+    }
 
     function afficherGainPoints(gain) {
       const fill = document.getElementById('progress-fill');
@@ -1275,11 +1280,13 @@
     }
 
     function verifierPalier(score) {
-      for (const p of PALIERS) {
+      const seuils = seuilsPaliers();
+      for (let i = 0; i < seuils.length; i++) {
+        const p = seuils[i];
         const cle = 'vq_palier_' + p;
         if (score >= p && !localStorage.getItem(cle)) {
           localStorage.setItem(cle, '1');
-          afficherCelebrationPalier(p);
+          afficherCelebrationPalier(p, i, i === seuils.length - 1);
           break; // un seul palier célébré à la fois, même si plusieurs sont franchis d'un coup
         }
       }
@@ -1303,12 +1310,12 @@
       setTimeout(() => { clearInterval(intervalle); setTimeout(() => conteneur.remove(), 3000); }, dureeMs);
     }
 
-    function afficherCelebrationPalier(palier) {
-      const msg = (PALIER_MESSAGES[LANGUE] || PALIER_MESSAGES.fr)[palier];
+    function afficherCelebrationPalier(palier, index, estObjectifFinal) {
+      const msg = messagePalier(index, palier);
       const txtPhoto = LANGUE === 'he' ? '📸 תמונת זיכרון!' : '📸 Photo souvenir !';
 
       let blocParticipants = '';
-      if (palier === 1000) {
+      if (estObjectifFinal) {
         const idsParticipants = [...new Set(pointsLogCache.filter(l => Number(l.Points) > 0).map(l => l.ProfilID))];
         const noms = idsParticipants.map(id => {
           const p = profilsCache[id];
@@ -1337,7 +1344,7 @@
       document.getElementById('palier-bg').style.display = 'flex';
       parler(msg.titre + '. ' + msg.texte, LANGUE);
 
-      if (palier === 1000) {
+      if (estObjectifFinal) {
         if ('vibrate' in navigator) navigator.vibrate([300, 100, 300, 100, 500]);
         if (settingsVoyage.MusiqueVictoireURL) {
           const audioVictoire = new Audio(settingsVoyage.MusiqueVictoireURL);
@@ -2287,6 +2294,6 @@
 
     init();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 14:42</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 15:05</div>
 </body>
 </html>
