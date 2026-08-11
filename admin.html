@@ -490,24 +490,37 @@ Mauvaise réponse 2"></textarea>
     ];
 
     async function chargerReglagesVoyage() {
-      const select = document.getElementById('v-position-manuelle');
-      JOURS_ADMIN.forEach(jour => {
-        MOMENTS_ADMIN.forEach(([val, label]) => {
-          const opt = document.createElement('option');
-          opt.value = jour + '|' + val;
-          opt.textContent = jour + ' — ' + label;
-          select.appendChild(opt);
+      try {
+        const select = document.getElementById('v-position-manuelle');
+        JOURS_ADMIN.forEach(jour => {
+          MOMENTS_ADMIN.forEach(([val, label]) => {
+            const opt = document.createElement('option');
+            opt.value = jour + '|' + val;
+            opt.textContent = jour + ' — ' + label;
+            select.appendChild(opt);
+          });
         });
-      });
 
-      const settings = await getSettings();
-      // Le pion se base sur une position forcée manuellement, ou sinon sur la date de début du voyage
-      if (settings.PositionManuelle) select.value = settings.PositionManuelle;
-      document.getElementById('v-date-debut').value = settings.DateDebutVoyage || '2026-08-09';
-      document.getElementById('v-objectif-points').value = settings.ObjectifPoints || 1000;
-      afficherBandeauPosition(settings);
-
-      afficherPlateauAdmin();
+        const settings = await getSettings();
+        // Le pion se base sur une position forcée manuellement, ou sinon sur la date de début du voyage
+        if (settings.PositionManuelle) select.value = settings.PositionManuelle;
+        document.getElementById('v-date-debut').value = settings.DateDebutVoyage || '2026-08-09';
+        document.getElementById('v-objectif-points').value = settings.ObjectifPoints || 1000;
+        afficherBandeauPosition(settings);
+      } catch (e) {
+        console.error('Erreur chargerReglagesVoyage:', e);
+        const zone = document.getElementById('bandeau-position-actuelle');
+        if (zone) {
+          zone.style.background = '#f8d7da';
+          zone.style.color = '#721c24';
+          zone.innerHTML = `❌ Erreur de chargement : ${e.message || e}<br><span style="font-weight:400; font-size:12px;">Envoie cette ligne à David/Claude pour diagnostiquer.</span>`;
+        }
+      }
+      try {
+        afficherPlateauAdmin();
+      } catch (e) {
+        console.error('Erreur afficherPlateauAdmin:', e);
+      }
     }
 
     function afficherBandeauPosition(settings) {
@@ -1829,6 +1842,6 @@ Mauvaise réponse 2"></textarea>
 
     chargerLieuxPourMissions();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 17:32</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 17:45</div>
 </body>
 </html>
