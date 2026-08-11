@@ -239,7 +239,7 @@
       <textarea id="commentaire-photo-album" placeholder="Commentaire (optionnel, appliqué à toutes)" rows="2" class="mt-8" style="width:100%;"></textarea>
       <div class="mt-8">
         <label style="font-size:12px;" id="lieu-detecte-album-label">📍 Lieu (appliqué à toutes les photos ajoutées)</label>
-        <input type="text" id="lieu-detecte-album" placeholder="Détection du lieu..." style="width:100%;">
+        <input type="text" id="lieu-detecte-album" list="datalist-lieux" placeholder="Détection du lieu..." style="width:100%;">
       </div>
       <button class="btn btn--primary btn--block mt-8" id="btn-publier-photo-album">✅ Publier dans l'album</button>
       <div class="muted mt-8" id="statut-photo-album" style="text-align:center;font-size:12px;"></div>
@@ -268,6 +268,8 @@
     <div id="lightbox-legende" class="mt-16" style="color:#fff;text-align:center;"></div>
     <button class="btn btn--ghost mt-16" id="lightbox-fermer">✕</button>
   </div>
+
+  <datalist id="datalist-lieux"></datalist>
 
   <div id="crop-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:250;align-items:center;justify-content:center;flex-direction:column;padding:16px;">
     <canvas id="crop-canvas" style="max-width:100%; max-height:60vh; border-radius:12px; touch-action:none; background:#222;"></canvas>
@@ -301,7 +303,7 @@
         <p class="muted" style="font-size:11px;">🔍 Zoom / 👆 Glisse la photo pour la recentrer</p>
         <input type="range" id="souvenir-zoom" min="40" max="300" value="100" style="width:100%;">
         <label style="font-size:12px;">📍 Lieu</label>
-        <input type="text" id="souvenir-lieu-input" style="width:100%;">
+        <input type="text" id="souvenir-lieu-input" list="datalist-lieux" style="width:100%;">
       </div>
       <div class="col mt-16">
         <div class="field-row" id="souvenir-boutons-photo">
@@ -604,6 +606,7 @@
     async function afficherPiste(lieux) {
       lieuxCache = lieux;
       rafraichirMarqueursLieuxCarte();
+      remplirDatalistLieux(lieux);
       const box = document.getElementById('trail-container');
 
       // Charge les missions de chaque lieu pour savoir qui est "fait"
@@ -1759,6 +1762,14 @@
       if (btnDl) { telechargerImage(btnDl.dataset.url, btnDl.dataset.nom); return; }
     });
 
+    function remplirDatalistLieux(lieux) {
+      const dl = document.getElementById('datalist-lieux');
+      if (!dl) return;
+      // Dédoublonne par nom (plusieurs lieux peuvent partager le même nom sur des jours différents)
+      const noms = [...new Set(lieux.map(l => LANGUE === 'he' ? (l.Nom_HE || l.Nom_FR) : l.Nom_FR))];
+      dl.innerHTML = noms.map(n => `<option value="${n.replace(/"/g, '&quot;')}">`).join('');
+    }
+
     function distanceKm(lat1, lng1, lat2, lng2) {
       const R = 6371;
       const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -2522,6 +2533,6 @@
 
     init();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 15:40</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 16:02</div>
 </body>
 </html>
