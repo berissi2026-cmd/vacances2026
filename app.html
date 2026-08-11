@@ -1400,7 +1400,7 @@
       const liste = Array.from(fichiers || []);
       if (!liste.length) return;
 
-      const LIMITE_VIDEO_MO = 60;
+      const LIMITE_VIDEO_MO = 100; // plafond du plan gratuit ImageKit pour les vidéos
       const items = [];
       let videoTropGrosse = false;
       for (const fichier of liste) {
@@ -2676,6 +2676,6 @@
 
     init();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 16:35</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 16:45</div>
 </body>
 </html>
