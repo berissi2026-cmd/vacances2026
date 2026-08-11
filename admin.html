@@ -388,7 +388,21 @@ Mauvaise réponse 2"></textarea>
     <div class="admin-panel" id="p-album">
       <h3>📷 Album — Gérer les photos</h3>
       <p class="muted mt-8" style="font-size:12px;">Toutes les photos de l'album (missions, photos libres, souvenirs). Clique sur 🗑️ pour supprimer une photo.</p>
-      <div class="lieu-item mt-16" id="album-espace-utilise">📦 Espace utilisé (ImageKit) : calcul en cours...</div>
+      <div class="lieu-item mt-16">
+        <div style="display:flex; justify-content:space-between; align-items:baseline;">
+          <span>📦 Stockage ImageKit</span>
+          <span id="album-espace-texte" style="font-size:12px; color:#888;">calcul...</span>
+        </div>
+        <div style="background:#eee; border-radius:8px; height:14px; margin-top:8px; overflow:hidden;">
+          <div id="album-espace-barre" style="background:#3d7fc4; height:100%; width:0%; transition:width .3s;"></div>
+        </div>
+        <div class="field-row mt-8" style="align-items:center;">
+          <label style="font-size:12px; white-space:nowrap;">Point de départ connu (Mo)</label>
+          <input type="number" id="album-espace-base" min="0" step="0.1" style="width:90px;" placeholder="0">
+          <button class="btn btn--ghost" id="btn-save-espace-base" style="padding:6px 12px; font-size:12px;">💾</button>
+        </div>
+        <p class="muted mt-8" style="font-size:11px;">Recale la barre sur le chiffre exact vu dans ton dashboard ImageKit (Usage Analytics → Current Media library storage). L'app ajoute ensuite automatiquement chaque nouvelle photo/vidéo envoyée par-dessus ce chiffre.</p>
+      </div>
       <div id="album-admin-filtre" class="mt-16" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
       <div id="album-admin-grille" class="mt-16" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px;"></div>
       <p class="muted mt-16" id="album-admin-vide" style="display:none;">Aucune photo pour l'instant.</p>
@@ -1632,6 +1646,10 @@ Mauvaise réponse 2"></textarea>
       const profils = await getProfils();
       profils.forEach(p => profilsAlbumCache[p.ProfilID] = p);
 
+      const settings = await getSettings();
+      espaceBaseMo = settings.EspaceImageKitBaseMo !== undefined ? Number(settings.EspaceImageKitBaseMo) : 9.09;
+      document.getElementById('album-espace-base').value = espaceBaseMo;
+
       const filtreBox = document.getElementById('album-admin-filtre');
       filtreBox.innerHTML = `<button class="admin-tab active" data-filtre="tous" style="padding:6px 12px; font-size:12px;">Tous</button>` +
         profils.map(p => `<button class="admin-tab" data-filtre="${p.ProfilID}" style="padding:6px 12px; font-size:12px;">${p.Avatar || ''} ${p.Nom_FR}</button>`).join('');
@@ -1651,16 +1669,29 @@ Mauvaise réponse 2"></textarea>
       });
     }
 
+    const QUOTA_IMAGEKIT_MO = 3072; // 3 Go, plan gratuit
+    let espaceBaseMo = 0;
+    let derniersResultatsPourEspace = [];
+
     function afficherEspaceUtilise(resultats) {
-      const zone = document.getElementById('album-espace-utilise');
-      const avecTaille = resultats.filter(r => r.TailleOctets > 0);
-      const totalOctets = avecTaille.reduce((s, r) => s + (r.TailleOctets || 0), 0);
-      const totalMo = (totalOctets / 1024 / 1024).toFixed(1);
-      const sansTaille = resultats.length - avecTaille.length;
-      zone.innerHTML = `📦 Espace utilisé (estimé) : <b>${totalMo} Mo</b> sur ${avecTaille.length} photo(s) mesurée(s)` +
-        (sansTaille > 0 ? `<br><span class="muted" style="font-size:11px;">+ ${sansTaille} photo(s) plus ancienne(s), taille non mesurée (envoyées avant ce suivi)</span>` : '') +
-        `<br><span class="muted" style="font-size:11px;">Le plan gratuit ImageKit inclut généralement plusieurs Go — largement suffisant pour un voyage. Ceci est une estimation, pas le quota exact du compte.</span>`;
+      derniersResultatsPourEspace = resultats;
+      const totalOctets = resultats.reduce((s, r) => s + (r.TailleOctets || 0), 0);
+      const totalMo = espaceBaseMo + (totalOctets / 1024 / 1024);
+      const pct = Math.min(100, (totalMo / QUOTA_IMAGEKIT_MO) * 100);
+
+      document.getElementById('album-espace-barre').style.width = pct.toFixed(1) + '%';
+      document.getElementById('album-espace-barre').style.background = pct > 85 ? '#c0392b' : (pct > 60 ? '#e08e0b' : '#3d7fc4');
+      document.getElementById('album-espace-texte').textContent =
+        `${totalMo.toFixed(1)} Mo / ${(QUOTA_IMAGEKIT_MO / 1024).toFixed(0)} Go (${pct.toFixed(1)}%)`;
     }
+
+    document.getElementById('btn-save-espace-base').onclick = async () => {
+      const val = Number(document.getElementById('album-espace-base').value) || 0;
+      await updateSettings({ EspaceImageKitBaseMo: val });
+      espaceBaseMo = val;
+      afficherEspaceUtilise(derniersResultatsPourEspace);
+      alert('Point de départ enregistré !');
+    };
 
     function afficherAlbumAdmin() {
       const grille = document.getElementById('album-admin-grille');
@@ -1772,6 +1803,6 @@ Mauvaise réponse 2"></textarea>
 
     chargerLieuxPourMissions();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 16:45</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 16:55</div>
 </body>
 </html>
