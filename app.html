@@ -220,6 +220,10 @@
       <div class="game-tile" onclick="window.ouvrirJeu('bingo')"><span class="emoji">🔲</span><span id="txt-tuile-bingo">Bingo</span><div class="game-badge" id="badge-bingo"></div></div>
       <div class="game-tile" onclick="window.ouvrirJeu('roue')"><span class="emoji">🎡</span><span id="txt-tuile-roue">Roue des défis</span><div class="game-badge" id="badge-roue"></div></div>
       <div class="game-tile" onclick="window.ouvrirJeu('enigme')"><span class="emoji">❓</span><span id="txt-tuile-enigme">Énigmes</span><div class="game-badge" id="badge-enigme"></div></div>
+      <div class="game-tile" id="tuile-puzzle-tiberiade" onclick="window.ouvrirJeu('puzzle')" style="background:linear-gradient(135deg,#ffd97a,#ffb347); border-color:#c47f00; position:relative;">
+        <span class="emoji">🧩</span><span id="txt-tuile-puzzle">Spécial Tibériade</span>
+        <div class="game-badge" id="badge-puzzle" style="background:#c0392b; color:#fff; opacity:1; display:inline-block; padding:2px 8px; border-radius:8px; font-weight:700;">500 pts</div>
+      </div>
     </div>
   </div>
 
@@ -486,11 +490,13 @@
       });
       const btnDiplome = document.getElementById('btn-voir-diplome');
       if (btnDiplome) btnDiplome.textContent = t ? '🏆 התעודה שלי' : '🏆 Voir mon diplôme';
-      const tuiles = { 'txt-tuile-bingo': ['Bingo', 'ביינגו'], 'txt-tuile-roue': ['Roue des défis', 'גלגל האתגרים'], 'txt-tuile-enigme': ['Énigmes', 'חידות'] };
+      const tuiles = { 'txt-tuile-bingo': ['Bingo', 'ביינגו'], 'txt-tuile-roue': ['Roue des défis', 'גלגל האתגרים'], 'txt-tuile-enigme': ['Énigmes', 'חידות'], 'txt-tuile-puzzle': ['Spécial Tibériade', 'מיוחד טבריה'] };
       Object.entries(tuiles).forEach(([id, [fr, he]]) => {
         const el = document.getElementById(id);
         if (el) el.textContent = t ? he : fr;
       });
+      const badgePuzzle = document.getElementById('badge-puzzle');
+      if (badgePuzzle) badgePuzzle.textContent = t ? "500 נק'" : '500 pts';
     }
 
     async function init() {
@@ -2212,6 +2218,126 @@
         <div class="stats-jours-liste">${parJour || ''}</div>`;
     }
 
+    // ------------------------------------------------------------
+    // PUZZLE TAQUIN "SPÉCIAL TIBÉRIADE" (bonus 500 points, une fois par enfant)
+    // ------------------------------------------------------------
+    let puzzleEtat = null;
+
+    function tailleGrillePuzzle() {
+      return PROFIL_ID === 'p_benaya' ? 3 : 5;
+    }
+
+    function profondeurMelangePuzzle() {
+      const map = { p_elior: 220, p_shaitsion: 110, p_nava: 55, p_benaya: 25 };
+      return map[PROFIL_ID] || 80;
+    }
+
+    function voisinsIndexPuzzle(idx, taille) {
+      const row = Math.floor(idx / taille), col = idx % taille;
+      const voisins = [];
+      if (row > 0) voisins.push(idx - taille);
+      if (row < taille - 1) voisins.push(idx + taille);
+      if (col > 0) voisins.push(idx - 1);
+      if (col < taille - 1) voisins.push(idx + 1);
+      return voisins;
+    }
+
+    function melangerPuzzle(taille, profondeur) {
+      const tuiles = [];
+      for (let i = 0; i < taille * taille - 1; i++) tuiles.push(i);
+      tuiles.push(null);
+      let videIdx = tuiles.length - 1;
+      let dernier = -1;
+      for (let i = 0; i < profondeur; i++) {
+        const voisins = voisinsIndexPuzzle(videIdx, taille).filter(v => v !== dernier);
+        const choix = voisins[Math.floor(Math.random() * voisins.length)];
+        [tuiles[videIdx], tuiles[choix]] = [tuiles[choix], tuiles[videIdx]];
+        dernier = videIdx;
+        videIdx = choix;
+      }
+      return { tuiles, videIdx };
+    }
+
+    function ouvrirPuzzleTiberiade(box) {
+      const taille = tailleGrillePuzzle();
+      const dejaGagne = localStorage.getItem('vq_puzzle_tiberiade_' + PROFIL_ID) === '1';
+      const { tuiles, videIdx } = melangerPuzzle(taille, profondeurMelangePuzzle());
+      puzzleEtat = { taille, tuiles, videIdx };
+
+      const titre = LANGUE === 'he' ? '🧩 מיוחד טבריה' : '🧩 Spécial Tibériade';
+      const consigne = LANGUE === 'he'
+        ? 'סדרו מחדש את התמונה! לחצו על חלק ליד המקום הריק כדי להזיז אותו. תזכו ב-500 נקודות כשתסיימו!'
+        : "Remets l'image dans l'ordre ! Clique sur une pièce à côté de la case vide pour la déplacer. Tu gagnes 500 points en la terminant !";
+      const dejaFaitTxt = LANGUE === 'he'
+        ? '✅ כבר השלמתם את הפאזל הזה (בלי נקודות נוספות, אבל תיהנו!)'
+        : '✅ Déjà réussi (rejouer ne redonne plus de points, mais amuse-toi !)';
+
+      box.innerHTML = `
+        <h3>${titre}</h3>
+        <p class="muted mt-8">${consigne}</p>
+        ${dejaGagne ? `<p class="mt-8" style="font-weight:700; color:#2ecc71;">${dejaFaitTxt}</p>` : ''}
+        <div id="puzzle-grille" style="display:grid; grid-template-columns: repeat(${taille}, 1fr); gap:2px; margin:16px auto; max-width:340px; aspect-ratio:1; border-radius:12px; overflow:hidden; border:3px solid var(--bark);"></div>
+        <button class="btn btn--ghost btn--block mt-8" id="btn-puzzle-remelanger">🔀 ${LANGUE === 'he' ? 'ערבוב מחדש' : 'Remélanger'}</button>
+        ${boutonFermer()}`;
+
+      dessinerPuzzle();
+
+      document.getElementById('btn-puzzle-remelanger').onclick = () => {
+        const r = melangerPuzzle(taille, profondeurMelangePuzzle());
+        puzzleEtat = { taille, tuiles: r.tuiles, videIdx: r.videIdx };
+        dessinerPuzzle();
+      };
+    }
+
+    function dessinerPuzzle() {
+      const { taille, tuiles } = puzzleEtat;
+      const grille = document.getElementById('puzzle-grille');
+      if (!grille) return;
+      grille.innerHTML = tuiles.map((val, pos) => {
+        if (val === null) return `<div style="background:#ddd;"></div>`;
+        const row = Math.floor(val / taille), col = val % taille;
+        const posX = taille === 1 ? 0 : (col / (taille - 1)) * 100;
+        const posY = taille === 1 ? 0 : (row / (taille - 1)) * 100;
+        return `<div class="puzzle-piece" data-pos="${pos}" style="background-image:url('assets/tiberiade-puzzle.jpg'); background-size:${taille * 100}% ${taille * 100}%; background-position:${posX}% ${posY}%; cursor:pointer; aspect-ratio:1;"></div>`;
+      }).join('');
+      grille.querySelectorAll('.puzzle-piece').forEach(el => {
+        el.onclick = () => tenterDeplacementPuzzle(Number(el.dataset.pos));
+      });
+    }
+
+    function tenterDeplacementPuzzle(pos) {
+      const { taille, tuiles, videIdx } = puzzleEtat;
+      const voisins = voisinsIndexPuzzle(videIdx, taille);
+      if (!voisins.includes(pos)) return;
+      [tuiles[videIdx], tuiles[pos]] = [tuiles[pos], tuiles[videIdx]];
+      puzzleEtat.videIdx = pos;
+      dessinerPuzzle();
+      verifierVictoirePuzzle();
+    }
+
+    function verifierVictoirePuzzle() {
+      const { tuiles } = puzzleEtat;
+      const gagne = tuiles.every((v, i) => (i === tuiles.length - 1) ? v === null : v === i);
+      if (!gagne) return;
+
+      const dejaGagne = localStorage.getItem('vq_puzzle_tiberiade_' + PROFIL_ID) === '1';
+      if (!dejaGagne) {
+        localStorage.setItem('vq_puzzle_tiberiade_' + PROFIL_ID, '1');
+        ajouterScoreProfil(PROFIL_ID, 500);
+      }
+      if ('vibrate' in navigator) navigator.vibrate([300, 100, 300, 100, 500]);
+      lancerConfettis(8000);
+      setTimeout(() => {
+        const box = document.getElementById('modal-box');
+        if (!box) return;
+        const titre = LANGUE === 'he' ? '🎉 כל הכבוד!' : '🎉 Bravo !';
+        const texte = dejaGagne
+          ? (LANGUE === 'he' ? 'פתרתם את הפאזל שוב! 🧩' : 'Tu as encore résolu le puzzle ! 🧩')
+          : (LANGUE === 'he' ? 'פתרתם את הפאזל וזכיתם ב-500 נקודות! 🏆' : 'Tu as résolu le puzzle et gagné 500 points ! 🏆');
+        box.innerHTML = `<h2>${titre}</h2><p class="mt-16" style="font-size:16px;">${texte}</p>${boutonFermer()}`;
+      }, 500);
+    }
+
     window.ouvrirJeu = async function(type) {
       const box = document.getElementById('modal-box');
       document.getElementById('modal-bg').style.display = 'flex';
@@ -2225,6 +2351,9 @@
       }
       if (type === 'enigme') {
         afficherProchaineEnigme(box);
+      }
+      if (type === 'puzzle') {
+        ouvrirPuzzleTiberiade(box);
       }
       if (type === 'musique') {
         const chargement = LANGUE === 'he' ? 'טוען...' : 'Chargement...';
@@ -2716,6 +2845,6 @@
 
     init();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 17:58</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 18:20</div>
 </body>
 </html>
