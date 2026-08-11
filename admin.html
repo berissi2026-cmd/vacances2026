@@ -446,6 +446,20 @@ Mauvaise réponse 2"></textarea>
     import { uploaderAudioLieu, uploaderMusiqueVictoire, uploaderImageSouvenir } from './imagekit-services.js';
     import { getSouvenirTemplates, ecouterSouvenirTemplates, ajouterSouvenirTemplate, supprimerSouvenirTemplate } from './firebase-services.js';
 
+    // Constantes utilisées dès le chargement (y compris par l'auto-connexion admin
+    // qui peut se déclencher immédiatement si déjà connecté) — doivent être définies
+    // tout en haut, avant tout appel de fonction, pour éviter une erreur d'initialisation.
+    const JOURS_ADMIN = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi'];
+    const MOMENTS_ADMIN = [
+      ['matin', 'Matin'], ['apresmidi', 'Après-midi'], ['soir', 'Soir'], ['nuit', 'Nuit']
+    ];
+    const SIEGES_ENFANTS = [
+      { id: 'p_elior', nom: 'Elior' },
+      { id: 'p_shaitsion', nom: 'Shai Tsion' },
+      { id: 'p_nava', nom: 'Nava' }
+    ];
+    const QUOTA_IMAGEKIT_MO = 3072; // 3 Go, plan gratuit
+
     // --- Écran de mot de passe ---
     function demarrerAdmin() {
       document.getElementById('gate').style.display = 'none';
@@ -483,11 +497,6 @@ Mauvaise réponse 2"></textarea>
     if (localStorage.getItem('vq_admin_ok') === '1') {
       demarrerAdmin();
     }
-
-    const JOURS_ADMIN = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi'];
-    const MOMENTS_ADMIN = [
-      ['matin', 'Matin'], ['apresmidi', 'Après-midi'], ['soir', 'Soir'], ['nuit', 'Nuit']
-    ];
 
     async function chargerReglagesVoyage() {
       try {
@@ -548,11 +557,6 @@ Mauvaise réponse 2"></textarea>
     }
 
     // --- SIÈGES VOITURE ("Qui est derrière ?") ---
-    const SIEGES_ENFANTS = [
-      { id: 'p_elior', nom: 'Elior' },
-      { id: 'p_shaitsion', nom: 'Shai Tsion' },
-      { id: 'p_nava', nom: 'Nava' }
-    ];
     let siegesDataActuelle = { activeTrip: null, totals: {} };
 
     function afficherSieges(data) {
@@ -1708,7 +1712,6 @@ Mauvaise réponse 2"></textarea>
       });
     }
 
-    const QUOTA_IMAGEKIT_MO = 3072; // 3 Go, plan gratuit
     let espaceBaseMo = 0;
     let derniersResultatsPourEspace = [];
 
@@ -1842,6 +1845,6 @@ Mauvaise réponse 2"></textarea>
 
     chargerLieuxPourMissions();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 17:45</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 17:58</div>
 </body>
 </html>
