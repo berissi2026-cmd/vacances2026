@@ -454,20 +454,20 @@
       // Le jour du voyage se calcule uniquement à partir de la date réelle du téléphone
       // (plus de géolocalisation ici : trop de lieux partagent les mêmes coordonnées sur
       // plusieurs jours différents, ex. "Nuit à Harish" plusieurs soirs de suite).
-      if (settings.DateDebutVoyage) {
-        const debut = new Date(settings.DateDebutVoyage + 'T00:00:00');
-        const maintenant = new Date();
-        const diffJours = Math.floor((maintenant - debut) / 86400000);
-        if (diffJours < 0) return { jourIndex: 0, moment: 'matin' };
-        if (diffJours > 4) return { jourIndex: 4, moment: 'nuit' };
-        const h = maintenant.getHours();
-        let moment = 'nuit';
-        if (h >= 6 && h < 12) moment = 'matin';
-        else if (h >= 12 && h < 18) moment = 'apresmidi';
-        else if (h >= 18 && h < 22) moment = 'soir';
-        return { jourIndex: diffJours, moment };
-      }
-      return { jourIndex: 0, moment: 'matin' };
+      // Date de début par défaut : dimanche 9 août 2026 (confirmée par David).
+      // Le champ admin "Date de début du voyage" reste prioritaire s'il est rempli.
+      const dateDebutStr = settings.DateDebutVoyage || '2026-08-09';
+      const debut = new Date(dateDebutStr + 'T00:00:00');
+      const maintenant = new Date();
+      const diffJours = Math.floor((maintenant - debut) / 86400000);
+      if (diffJours < 0) return { jourIndex: 0, moment: 'matin' };
+      if (diffJours > 4) return { jourIndex: 4, moment: 'nuit' };
+      const h = maintenant.getHours();
+      let moment = 'nuit';
+      if (h >= 6 && h < 12) moment = 'matin';
+      else if (h >= 12 && h < 18) moment = 'apresmidi';
+      else if (h >= 18 && h < 22) moment = 'soir';
+      return { jourIndex: diffJours, moment };
     }
 
     function traduireUIStatique() {
@@ -2716,6 +2716,6 @@
 
     init();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 17:05</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 17:20</div>
 </body>
 </html>
