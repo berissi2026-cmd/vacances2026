@@ -290,6 +290,7 @@ export async function enregistrerResultat(data) {
     Commentaire: data.commentaire || "",
     Lieu: data.lieu || "", Lat: data.lat || "", Lng: data.lng || "",
     TailleOctets: data.tailleOctets || 0,
+    Type: data.type || 'photo',
     Date: new Date().toISOString()
   });
   if (data.statut === "fait" && data.points) {

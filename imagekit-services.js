@@ -13,14 +13,25 @@ const IMAGEKIT_PUBLIC_KEY = "public_YxpIbmKQ9kSTFflGa1DK5vUO0eU=";
 const AUTH_ENDPOINT = "https://fancy-wave-d762.berissi2026.workers.dev";
 
 // Fonction générique d'upload vers ImageKit, renvoie l'URL publique
+function extensionDepuisType(blob) {
+  const type = (blob && blob.type) || '';
+  if (type.includes('mp4')) return 'mp4';
+  if (type.includes('quicktime') || type.includes('mov')) return 'mov';
+  if (type.includes('webm')) return 'webm';
+  if (type.startsWith('video/')) return 'mp4';
+  if (type.includes('png')) return 'png';
+  return 'jpg';
+}
+
 async function uploaderVersImageKit(dossier, nomFichier, blob) {
   const authRes = await fetch(AUTH_ENDPOINT);
   if (!authRes.ok) throw new Error("Service d'authentification ImageKit indisponible");
   const { token, expire, signature } = await authRes.json();
 
+  const ext = extensionDepuisType(blob);
   const formData = new FormData();
-  formData.append("file", blob, `${nomFichier}.jpg`);
-  formData.append("fileName", `${nomFichier}_${Date.now()}.jpg`);
+  formData.append("file", blob, `${nomFichier}.${ext}`);
+  formData.append("fileName", `${nomFichier}_${Date.now()}.${ext}`);
   formData.append("publicKey", IMAGEKIT_PUBLIC_KEY);
   formData.append("signature", signature);
   formData.append("expire", expire);
