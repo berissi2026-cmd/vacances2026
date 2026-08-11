@@ -282,6 +282,26 @@
     </div>
   </div>
 
+  <div id="trim-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:250;align-items:center;justify-content:center;flex-direction:column;padding:16px;">
+    <video id="trim-video" controls playsinline style="max-width:100%; max-height:45vh; border-radius:12px;"></video>
+    <div class="mt-16" style="width:100%; max-width:340px; color:#fff;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span id="trim-debut-txt" style="font-size:13px;">Début : 0.0s</span>
+        <button class="btn btn--ghost" id="btn-trim-marquer-debut" style="padding:6px 12px; font-size:12px;">⏮️ Marquer ici</button>
+      </div>
+      <div class="mt-8" style="display:flex; justify-content:space-between; align-items:center;">
+        <span id="trim-fin-txt" style="font-size:13px;">Fin : -</span>
+        <button class="btn btn--ghost" id="btn-trim-marquer-fin" style="padding:6px 12px; font-size:12px;">⏭️ Marquer ici</button>
+      </div>
+      <p class="muted mt-8" style="font-size:11px; color:#ccc;">Avance/recule la vidéo avec ses contrôles, puis marque le début et la fin souhaités. La vidéo se lira uniquement entre ces deux points dans l'app (le fichier original reste intact pour le téléchargement).</p>
+    </div>
+    <div class="mt-16" style="display:flex; gap:8px; width:100%; max-width:340px;">
+      <button class="btn btn--primary btn--block" id="btn-trim-valider">✅ Enregistrer</button>
+      <button class="btn btn--ghost btn--block" id="btn-trim-annuler">✕ Annuler</button>
+    </div>
+    <button class="btn btn--ghost mt-8" id="btn-trim-reinitialiser" style="font-size:12px;">↩️ Retirer le rognage (revenir à la vidéo entière)</button>
+  </div>
+
   <div class="panel" id="panel-badges">
     <button class="btn btn--primary btn--block" id="btn-voir-diplome">🏆 Voir mon diplôme</button>
     <div id="badges-container" class="mt-16">
@@ -965,6 +985,84 @@
       }, 'image/jpeg', 0.88);
     };
 
+    // ------------------------------------------------------------
+    // ROGNAGE VIDÉO (début/fin) — la vidéo entière reste stockée,
+    // seule la LECTURE dans l'app se limite à la portion choisie.
+    // ------------------------------------------------------------
+    let trimResultatActuel = null;
+    let trimDebut = 0, trimFin = null;
+
+    function ouvrirRognageVideo(r) {
+      trimResultatActuel = r;
+      trimDebut = Number(r.DebutSec) || 0;
+      trimFin = (r.FinSec !== undefined && r.FinSec !== null && r.FinSec !== '') ? Number(r.FinSec) : null;
+      const video = document.getElementById('trim-video');
+      video.src = r.MediaURL;
+      video.currentTime = trimDebut;
+      majAffichageTrim();
+      document.getElementById('trim-bg').style.display = 'flex';
+    }
+
+    function majAffichageTrim() {
+      document.getElementById('trim-debut-txt').textContent = (LANGUE === 'he' ? 'התחלה: ' : 'Début : ') + trimDebut.toFixed(1) + 's';
+      document.getElementById('trim-fin-txt').textContent = (LANGUE === 'he' ? 'סוף: ' : 'Fin : ') + (trimFin === null ? '-' : trimFin.toFixed(1) + 's');
+    }
+
+    document.getElementById('btn-trim-marquer-debut').onclick = () => {
+      const v = document.getElementById('trim-video');
+      trimDebut = v.currentTime;
+      if (trimFin !== null && trimDebut >= trimFin) trimFin = null;
+      majAffichageTrim();
+    };
+    document.getElementById('btn-trim-marquer-fin').onclick = () => {
+      const v = document.getElementById('trim-video');
+      if (v.currentTime <= trimDebut) {
+        alert(LANGUE === 'he' ? 'הסוף חייב להיות אחרי ההתחלה' : 'La fin doit être après le début.');
+        return;
+      }
+      trimFin = v.currentTime;
+      majAffichageTrim();
+    };
+    document.getElementById('btn-trim-reinitialiser').onclick = () => {
+      trimDebut = 0; trimFin = null;
+      majAffichageTrim();
+    };
+    document.getElementById('btn-trim-annuler').onclick = () => {
+      document.getElementById('trim-bg').style.display = 'none';
+      document.getElementById('trim-video').src = '';
+      trimResultatActuel = null;
+    };
+    document.getElementById('btn-trim-valider').onclick = async () => {
+      if (!trimResultatActuel) return;
+      const btn = document.getElementById('btn-trim-valider');
+      btn.disabled = true;
+      try {
+        await modifierResultat(trimResultatActuel.ResultID, { debutSec: trimDebut, finSec: trimFin });
+        trimResultatActuel.DebutSec = trimDebut;
+        trimResultatActuel.FinSec = trimFin;
+        document.getElementById('trim-bg').style.display = 'none';
+        document.getElementById('trim-video').src = '';
+        afficherAlbum();
+      } catch (e) {
+        alert(LANGUE === 'he' ? 'שגיאה בשמירה' : "Échec de l'enregistrement");
+      }
+      btn.disabled = false;
+    };
+
+    // Applique le rognage début/fin à un élément <video> déjà dans la page
+    function appliquerRognageLecture(videoEl, r) {
+      const debut = Number(r.DebutSec) || 0;
+      const fin = (r.FinSec !== undefined && r.FinSec !== null && r.FinSec !== '') ? Number(r.FinSec) : null;
+      if (!debut && fin === null) return;
+      videoEl.addEventListener('loadedmetadata', () => { videoEl.currentTime = debut; });
+      videoEl.addEventListener('timeupdate', () => {
+        if (fin !== null && videoEl.currentTime >= fin) videoEl.pause();
+      });
+      videoEl.addEventListener('play', () => {
+        if (videoEl.currentTime < debut || (fin !== null && videoEl.currentTime >= fin)) videoEl.currentTime = debut;
+      });
+    }
+
     function compresserImage(fichier, maxLargeur = 1280, qualite = 0.75) {
       return new Promise((resolve, reject) => {
         const img = new Image();
@@ -1127,6 +1225,7 @@
 
       const imgActive = document.getElementById('img-album-active');
       if (imgActive && r.Type !== 'video') imgActive.onclick = () => ouvrirDetailPhotoAlbum(r);
+      if (imgActive && r.Type === 'video') appliquerRognageLecture(imgActive, r);
 
       const btnPrec = document.getElementById('btn-page-precedente');
       const btnSuiv = document.getElementById('btn-page-suivante');
@@ -1235,7 +1334,7 @@
       document.getElementById('modal-bg').style.display = 'flex';
       box.innerHTML = `
         ${r.Type === 'video'
-          ? `<video src="${r.MediaURL}" controls playsinline style="width:100%; border-radius:12px; margin-bottom:12px;"></video>`
+          ? `<video src="${r.MediaURL}" id="video-detail-active" controls playsinline style="width:100%; border-radius:12px; margin-bottom:12px;"></video>`
           : `<img src="${r.MediaURL}" style="width:100%; border-radius:12px; margin-bottom:12px;">`}
         <div style="font-size:13px; line-height:1.9;">
           <div>${profil ? (profil.Avatar || '') : ''} <b>${nomProfil}</b></div>
@@ -1245,6 +1344,7 @@
         </div>
         ${boutonPartagerHTML(r.MediaURL, r.Note || nomProfil)}
         <button class="btn btn--ghost btn-telecharger-img" data-url="${r.MediaURL}" data-nom="${(r.Note || 'photo').replace(/"/g, '&quot;')}" style="margin-top:8px; width:100%;">⬇️ ${LANGUE === 'he' ? 'הורד' : 'Télécharger'}</button>
+        ${r.Type === 'video' ? `<button class="btn btn--ghost mt-8" id="btn-rogner-video-detail" style="width:100%;">✂️ ${LANGUE === 'he' ? 'קיצוץ התחלה/סוף' : 'Rogner début/fin'}</button>` : ''}
         <div class="mt-16">
           <label style="font-size:12px;">${LANGUE === 'he' ? 'שם התמונה' : 'Nom de la photo'}</label>
           <input id="detail-photo-nom" value="${(r.Note || '').replace(/"/g, '&quot;')}" style="width:100%;">
@@ -1271,6 +1371,16 @@
           btn.disabled = false;
         }
       };
+
+      if (r.Type === 'video') {
+        const videoDetail = document.getElementById('video-detail-active');
+        if (videoDetail) appliquerRognageLecture(videoDetail, r);
+        const btnRogner = document.getElementById('btn-rogner-video-detail');
+        if (btnRogner) btnRogner.onclick = () => {
+          document.getElementById('modal-bg').style.display = 'none';
+          ouvrirRognageVideo(r);
+        };
+      }
     }
 
     // ------------------------------------------------------------
@@ -2566,6 +2676,6 @@
 
     init();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 16:20</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 16:35</div>
 </body>
 </html>

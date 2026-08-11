@@ -303,6 +303,8 @@ export async function modifierResultat(resultId, data) {
   const maj = {};
   if (data.note !== undefined) maj.Note = data.note;
   if (data.commentaire !== undefined) maj.Commentaire = data.commentaire;
+  if (data.debutSec !== undefined) maj.DebutSec = data.debutSec;
+  if (data.finSec !== undefined) maj.FinSec = data.finSec;
   await updateDoc(doc(db, "resultats", resultId), maj);
   return { success: true };
 }
