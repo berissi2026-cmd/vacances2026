@@ -1606,7 +1606,7 @@
     };
 
     function ouvrirLightbox(url, legende, nomFichier) {
-      document.getElementById('lightbox-img').src = url;
+      document.getElementById('lightbox-img').src = urlQualiteOriginale(url);
       document.getElementById('lightbox-legende').textContent = legende || '';
       document.getElementById('lightbox-bg').style.display = 'flex';
       const btnDl = document.getElementById('lightbox-telecharger');
@@ -1902,9 +1902,17 @@
     // Distance à vol d'oiseau en km (formule de Haversine)
     // Partage une image (photo album, carte souvenir...) via le sélecteur natif du téléphone,
     // qui inclut WhatsApp parmi les options si l'app est installée.
+    // ImageKit optimise automatiquement les images servies (même le fichier original stocké
+    // tel quel subit une compression à la volée). tr=orig-true force le fichier exact, sans y toucher.
+    function urlQualiteOriginale(url) {
+      if (!url || !url.includes('ik.imagekit.io')) return url;
+      const separateur = url.includes('?') ? '&' : '?';
+      return url + separateur + 'tr=orig-true';
+    }
+
     async function telechargerImage(url, nomFichier) {
       try {
-        const res = await fetch(url);
+        const res = await fetch(urlQualiteOriginale(url));
         const blob = await res.blob();
         const extMatch = url.split('?')[0].match(/\.(\w+)$/);
         const ext = extMatch ? extMatch[1] : 'jpg';
@@ -1945,7 +1953,7 @@
     async function partagerImage(url, titre) {
       titre = titre || (LANGUE === 'he' ? 'תמונה מהטיול' : 'Photo du voyage');
       try {
-        const res = await fetch(url);
+        const res = await fetch(urlQualiteOriginale(url));
         const blob = await res.blob();
         if (await partagerBlob(blob, titre)) return;
         if (navigator.share) {
@@ -3088,6 +3096,6 @@
 
     init();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 19:52</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 20:05</div>
 </body>
 </html>
