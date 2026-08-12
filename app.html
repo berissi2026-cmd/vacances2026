@@ -1255,7 +1255,7 @@
       const dateAffichee = r.Date ? new Date(r.Date).toLocaleDateString(LANGUE === 'he' ? 'he-IL' : 'fr-FR') : '';
 
       box.innerHTML = `
-        <div class="livre-album">
+        <div class="livre-album" id="livre-album-swipe">
           <div class="page-album">
             ${r.Type === 'video'
               ? `<video src="${r.MediaURL}" id="img-album-active" controls playsinline style="width:100%; border-radius:12px;"></video>`
@@ -1279,6 +1279,25 @@
       const btnSuiv = document.getElementById('btn-page-suivante');
       if (btnPrec) btnPrec.onclick = () => { pageAlbumActuelle++; afficherAlbum(); };
       if (btnSuiv) btnSuiv.onclick = () => { pageAlbumActuelle--; afficherAlbum(); };
+
+      // Glisser à gauche/droite pour naviguer entre les photos (mode Livre)
+      const zoneSwipe = document.getElementById('livre-album-swipe');
+      if (zoneSwipe) {
+        let startX = null, startY = null;
+        zoneSwipe.addEventListener('touchstart', (e) => {
+          startX = e.touches[0].clientX;
+          startY = e.touches[0].clientY;
+        }, { passive: true });
+        zoneSwipe.addEventListener('touchend', (e) => {
+          if (startX === null) return;
+          const dx = e.changedTouches[0].clientX - startX;
+          const dy = e.changedTouches[0].clientY - startY;
+          startX = null;
+          if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return; // trop court ou plutôt vertical : on ignore
+          if (dx < 0 && pageAlbumActuelle > 0) { pageAlbumActuelle--; afficherAlbum(); } // glisse vers la gauche → photo suivante
+          else if (dx > 0 && pageAlbumActuelle < tries.length - 1) { pageAlbumActuelle++; afficherAlbum(); } // glisse vers la droite → photo précédente
+        }, { passive: true });
+      }
     }
 
     let modeSelectionGalerie = false;
@@ -3658,6 +3677,6 @@
 
     init();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 22:20</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 22:28</div>
 </body>
 </html>
