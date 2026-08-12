@@ -97,6 +97,17 @@ export async function ajouterScoreProfil(profilId, points) {
   return { success: true };
 }
 
+export async function definirScoreProfil(profilId, nouveauScore, ancienScore) {
+  await updateDoc(doc(db, "profils", profilId), { ScorePerso: nouveauScore });
+  const delta = nouveauScore - (ancienScore || 0);
+  if (delta !== 0) {
+    await addDoc(collection(db, "pointsLog"), {
+      ProfilID: profilId, Points: delta, Date: new Date().toISOString(), Note: "Ajustement manuel (admin)"
+    });
+  }
+  return { success: true };
+}
+
 export function ecouterPointsLog(callback) {
   return onSnapshot(collection(db, "pointsLog"), snap => {
     callback(snap.docs.map(d => ({ LogID: d.id, ...d.data() })));

@@ -438,6 +438,7 @@ Mauvaise réponse 2"></textarea>
       getTypesExcursion, ajouterTypeExcursion, seedTypesExcursionSiVide,
       getMissionsParLieu, ajouterMission, supprimerMission, getToutesMissions,
       getSettings, updateSettings, getPlaylistPourLieu, ajouterVideoPlaylist, supprimerVideoPlaylist,
+      definirScoreProfil,
       updateLieuAudio, reinitialiserTousLesPoints, getDefisFaits, supprimerDefiFait,
       getCarSeatTracking, ecouterCarSeatTracking, setCarSeatTracking,
       ajouterTrajetVoiture, getTrajetsVoiture, ecouterTrajetsVoiture, modifierTrajetVoiture, supprimerTrajetVoiture,
@@ -1672,11 +1673,37 @@ Mauvaise réponse 2"></textarea>
       const box = document.getElementById('liste-progression');
       box.innerHTML = '';
       profils.forEach(p => {
+        const scoreActuel = p.ScorePerso || 0;
         const el = document.createElement('div');
         el.className = 'card row';
         el.innerHTML = `<span style="font-size:24px;">${p.Avatar || '🧑'}</span>
-          <div><b>${p.Nom_FR}</b><div class="muted">⭐ ${p.ScorePerso || 0} points</div></div>`;
+          <div style="flex:1;">
+            <b>${p.Nom_FR}</b>
+            <div class="field-row mt-8" style="align-items:center;">
+              <input type="number" class="input-score-profil" data-profil="${p.ProfilID}" data-ancien="${scoreActuel}" value="${scoreActuel}" style="width:100px;">
+              <span class="muted" style="font-size:12px;">points</span>
+              <button class="btn btn--ghost btn-save-score" data-profil="${p.ProfilID}" style="padding:6px 12px; font-size:12px;">💾</button>
+            </div>
+          </div>`;
         box.appendChild(el);
+      });
+      box.querySelectorAll('.btn-save-score').forEach(btn => {
+        btn.onclick = async () => {
+          const profilId = btn.dataset.profil;
+          const input = box.querySelector(`.input-score-profil[data-profil="${profilId}"]`);
+          const nouveauScore = Math.max(0, Math.round(Number(input.value) || 0));
+          const ancienScore = Number(input.dataset.ancien) || 0;
+          btn.disabled = true;
+          try {
+            await definirScoreProfil(profilId, nouveauScore, ancienScore);
+            input.dataset.ancien = nouveauScore;
+            btn.textContent = '✅';
+            setTimeout(() => { btn.textContent = '💾'; btn.disabled = false; }, 1200);
+          } catch (e) {
+            alert('Erreur : ' + (e.message || e));
+            btn.disabled = false;
+          }
+        };
       });
     }
 
@@ -1845,6 +1872,6 @@ Mauvaise réponse 2"></textarea>
 
     chargerLieuxPourMissions();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 19:05</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 19:15</div>
 </body>
 </html>
