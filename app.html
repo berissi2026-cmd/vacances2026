@@ -2711,6 +2711,12 @@
         ${boutonFermer()}`;
 
       demarrerSerpent();
+      const canvasFocus = document.getElementById('serpent-canvas');
+      if (canvasFocus) {
+        canvasFocus.tabIndex = 0; // rend le canvas focusable pour capter les flèches du clavier
+        canvasFocus.focus({ preventScroll: true });
+        canvasFocus.onclick = () => canvasFocus.focus({ preventScroll: true }); // reprend le focus si on clique dedans
+      }
 
       document.getElementById('btn-serpent-haut').onclick = () => direSerpent(0, -1);
       document.getElementById('btn-serpent-bas').onclick = () => direSerpent(0, 1);
@@ -2762,12 +2768,17 @@
     // Contrôle au clavier (flèches) — actif uniquement quand le jeu du Serpent est ouvert à l'écran
     document.addEventListener('keydown', (e) => {
       if (!document.getElementById('serpent-canvas')) return;
-      const touches = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
-      if (touches[e.key]) {
+      const cle = e.key || e.code;
+      const touches = {
+        ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
+        Up: [0, -1], Down: [0, 1], Left: [-1, 0], Right: [1, 0] // anciens navigateurs
+      };
+      if (touches[cle]) {
         e.preventDefault();
-        direSerpent(touches[e.key][0], touches[e.key][1]);
+        e.stopPropagation();
+        direSerpent(touches[cle][0], touches[cle][1]);
       }
-    });
+    }, true); // phase de capture : intercepte avant tout autre gestionnaire
 
     function tickSerpent() {
       if (!document.getElementById('serpent-canvas')) { clearInterval(serpentInterval); return; } // modale fermée
@@ -3624,6 +3635,6 @@
 
     init();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 21:48</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 21:58</div>
 </body>
 </html>
