@@ -2390,9 +2390,27 @@
         if (txt) {
           txt.textContent = estGagne
             ? (LANGUE === 'he' ? '🎉 מוכן! לחצו על "אשר!"' : '🎉 C\'est fini ! Clique sur "Valider !"')
-            : (LANGUE === 'he' ? 'עדיין לא בדיוק... תמשיכו!' : 'Pas encore tout à fait... continue !');
+            : (LANGUE === 'he' ? '❌ החלקים באדום לא במקום הנכון!' : '❌ Les pièces en rouge ne sont pas à la bonne place !');
+        }
+        if (!estGagne) {
+          surlignerPiecesMalPlacees();
         }
       };
+    }
+
+    // Entoure en rouge chaque pièce qui n'est pas encore à sa bonne place, pour aider à repérer le problème
+    function surlignerPiecesMalPlacees() {
+      const { tuiles } = puzzleEtat;
+      tuiles.forEach((val, pos) => {
+        if (val === null) return;
+        const mauvaisePlace = val !== pos;
+        const el = document.querySelector(`#puzzle-grille .puzzle-piece[data-pos="${pos}"]`);
+        if (el && mauvaisePlace) {
+          el.style.outline = '3px solid #e74c3c';
+          el.style.outlineOffset = '-3px';
+          setTimeout(() => { if (el) el.style.outline = ''; }, 4000);
+        }
+      });
     }
 
     function recompensePuzzleActuelle() {
@@ -3596,6 +3614,6 @@
 
     init();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 21:25</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 21:35</div>
 </body>
 </html>
