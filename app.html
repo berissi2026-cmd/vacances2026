@@ -2685,7 +2685,7 @@
       const titre = LANGUE === 'he' ? '🐍 הנחש' : '🐍 Le Serpent';
       const consigne = LANGUE === 'he'
         ? `אכלו ${SERPENT_OBJECTIF} תפוחים כדי לזכות ב-50 נקודות! השתמשו בחצים למטה כדי לזוז.`
-        : `Mange ${SERPENT_OBJECTIF} pommes pour gagner 50 points ! Utilise les flèches en bas pour te déplacer.`;
+        : `Mange ${SERPENT_OBJECTIF} pommes pour gagner 50 points ! Utilise les flèches en bas (ou les flèches du clavier sur ordinateur) pour te déplacer.`;
       const dejaFaitTxt = LANGUE === 'he'
         ? '✅ כבר ניצחתם (בלי נקודות נוספות, אבל שחקו כמה שתרצו!)'
         : '✅ Déjà réussi (rejouer ne redonne plus de points, mais amuse-toi autant que tu veux !)';
@@ -2720,8 +2720,8 @@
     }
 
     function vitesseSerpentSelonProfil() {
-      const map = { p_benaya: 320, p_nava: 250, p_shaitsion: 180, p_elior: 110 };
-      return map[PROFIL_ID] || 180;
+      const map = { p_benaya: 300, p_nava: 230, p_shaitsion: 160, p_elior: 90 };
+      return map[PROFIL_ID] || 160;
     }
 
     function demarrerSerpent() {
@@ -2758,6 +2758,16 @@
       if (serpentEtat.direction.x === -x && serpentEtat.direction.y === -y) return; // pas de demi-tour direct
       serpentEtat.prochaineDirection = { x, y };
     }
+
+    // Contrôle au clavier (flèches) — actif uniquement quand le jeu du Serpent est ouvert à l'écran
+    document.addEventListener('keydown', (e) => {
+      if (!document.getElementById('serpent-canvas')) return;
+      const touches = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
+      if (touches[e.key]) {
+        e.preventDefault();
+        direSerpent(touches[e.key][0], touches[e.key][1]);
+      }
+    });
 
     function tickSerpent() {
       if (!document.getElementById('serpent-canvas')) { clearInterval(serpentInterval); return; } // modale fermée
@@ -3614,6 +3624,6 @@
 
     init();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 21:35</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 21:42</div>
 </body>
 </html>
