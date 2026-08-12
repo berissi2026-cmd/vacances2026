@@ -3056,6 +3056,28 @@
       box.appendChild(document.createRange().createContextualFragment(boutonFermer()));
     }
 
+    // Fermeture au clic en dehors de la fenêtre, pour toutes les popups du site
+    document.getElementById('modal-bg').onclick = (e) => {
+      if (e.target.id === 'modal-bg') e.target.style.display = 'none';
+    };
+    document.getElementById('crop-bg').onclick = (e) => {
+      if (e.target.id === 'crop-bg') {
+        e.target.style.display = 'none';
+        if (cropCallback) cropCallback(null);
+        cropCallback = null;
+      }
+    };
+    document.getElementById('trim-bg').onclick = (e) => {
+      if (e.target.id === 'trim-bg') {
+        e.target.style.display = 'none';
+        document.getElementById('trim-video').src = '';
+        trimResultatActuel = null;
+      }
+    };
+    document.getElementById('palier-bg').onclick = (e) => {
+      if (e.target.id === 'palier-bg') e.target.style.display = 'none';
+    };
+
     function boutonFermer() {
       return `<button class="btn btn--ghost btn--block mt-16" onclick="window.fermerModal()">${LANGUE === 'he' ? 'סגור' : 'Fermer'}</button>`;
     }
@@ -3066,6 +3088,6 @@
 
     init();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 19:45</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 19:52</div>
 </body>
 </html>
