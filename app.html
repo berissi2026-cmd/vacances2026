@@ -233,6 +233,10 @@
         <span class="emoji">🐍</span><span id="txt-tuile-serpent">Le Serpent !</span>
         <div class="game-badge" id="badge-serpent" style="background:#c0392b; color:#fff; opacity:1; display:inline-block; padding:2px 8px; border-radius:8px; font-weight:700;">50 pts</div>
       </div>
+      <div class="game-tile" id="tuile-pong" onclick="window.ouvrirJeu('pong')" style="background:linear-gradient(135deg,#c9a7ff,#7b5fc7); border-color:#4a2f8c; position:relative;">
+        <span class="emoji">🏓</span><span id="txt-tuile-pong">Pong à 4 !</span>
+        <div class="game-badge" id="badge-pong" style="background:#2c7be5; color:#fff; opacity:1; display:inline-block; padding:2px 8px; border-radius:8px; font-weight:700;">4 joueurs</div>
+      </div>
     </div>
   </div>
 
@@ -502,7 +506,7 @@
       });
       const btnDiplome = document.getElementById('btn-voir-diplome');
       if (btnDiplome) btnDiplome.textContent = t ? '🏆 התעודה שלי' : '🏆 Voir mon diplôme';
-      const tuiles = { 'txt-tuile-bingo': ['Bingo', 'ביינגו'], 'txt-tuile-roue': ['Roue des défis', 'גלגל האתגרים'], 'txt-tuile-enigme': ['Énigmes', 'חידות'], 'txt-tuile-puzzle': ['Cadeau surprise !', 'מתנה מפתיעה!'], 'txt-tuile-serpent': ['Le Serpent !', 'הנחש!'] };
+      const tuiles = { 'txt-tuile-bingo': ['Bingo', 'ביינגו'], 'txt-tuile-roue': ['Roue des défis', 'גלגל האתגרים'], 'txt-tuile-enigme': ['Énigmes', 'חידות'], 'txt-tuile-puzzle': ['Cadeau surprise !', 'מתנה מפתיעה!'], 'txt-tuile-serpent': ['Le Serpent !', 'הנחש!'], 'txt-tuile-pong': ['Pong à 4 !', 'פונג לארבעה!'] };
       Object.entries(tuiles).forEach(([id, [fr, he]]) => {
         const el = document.getElementById(id);
         if (el) el.textContent = t ? he : fr;
@@ -513,6 +517,8 @@
       if (badgeBowling) badgeBowling.textContent = t ? '🔒 בקרוב' : '🔒 Bientôt';
       const badgeSerpent = document.getElementById('badge-serpent');
       if (badgeSerpent) badgeSerpent.textContent = t ? "50 נק'" : '50 pts';
+      const badgePong = document.getElementById('badge-pong');
+      if (badgePong) badgePong.textContent = t ? '4 שחקנים' : '4 joueurs';
     }
 
     async function init() {
@@ -2663,6 +2669,11 @@
       document.getElementById('btn-serpent-relancer').onclick = () => demarrerSerpent();
     }
 
+    function vitesseSerpentSelonProfil() {
+      const map = { p_benaya: 320, p_nava: 250, p_shaitsion: 180, p_elior: 110 };
+      return map[PROFIL_ID] || 180;
+    }
+
     function demarrerSerpent() {
       if (serpentInterval) clearInterval(serpentInterval);
       const centre = Math.floor(SERPENT_TAILLE_GRILLE / 2);
@@ -2681,7 +2692,7 @@
       }
       majScoreSerpent();
       dessinerSerpent();
-      serpentInterval = setInterval(tickSerpent, 180);
+      serpentInterval = setInterval(tickSerpent, vitesseSerpentSelonProfil());
     }
 
     function placerNourritureSerpent(corps) {
@@ -2789,6 +2800,187 @@
       }
     }
 
+    // ------------------------------------------------------------
+    // PONG À 4 (jeu de fête, pas de points — 4 joueurs autour du même téléphone)
+    // Chaque enfant a un but de taille différente : plus le but est grand, plus c'est dur à défendre.
+    // ------------------------------------------------------------
+    let pongEtat = null;
+    let pongAnimId = null;
+    const PONG_JOUEURS = [
+      { profil: 'p_elior',     nom: 'Elior',      cote: 'haut',   fractionRaquette: 0.14 },
+      { profil: 'p_shaitsion', nom: 'Shai Tsion', cote: 'droite', fractionRaquette: 0.22 },
+      { profil: 'p_nava',      nom: 'Nava',       cote: 'bas',    fractionRaquette: 0.30 },
+      { profil: 'p_benaya',    nom: 'Benaya',     cote: 'gauche', fractionRaquette: 0.40 }
+    ];
+    const PONG_TAILLE = 320;
+    const PONG_EPAISSEUR_RAQUETTE = 10;
+
+    function ouvrirPong(box) {
+      if (pongAnimId) cancelAnimationFrame(pongAnimId);
+      const titre = LANGUE === 'he' ? '🏓 פונג לארבעה' : '🏓 Pong à 4';
+      const consigne = LANGUE === 'he'
+        ? 'ארבעה משחקים יחד על אותו טלפון! כל אחד מחזיק בצד שלו ומחליק אצבע לאורך הקצה כדי להזיז את המחבט. שער גדול יותר = קשה יותר להגן!'
+        : "4 joueurs en même temps sur le même téléphone ! Chacun tient son côté et glisse le doigt le long du bord pour bouger sa raquette. Plus le but est grand, plus c'est dur à défendre !";
+
+      const nomsC = PONG_JOUEURS.map(j => {
+        const p = profilsCache[j.profil];
+        return `${p ? (p.Avatar || '') : ''} ${LANGUE === 'he' && p ? (p.Nom_HE || j.nom) : j.nom}`;
+      });
+
+      box.innerHTML = `
+        <h3>${titre}</h3>
+        <p class="muted mt-8">${consigne}</p>
+        <div style="text-align:center; font-size:12px; font-weight:700; margin-top:6px;">⬆️ ${nomsC[0]}</div>
+        <div style="display:flex; align-items:center; justify-content:center; gap:4px; margin:2px 0;">
+          <span style="font-size:12px; font-weight:700; writing-mode:vertical-rl;">⬅️ ${nomsC[3]}</span>
+          <canvas id="pong-canvas" style="touch-action:none; border-radius:10px; border:3px solid var(--bark); background:#1a1a2e; max-width:100%;"></canvas>
+          <span style="font-size:12px; font-weight:700; writing-mode:vertical-rl;">${nomsC[1]} ➡️</span>
+        </div>
+        <div style="text-align:center; font-size:12px; font-weight:700;">⬇️ ${nomsC[2]}</div>
+        <p class="mt-8" id="pong-score-txt" style="text-align:center; font-size:13px;"></p>
+        <button class="btn btn--ghost btn--block mt-8" id="btn-pong-reset">🔁 ${LANGUE === 'he' ? 'איפוס' : 'Réinitialiser'}</button>
+        ${boutonFermer()}`;
+
+      demarrerPong();
+      document.getElementById('btn-pong-reset').onclick = demarrerPong;
+    }
+
+    function demarrerPong() {
+      if (pongAnimId) cancelAnimationFrame(pongAnimId);
+      const canvas = document.getElementById('pong-canvas');
+      if (!canvas) return;
+      canvas.width = PONG_TAILLE;
+      canvas.height = PONG_TAILLE;
+
+      pongEtat = {
+        balle: { x: PONG_TAILLE / 2, y: PONG_TAILLE / 2, vx: 3, vy: 2.4 },
+        raquettes: {}, // position du centre de chaque raquette (0..PONG_TAILLE), par côté
+        scores: {}
+      };
+      PONG_JOUEURS.forEach(j => {
+        pongEtat.raquettes[j.cote] = PONG_TAILLE / 2;
+        pongEtat.scores[j.profil] = 0;
+      });
+
+      initControlesPong(canvas);
+      majScorePong();
+      pongAnimId = requestAnimationFrame(tickPong);
+    }
+
+    function initControlesPong(canvas) {
+      canvas.ontouchstart = canvas.ontouchmove = (e) => {
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width, scaleY = canvas.height / rect.height;
+        Array.from(e.touches).forEach(t => {
+          const x = (t.clientX - rect.left) * scaleX;
+          const y = (t.clientY - rect.top) * scaleY;
+          const distHaut = y, distBas = PONG_TAILLE - y, distGauche = x, distDroite = PONG_TAILLE - x;
+          const minDist = Math.min(distHaut, distBas, distGauche, distDroite);
+          if (minDist === distHaut) pongEtat.raquettes.haut = x;
+          else if (minDist === distBas) pongEtat.raquettes.bas = x;
+          else if (minDist === distGauche) pongEtat.raquettes.gauche = y;
+          else pongEtat.raquettes.droite = y;
+        });
+      };
+      // Repli souris (test sur ordinateur) : suit le côté le plus proche du curseur
+      canvas.onmousemove = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width, scaleY = canvas.height / rect.height;
+        const x = (e.clientX - rect.left) * scaleX, y = (e.clientY - rect.top) * scaleY;
+        const distHaut = y, distBas = PONG_TAILLE - y, distGauche = x, distDroite = PONG_TAILLE - x;
+        const minDist = Math.min(distHaut, distBas, distGauche, distDroite);
+        if (minDist === distHaut) pongEtat.raquettes.haut = x;
+        else if (minDist === distBas) pongEtat.raquettes.bas = x;
+        else if (minDist === distGauche) pongEtat.raquettes.gauche = y;
+        else pongEtat.raquettes.droite = y;
+      };
+    }
+
+    function longueurRaquettePong(cote) {
+      const j = PONG_JOUEURS.find(j => j.cote === cote);
+      return PONG_TAILLE * j.fractionRaquette;
+    }
+
+    function tickPong() {
+      const canvas = document.getElementById('pong-canvas');
+      if (!canvas || !pongEtat) { pongAnimId = null; return; } // modale fermée : on arrête
+
+      const b = pongEtat.balle;
+      b.x += b.vx;
+      b.y += b.vy;
+
+      // Rebond ou but sur chaque côté
+      verifierBordPong('haut', b.y <= 0, () => b.y = 0, 'y');
+      verifierBordPong('bas', b.y >= PONG_TAILLE, () => b.y = PONG_TAILLE, 'y');
+      verifierBordPong('gauche', b.x <= 0, () => b.x = 0, 'x');
+      verifierBordPong('droite', b.x >= PONG_TAILLE, () => b.x = PONG_TAILLE, 'x');
+
+      dessinerPong();
+      pongAnimId = requestAnimationFrame(tickPong);
+    }
+
+    function verifierBordPong(cote, condition, corriger, axe) {
+      if (!condition || !pongEtat) return;
+      const b = pongEtat.balle;
+      const centreRaquette = pongEtat.raquettes[cote];
+      const longueur = longueurRaquettePong(cote);
+      const posSurBord = (axe === 'y') ? b.x : b.y;
+      const dansRaquette = posSurBord >= centreRaquette - longueur / 2 && posSurBord <= centreRaquette + longueur / 2;
+
+      if (dansRaquette) {
+        if (axe === 'y') b.vy *= -1; else b.vx *= -1;
+        corriger();
+        // léger effet selon où la balle touche la raquette, pour varier les trajectoires
+        const decalage = (posSurBord - centreRaquette) / (longueur / 2);
+        if (axe === 'y') b.vx += decalage * 1.2; else b.vy += decalage * 1.2;
+      } else {
+        // but encaissé par ce joueur
+        const j = PONG_JOUEURS.find(j => j.cote === cote);
+        pongEtat.scores[j.profil]++;
+        majScorePong();
+        pongEtat.balle = { x: PONG_TAILLE / 2, y: PONG_TAILLE / 2, vx: (Math.random() > 0.5 ? 3 : -3), vy: (Math.random() > 0.5 ? 2.4 : -2.4) };
+      }
+    }
+
+    function majScorePong() {
+      const el = document.getElementById('pong-score-txt');
+      if (!el || !pongEtat) return;
+      el.textContent = PONG_JOUEURS.map(j => {
+        const p = profilsCache[j.profil];
+        const nom = LANGUE === 'he' && p ? (p.Nom_HE || j.nom) : j.nom;
+        return `${p ? (p.Avatar || '') : ''} ${nom}: ${pongEtat.scores[j.profil]}`;
+      }).join('   ·   ');
+    }
+
+    function dessinerPong() {
+      const canvas = document.getElementById('pong-canvas');
+      if (!canvas || !pongEtat) return;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fillRect(0, 0, PONG_TAILLE, PONG_TAILLE);
+
+      ctx.strokeStyle = 'rgba(255,255,255,.2)';
+      ctx.setLineDash([6, 6]);
+      ctx.strokeRect(4, 4, PONG_TAILLE - 8, PONG_TAILLE - 8);
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = '#fff';
+      const rHaut = longueurRaquettePong('haut'), cHaut = pongEtat.raquettes.haut;
+      ctx.fillRect(cHaut - rHaut / 2, 0, rHaut, PONG_EPAISSEUR_RAQUETTE);
+      const rBas = longueurRaquettePong('bas'), cBas = pongEtat.raquettes.bas;
+      ctx.fillRect(cBas - rBas / 2, PONG_TAILLE - PONG_EPAISSEUR_RAQUETTE, rBas, PONG_EPAISSEUR_RAQUETTE);
+      const rGauche = longueurRaquettePong('gauche'), cGauche = pongEtat.raquettes.gauche;
+      ctx.fillRect(0, cGauche - rGauche / 2, PONG_EPAISSEUR_RAQUETTE, rGauche);
+      const rDroite = longueurRaquettePong('droite'), cDroite = pongEtat.raquettes.droite;
+      ctx.fillRect(PONG_TAILLE - PONG_EPAISSEUR_RAQUETTE, cDroite - rDroite / 2, PONG_EPAISSEUR_RAQUETTE, rDroite);
+
+      ctx.fillStyle = '#ffd700';
+      ctx.beginPath();
+      ctx.arc(pongEtat.balle.x, pongEtat.balle.y, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     window.ouvrirJeu = async function(type) {
       const box = document.getElementById('modal-box');
       document.getElementById('modal-bg').style.display = 'flex';
@@ -2811,6 +3003,9 @@
       }
       if (type === 'serpent') {
         ouvrirSerpent(box);
+      }
+      if (type === 'pong') {
+        ouvrirPong(box);
       }
       if (type === 'musique') {
         const chargement = LANGUE === 'he' ? 'טוען...' : 'Chargement...';
@@ -3324,6 +3519,6 @@
 
     init();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 20:32</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 20:50</div>
 </body>
 </html>
