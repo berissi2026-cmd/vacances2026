@@ -2819,8 +2819,8 @@
       if (pongAnimId) cancelAnimationFrame(pongAnimId);
       const titre = LANGUE === 'he' ? '🏓 פונג לארבעה' : '🏓 Pong à 4';
       const consigne = LANGUE === 'he'
-        ? 'ארבעה משחקים יחד על אותו טלפון! כל אחד מחזיק בצד שלו ומחליק אצבע לאורך הקצה כדי להזיז את המחבט. שער גדול יותר = קשה יותר להגן!'
-        : "4 joueurs en même temps sur le même téléphone ! Chacun tient son côté et glisse le doigt le long du bord pour bouger sa raquette. Plus le but est grand, plus c'est dur à défendre !";
+        ? `ארבעה משחקים יחד על אותו טלפון! כל אחד מחזיק בצד שלו ומחליק אצבע לאורך הקצה כדי להזיז את המחבט. שער גדול יותר = קשה יותר להגן! ${PONG_SEUIL_ELIMINATION} כדורים שהוחמצו = תוצאים החוצה. האחרון שנשאר מנצח ומקבל 50 נקודות! 🏆`
+        : `4 joueurs en même temps sur le même téléphone ! Chacun tient son côté et glisse le doigt le long du bord pour bouger sa raquette. Plus le but est grand, plus c'est dur à défendre ! ${PONG_SEUIL_ELIMINATION} buts encaissés = éliminé. Le dernier en lice gagne et remporte 50 points ! 🏆`;
 
       const nomsC = PONG_JOUEURS.map(j => {
         const p = profilsCache[j.profil];
@@ -2845,6 +2845,8 @@
       document.getElementById('btn-pong-reset').onclick = demarrerPong;
     }
 
+    const PONG_SEUIL_ELIMINATION = 5;
+
     function demarrerPong() {
       if (pongAnimId) cancelAnimationFrame(pongAnimId);
       const canvas = document.getElementById('pong-canvas');
@@ -2855,7 +2857,9 @@
       pongEtat = {
         balle: { x: PONG_TAILLE / 2, y: PONG_TAILLE / 2, vx: 3, vy: 2.4 },
         raquettes: {}, // position du centre de chaque raquette (0..PONG_TAILLE), par côté
-        scores: {}
+        scores: {},
+        elimines: new Set(),
+        termine: false
       };
       PONG_JOUEURS.forEach(j => {
         pongEtat.raquettes[j.cote] = PONG_TAILLE / 2;
@@ -2921,8 +2925,17 @@
     }
 
     function verifierBordPong(cote, condition, corriger, axe) {
-      if (!condition || !pongEtat) return;
+      if (!condition || !pongEtat || pongEtat.termine) return;
+      const j = PONG_JOUEURS.find(j => j.cote === cote);
       const b = pongEtat.balle;
+
+      // Un joueur éliminé : son côté devient un simple mur, la balle rebondit toujours
+      if (pongEtat.elimines.has(j.profil)) {
+        if (axe === 'y') b.vy *= -1; else b.vx *= -1;
+        corriger();
+        return;
+      }
+
       const centreRaquette = pongEtat.raquettes[cote];
       const longueur = longueurRaquettePong(cote);
       const posSurBord = (axe === 'y') ? b.x : b.y;
@@ -2936,8 +2949,15 @@
         if (axe === 'y') b.vx += decalage * 1.2; else b.vy += decalage * 1.2;
       } else {
         // but encaissé par ce joueur
-        const j = PONG_JOUEURS.find(j => j.cote === cote);
         pongEtat.scores[j.profil]++;
+        if (pongEtat.scores[j.profil] >= PONG_SEUIL_ELIMINATION) {
+          pongEtat.elimines.add(j.profil);
+          const restants = PONG_JOUEURS.filter(x => !pongEtat.elimines.has(x.profil));
+          if (restants.length === 1) {
+            declarerVictoirePong(restants[0]);
+            return;
+          }
+        }
         majScorePong();
         pongEtat.balle = { x: PONG_TAILLE / 2, y: PONG_TAILLE / 2, vx: (Math.random() > 0.5 ? 3 : -3), vy: (Math.random() > 0.5 ? 2.4 : -2.4) };
       }
@@ -2949,8 +2969,33 @@
       el.textContent = PONG_JOUEURS.map(j => {
         const p = profilsCache[j.profil];
         const nom = LANGUE === 'he' && p ? (p.Nom_HE || j.nom) : j.nom;
-        return `${p ? (p.Avatar || '') : ''} ${nom}: ${pongEtat.scores[j.profil]}`;
+        const eli = pongEtat.elimines.has(j.profil) ? ' ❌' : '';
+        return `${p ? (p.Avatar || '') : ''} ${nom}: ${pongEtat.scores[j.profil]}${eli}`;
       }).join('   ·   ');
+    }
+
+    function declarerVictoirePong(gagnant) {
+      pongEtat.termine = true;
+      if (pongAnimId) cancelAnimationFrame(pongAnimId);
+      majScorePong();
+      dessinerPong();
+      ajouterScoreProfil(gagnant.profil, 50);
+      if ('vibrate' in navigator) navigator.vibrate([300, 100, 300, 100, 500]);
+      lancerConfettis(8000);
+      setTimeout(() => {
+        const box = document.getElementById('modal-box');
+        if (!box) return;
+        const p = profilsCache[gagnant.profil];
+        const nom = LANGUE === 'he' && p ? (p.Nom_HE || gagnant.nom) : gagnant.nom;
+        const titre = LANGUE === 'he' ? '🎉 כל הכבוד!' : '🎉 Bravo !';
+        const texte = LANGUE === 'he'
+          ? `${p ? (p.Avatar || '') : ''} ${nom} ניצח/ה בפונג וזכה/תה ב-50 נקודות! 🏆`
+          : `${p ? (p.Avatar || '') : ''} ${nom} a gagné au Pong et remporte 50 points ! 🏆`;
+        box.innerHTML = `<h2>${titre}</h2><p class="mt-16" style="font-size:16px;">${texte}</p>
+          <button class="btn btn--primary btn--block mt-16" id="btn-pong-rejouer">🔁 ${LANGUE === 'he' ? 'משחק חדש' : 'Nouvelle partie'}</button>
+          ${boutonFermer()}`;
+        document.getElementById('btn-pong-rejouer').onclick = () => window.ouvrirJeu('pong');
+      }, 500);
     }
 
     function dessinerPong() {
@@ -3519,6 +3564,6 @@
 
     init();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 20:50</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 21:05</div>
 </body>
 </html>
