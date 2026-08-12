@@ -225,9 +225,9 @@
         <span class="emoji">🎁</span><span id="txt-tuile-puzzle">Cadeau surprise !</span>
         <div class="game-badge" id="badge-puzzle" style="background:#c0392b; color:#fff; opacity:1; display:inline-block; padding:2px 8px; border-radius:8px; font-weight:700;">500 pts</div>
       </div>
-      <div class="game-tile" id="tuile-bowling" style="background:#ddd; border-color:#999; position:relative; opacity:.6; cursor:default;">
+      <div class="game-tile" id="tuile-bowling" onclick="window.ouvrirJeu('bowling')" style="background:linear-gradient(135deg,#7ec8ff,#3d7fc4); border-color:#1a4d7a; position:relative; animation:pulseCadeau 2s infinite .3s;">
         <span class="emoji">🎳</span><span id="txt-tuile-bowling">Bowling Express !</span>
-        <div class="game-badge" id="badge-bowling" style="background:#999; color:#fff; opacity:1; display:inline-block; padding:2px 8px; border-radius:8px; font-weight:700;">🔒 Bientôt</div>
+        <div class="game-badge" id="badge-bowling" style="background:#c0392b; color:#fff; opacity:1; display:inline-block; padding:2px 8px; border-radius:8px; font-weight:700;">250 pts</div>
       </div>
       <div class="game-tile" id="tuile-serpent" onclick="window.ouvrirJeu('serpent')" style="background:linear-gradient(135deg,#8fd67a,#3fa34d); border-color:#1f6b2c; position:relative; animation:pulseCadeau 2s infinite .6s;">
         <span class="emoji">🐍</span><span id="txt-tuile-serpent">Le Serpent !</span>
@@ -531,7 +531,7 @@
       const badgePuzzle = document.getElementById('badge-puzzle');
       if (badgePuzzle) badgePuzzle.textContent = t ? "500 נק'" : '500 pts';
       const badgeBowling = document.getElementById('badge-bowling');
-      if (badgeBowling) badgeBowling.textContent = t ? '🔒 בקרוב' : '🔒 Bientôt';
+      if (badgeBowling) badgeBowling.textContent = t ? "250 נק'" : '250 pts';
       const badgeSerpent = document.getElementById('badge-serpent');
       if (badgeSerpent) badgeSerpent.textContent = t ? "50 נק'" : '50 pts';
       const badgePong = document.getElementById('badge-pong');
@@ -2724,7 +2724,10 @@
           <button class="btn btn--accent" id="btn-serpent-bas" style="font-size:20px;">⬇️</button>
           <div></div>
         </div>
-        <button class="btn btn--ghost btn--block mt-8" id="btn-serpent-relancer">🔁 ${LANGUE === 'he' ? 'משחק חדש' : 'Nouvelle partie'}</button>
+        <div class="field-row mt-8">
+          <button class="btn btn--accent btn--block" id="btn-serpent-pause">⏸️ ${LANGUE === 'he' ? 'השהה' : 'Pause'}</button>
+          <button class="btn btn--ghost btn--block" id="btn-serpent-relancer">🔁 ${LANGUE === 'he' ? 'משחק חדש' : 'Nouvelle partie'}</button>
+        </div>
         ${boutonFermer()}`;
 
       demarrerSerpent();
@@ -2740,6 +2743,20 @@
       document.getElementById('btn-serpent-gauche').onclick = () => direSerpent(1, 0);
       document.getElementById('btn-serpent-droite').onclick = () => direSerpent(-1, 0);
       document.getElementById('btn-serpent-relancer').onclick = () => demarrerSerpent();
+
+      document.getElementById('btn-serpent-pause').onclick = () => {
+        const btn = document.getElementById('btn-serpent-pause');
+        if (!serpentEtat || serpentEtat.termine) return;
+        if (serpentEtat.enPause) {
+          serpentEtat.enPause = false;
+          serpentInterval = setInterval(tickSerpent, vitesseSerpentSelonProfil());
+          btn.textContent = '⏸️ ' + (LANGUE === 'he' ? 'השהה' : 'Pause');
+        } else {
+          serpentEtat.enPause = true;
+          clearInterval(serpentInterval);
+          btn.textContent = '▶️ ' + (LANGUE === 'he' ? 'המשך' : 'Reprendre');
+        }
+      };
     }
 
     function vitesseSerpentSelonProfil() {
@@ -2755,7 +2772,8 @@
         direction: { x: 1, y: 0 },
         prochaineDirection: { x: 1, y: 0 },
         mange: 0,
-        termine: false
+        termine: false,
+        enPause: false
       };
       serpentEtat.nourriture = placerNourritureSerpent(serpentEtat.corps);
       const canvas = document.getElementById('serpent-canvas');
@@ -2763,6 +2781,8 @@
         canvas.width = SERPENT_TAILLE_GRILLE * SERPENT_TAILLE_CASE;
         canvas.height = SERPENT_TAILLE_GRILLE * SERPENT_TAILLE_CASE;
       }
+      const btnPause = document.getElementById('btn-serpent-pause');
+      if (btnPause) btnPause.textContent = '⏸️ ' + (LANGUE === 'he' ? 'השהה' : 'Pause');
       majScoreSerpent();
       dessinerSerpent();
       serpentInterval = setInterval(tickSerpent, vitesseSerpentSelonProfil());
@@ -3638,6 +3658,6 @@
 
     init();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 22:10</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 22:20</div>
 </body>
 </html>
