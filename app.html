@@ -389,6 +389,23 @@
     const PROFIL_ID = params.get('profil');
     const LANGUE = localStorage.getItem('vq_langue') || 'fr';
 
+    // Contrôle au clavier du jeu Serpent (flèches) — enregistré tout en haut du script pour
+    // garantir qu'il s'active même si une erreur survient plus loin dans le code.
+    // Actif uniquement quand le canvas #serpent-canvas est présent à l'écran (jeu ouvert).
+    document.addEventListener('keydown', (e) => {
+      if (!document.getElementById('serpent-canvas')) return;
+      const cle = e.key || e.code;
+      const touches = {
+        ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [1, 0], ArrowRight: [-1, 0],
+        Up: [0, -1], Down: [0, 1], Left: [1, 0], Right: [-1, 0] // anciens navigateurs
+      };
+      if (touches[cle] && typeof direSerpent === 'function') {
+        e.preventDefault();
+        e.stopPropagation();
+        direSerpent(touches[cle][0], touches[cle][1]);
+      }
+    }, true); // phase de capture : intercepte avant tout autre gestionnaire
+
     document.getElementById('btn-changer-langue').onclick = () => {
       localStorage.setItem('vq_langue', LANGUE === 'he' ? 'fr' : 'he');
       window.location.reload();
@@ -2720,14 +2737,14 @@
 
       document.getElementById('btn-serpent-haut').onclick = () => direSerpent(0, -1);
       document.getElementById('btn-serpent-bas').onclick = () => direSerpent(0, 1);
-      document.getElementById('btn-serpent-gauche').onclick = () => direSerpent(-1, 0);
-      document.getElementById('btn-serpent-droite').onclick = () => direSerpent(1, 0);
+      document.getElementById('btn-serpent-gauche').onclick = () => direSerpent(1, 0);
+      document.getElementById('btn-serpent-droite').onclick = () => direSerpent(-1, 0);
       document.getElementById('btn-serpent-relancer').onclick = () => demarrerSerpent();
     }
 
     function vitesseSerpentSelonProfil() {
-      const map = { p_benaya: 340, p_nava: 270, p_shaitsion: 200, p_elior: 130 };
-      return map[PROFIL_ID] || 200;
+      const map = { p_benaya: 420, p_nava: 340, p_shaitsion: 260, p_elior: 180 };
+      return map[PROFIL_ID] || 260;
     }
 
     function demarrerSerpent() {
@@ -2765,20 +2782,6 @@
       serpentEtat.prochaineDirection = { x, y };
     }
 
-    // Contrôle au clavier (flèches) — actif uniquement quand le jeu du Serpent est ouvert à l'écran
-    document.addEventListener('keydown', (e) => {
-      if (!document.getElementById('serpent-canvas')) return;
-      const cle = e.key || e.code;
-      const touches = {
-        ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
-        Up: [0, -1], Down: [0, 1], Left: [-1, 0], Right: [1, 0] // anciens navigateurs
-      };
-      if (touches[cle]) {
-        e.preventDefault();
-        e.stopPropagation();
-        direSerpent(touches[cle][0], touches[cle][1]);
-      }
-    }, true); // phase de capture : intercepte avant tout autre gestionnaire
 
     function tickSerpent() {
       if (!document.getElementById('serpent-canvas')) { clearInterval(serpentInterval); return; } // modale fermée
@@ -3635,6 +3638,6 @@
 
     init();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 21:58</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 22:10</div>
 </body>
 </html>
