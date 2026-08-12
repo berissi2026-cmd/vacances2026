@@ -229,6 +229,10 @@
         <span class="emoji">🎳</span><span id="txt-tuile-bowling">Bowling Express !</span>
         <div class="game-badge" id="badge-bowling" style="background:#999; color:#fff; opacity:1; display:inline-block; padding:2px 8px; border-radius:8px; font-weight:700;">🔒 Bientôt</div>
       </div>
+      <div class="game-tile" id="tuile-serpent" onclick="window.ouvrirJeu('serpent')" style="background:linear-gradient(135deg,#8fd67a,#3fa34d); border-color:#1f6b2c; position:relative; animation:pulseCadeau 2s infinite .6s;">
+        <span class="emoji">🐍</span><span id="txt-tuile-serpent">Le Serpent !</span>
+        <div class="game-badge" id="badge-serpent" style="background:#c0392b; color:#fff; opacity:1; display:inline-block; padding:2px 8px; border-radius:8px; font-weight:700;">50 pts</div>
+      </div>
     </div>
   </div>
 
@@ -498,7 +502,7 @@
       });
       const btnDiplome = document.getElementById('btn-voir-diplome');
       if (btnDiplome) btnDiplome.textContent = t ? '🏆 התעודה שלי' : '🏆 Voir mon diplôme';
-      const tuiles = { 'txt-tuile-bingo': ['Bingo', 'ביינגו'], 'txt-tuile-roue': ['Roue des défis', 'גלגל האתגרים'], 'txt-tuile-enigme': ['Énigmes', 'חידות'], 'txt-tuile-puzzle': ['Cadeau surprise !', 'מתנה מפתיעה!'], 'txt-tuile-bowling': ['Bowling Express !', 'באולינג אקספרס!'] };
+      const tuiles = { 'txt-tuile-bingo': ['Bingo', 'ביינגו'], 'txt-tuile-roue': ['Roue des défis', 'גלגל האתגרים'], 'txt-tuile-enigme': ['Énigmes', 'חידות'], 'txt-tuile-puzzle': ['Cadeau surprise !', 'מתנה מפתיעה!'], 'txt-tuile-serpent': ['Le Serpent !', 'הנחש!'] };
       Object.entries(tuiles).forEach(([id, [fr, he]]) => {
         const el = document.getElementById(id);
         if (el) el.textContent = t ? he : fr;
@@ -507,6 +511,8 @@
       if (badgePuzzle) badgePuzzle.textContent = t ? "500 נק'" : '500 pts';
       const badgeBowling = document.getElementById('badge-bowling');
       if (badgeBowling) badgeBowling.textContent = t ? '🔒 בקרוב' : '🔒 Bientôt';
+      const badgeSerpent = document.getElementById('badge-serpent');
+      if (badgeSerpent) badgeSerpent.textContent = t ? "50 נק'" : '50 pts';
     }
 
     async function init() {
@@ -2607,6 +2613,182 @@
       }, 500);
     }
 
+    // ------------------------------------------------------------
+    // LE SERPENT (bonus 50 points, une fois par enfant)
+    // Manger 30 pommes pour gagner. Contrôles tactiles en bas de l'écran.
+    // ------------------------------------------------------------
+    let serpentEtat = null;
+    let serpentInterval = null;
+    const SERPENT_TAILLE_GRILLE = 15;
+    const SERPENT_TAILLE_CASE = 20;
+    const SERPENT_OBJECTIF = 30;
+
+    function ouvrirSerpent(box) {
+      if (serpentInterval) clearInterval(serpentInterval);
+      const dejaGagne = localStorage.getItem('vq_serpent_' + PROFIL_ID) === '1';
+      const titre = LANGUE === 'he' ? '🐍 הנחש' : '🐍 Le Serpent';
+      const consigne = LANGUE === 'he'
+        ? `אכלו ${SERPENT_OBJECTIF} תפוחים כדי לזכות ב-50 נקודות! השתמשו בחצים למטה כדי לזוז.`
+        : `Mange ${SERPENT_OBJECTIF} pommes pour gagner 50 points ! Utilise les flèches en bas pour te déplacer.`;
+      const dejaFaitTxt = LANGUE === 'he'
+        ? '✅ כבר ניצחתם (בלי נקודות נוספות, אבל שחקו כמה שתרצו!)'
+        : '✅ Déjà réussi (rejouer ne redonne plus de points, mais amuse-toi autant que tu veux !)';
+
+      box.innerHTML = `
+        <h3>${titre}</h3>
+        <p class="muted mt-8">${consigne}</p>
+        ${dejaGagne ? `<p class="mt-8" style="font-weight:700; color:#2ecc71;">${dejaFaitTxt}</p>` : ''}
+        <p class="mt-8" style="text-align:center; font-weight:700;" id="serpent-score-txt"></p>
+        <canvas id="serpent-canvas" style="display:block; margin:0 auto; border-radius:10px; border:3px solid var(--bark); background:#eaf5e6; max-width:100%;"></canvas>
+        <div style="display:grid; grid-template-columns:56px 56px 56px; grid-template-rows:56px 56px 56px; gap:4px; justify-content:center; margin:16px auto;">
+          <div></div>
+          <button class="btn btn--accent" id="btn-serpent-haut" style="font-size:20px;">⬆️</button>
+          <div></div>
+          <button class="btn btn--accent" id="btn-serpent-gauche" style="font-size:20px;">⬅️</button>
+          <div></div>
+          <button class="btn btn--accent" id="btn-serpent-droite" style="font-size:20px;">➡️</button>
+          <div></div>
+          <button class="btn btn--accent" id="btn-serpent-bas" style="font-size:20px;">⬇️</button>
+          <div></div>
+        </div>
+        <button class="btn btn--ghost btn--block mt-8" id="btn-serpent-relancer">🔁 ${LANGUE === 'he' ? 'משחק חדש' : 'Nouvelle partie'}</button>
+        ${boutonFermer()}`;
+
+      demarrerSerpent();
+
+      document.getElementById('btn-serpent-haut').onclick = () => direSerpent(0, -1);
+      document.getElementById('btn-serpent-bas').onclick = () => direSerpent(0, 1);
+      document.getElementById('btn-serpent-gauche').onclick = () => direSerpent(-1, 0);
+      document.getElementById('btn-serpent-droite').onclick = () => direSerpent(1, 0);
+      document.getElementById('btn-serpent-relancer').onclick = () => demarrerSerpent();
+    }
+
+    function demarrerSerpent() {
+      if (serpentInterval) clearInterval(serpentInterval);
+      const centre = Math.floor(SERPENT_TAILLE_GRILLE / 2);
+      serpentEtat = {
+        corps: [{ x: centre, y: centre }, { x: centre - 1, y: centre }, { x: centre - 2, y: centre }],
+        direction: { x: 1, y: 0 },
+        prochaineDirection: { x: 1, y: 0 },
+        mange: 0,
+        termine: false
+      };
+      serpentEtat.nourriture = placerNourritureSerpent(serpentEtat.corps);
+      const canvas = document.getElementById('serpent-canvas');
+      if (canvas) {
+        canvas.width = SERPENT_TAILLE_GRILLE * SERPENT_TAILLE_CASE;
+        canvas.height = SERPENT_TAILLE_GRILLE * SERPENT_TAILLE_CASE;
+      }
+      majScoreSerpent();
+      dessinerSerpent();
+      serpentInterval = setInterval(tickSerpent, 180);
+    }
+
+    function placerNourritureSerpent(corps) {
+      let pos;
+      do {
+        pos = { x: Math.floor(Math.random() * SERPENT_TAILLE_GRILLE), y: Math.floor(Math.random() * SERPENT_TAILLE_GRILLE) };
+      } while (corps.some(s => s.x === pos.x && s.y === pos.y));
+      return pos;
+    }
+
+    function direSerpent(x, y) {
+      if (!serpentEtat || serpentEtat.termine) return;
+      if (serpentEtat.direction.x === -x && serpentEtat.direction.y === -y) return; // pas de demi-tour direct
+      serpentEtat.prochaineDirection = { x, y };
+    }
+
+    function tickSerpent() {
+      if (!document.getElementById('serpent-canvas')) { clearInterval(serpentInterval); return; } // modale fermée
+      if (!serpentEtat || serpentEtat.termine) return;
+      serpentEtat.direction = serpentEtat.prochaineDirection;
+      const tete = serpentEtat.corps[0];
+      const nouvelleTete = { x: tete.x + serpentEtat.direction.x, y: tete.y + serpentEtat.direction.y };
+
+      const collision = nouvelleTete.x < 0 || nouvelleTete.x >= SERPENT_TAILLE_GRILLE ||
+        nouvelleTete.y < 0 || nouvelleTete.y >= SERPENT_TAILLE_GRILLE ||
+        serpentEtat.corps.some(s => s.x === nouvelleTete.x && s.y === nouvelleTete.y);
+
+      if (collision) {
+        serpentEtat.termine = true;
+        clearInterval(serpentInterval);
+        afficherFinSerpent(false);
+        return;
+      }
+
+      serpentEtat.corps.unshift(nouvelleTete);
+
+      if (nouvelleTete.x === serpentEtat.nourriture.x && nouvelleTete.y === serpentEtat.nourriture.y) {
+        serpentEtat.mange++;
+        majScoreSerpent();
+        if (serpentEtat.mange >= SERPENT_OBJECTIF) {
+          serpentEtat.termine = true;
+          clearInterval(serpentInterval);
+          dessinerSerpent();
+          afficherFinSerpent(true);
+          return;
+        }
+        serpentEtat.nourriture = placerNourritureSerpent(serpentEtat.corps);
+      } else {
+        serpentEtat.corps.pop();
+      }
+
+      dessinerSerpent();
+    }
+
+    function majScoreSerpent() {
+      const el = document.getElementById('serpent-score-txt');
+      if (el) el.textContent = `🍎 ${serpentEtat.mange} / ${SERPENT_OBJECTIF}`;
+    }
+
+    function dessinerSerpent() {
+      const canvas = document.getElementById('serpent-canvas');
+      if (!canvas || !serpentEtat) return;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#eaf5e6';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = '#e74c3c';
+      ctx.beginPath();
+      ctx.arc(
+        serpentEtat.nourriture.x * SERPENT_TAILLE_CASE + SERPENT_TAILLE_CASE / 2,
+        serpentEtat.nourriture.y * SERPENT_TAILLE_CASE + SERPENT_TAILLE_CASE / 2,
+        SERPENT_TAILLE_CASE / 2 - 2, 0, Math.PI * 2
+      );
+      ctx.fill();
+
+      serpentEtat.corps.forEach((s, i) => {
+        ctx.fillStyle = i === 0 ? '#1f6b2c' : '#3fa34d';
+        ctx.fillRect(s.x * SERPENT_TAILLE_CASE + 1, s.y * SERPENT_TAILLE_CASE + 1, SERPENT_TAILLE_CASE - 2, SERPENT_TAILLE_CASE - 2);
+      });
+    }
+
+    function afficherFinSerpent(gagne) {
+      if (gagne) {
+        const dejaGagne = localStorage.getItem('vq_serpent_' + PROFIL_ID) === '1';
+        if (!dejaGagne) {
+          localStorage.setItem('vq_serpent_' + PROFIL_ID, '1');
+          ajouterScoreProfil(PROFIL_ID, 50);
+        }
+        if ('vibrate' in navigator) navigator.vibrate([300, 100, 300, 100, 500]);
+        lancerConfettis(8000);
+        setTimeout(() => {
+          const box = document.getElementById('modal-box');
+          if (!box) return;
+          const titre = LANGUE === 'he' ? '🎉 כל הכבוד!' : '🎉 Bravo !';
+          const texte = dejaGagne
+            ? (LANGUE === 'he' ? 'ניצחתם שוב בנחש! 🐍' : 'Tu as encore réussi le Serpent ! 🐍')
+            : (LANGUE === 'he' ? `אכלתם ${SERPENT_OBJECTIF} תפוחים וזכיתם ב-50 נקודות! 🏆` : `Tu as mangé ${SERPENT_OBJECTIF} pommes et gagné 50 points ! 🏆`);
+          box.innerHTML = `<h2>${titre}</h2><p class="mt-16" style="font-size:16px;">${texte}</p>${boutonFermer()}`;
+        }, 500);
+      } else {
+        const statut = document.getElementById('serpent-score-txt');
+        if (statut) {
+          statut.innerHTML += '<br><span style="color:#c0392b;">' + (LANGUE === 'he' ? '💥 הפסדתם! לחצו על "משחק חדש" לנסות שוב.' : '💥 Perdu ! Clique sur "Nouvelle partie" pour réessayer.') + '</span>';
+        }
+      }
+    }
+
     window.ouvrirJeu = async function(type) {
       const box = document.getElementById('modal-box');
       document.getElementById('modal-bg').style.display = 'flex';
@@ -2626,6 +2808,9 @@
       }
       if (type === 'bowling') {
         ouvrirBowling(box);
+      }
+      if (type === 'serpent') {
+        ouvrirSerpent(box);
       }
       if (type === 'musique') {
         const chargement = LANGUE === 'he' ? 'טוען...' : 'Chargement...';
@@ -3139,6 +3324,6 @@
 
     init();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 20:18</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 20:32</div>
 </body>
 </html>
