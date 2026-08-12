@@ -225,9 +225,9 @@
         <span class="emoji">🎁</span><span id="txt-tuile-puzzle">Cadeau surprise !</span>
         <div class="game-badge" id="badge-puzzle" style="background:#c0392b; color:#fff; opacity:1; display:inline-block; padding:2px 8px; border-radius:8px; font-weight:700;">500 pts</div>
       </div>
-      <div class="game-tile" id="tuile-bowling" onclick="window.ouvrirJeu('bowling')" style="background:linear-gradient(135deg,#7ec8ff,#3d7fc4); border-color:#1a4d7a; position:relative; animation:pulseCadeau 2s infinite .3s;">
+      <div class="game-tile" id="tuile-bowling" style="background:#ddd; border-color:#999; position:relative; opacity:.6; cursor:default;">
         <span class="emoji">🎳</span><span id="txt-tuile-bowling">Bowling Express !</span>
-        <div class="game-badge" id="badge-bowling" style="background:#c0392b; color:#fff; opacity:1; display:inline-block; padding:2px 8px; border-radius:8px; font-weight:700;">250 pts</div>
+        <div class="game-badge" id="badge-bowling" style="background:#999; color:#fff; opacity:1; display:inline-block; padding:2px 8px; border-radius:8px; font-weight:700;">🔒 Bientôt</div>
       </div>
     </div>
   </div>
@@ -506,7 +506,7 @@
       const badgePuzzle = document.getElementById('badge-puzzle');
       if (badgePuzzle) badgePuzzle.textContent = t ? "500 נק'" : '500 pts';
       const badgeBowling = document.getElementById('badge-bowling');
-      if (badgeBowling) badgeBowling.textContent = t ? "250 נק'" : '250 pts';
+      if (badgeBowling) badgeBowling.textContent = t ? '🔒 בקרוב' : '🔒 Bientôt';
     }
 
     async function init() {
@@ -3139,6 +3139,6 @@
 
     init();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 20:15</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 20:18</div>
 </body>
 </html>
