@@ -27,6 +27,7 @@
   #barre-outils-haut a.outil-icone:first-child { background: var(--sunset); color: #fff; font-size: 20px; }
   .outil-icone-mini { width: 26px; height: 26px; border-radius: 50%; background: rgba(255,255,255,.15); border: 2px solid rgba(255,255,255,.5); font-size: 13px; display:flex; align-items:center; justify-content:center; cursor:pointer; text-decoration:none; color: #fff; }
   #btn-musique-haut { background: var(--sunset); border-color: #fff; }
+  @keyframes pulseCadeau { 0%,100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,152,0,.5); } 50% { transform: scale(1.04); box-shadow: 0 0 0 8px rgba(255,152,0,0); } }
   #progress-1000 { padding: 10px 20px 0; text-align: center; position: relative; }
   .progress-fill.pulse-gain { animation: pulseGain 0.6s ease; }
   @keyframes pulseGain { 0% { filter: brightness(1); } 50% { filter: brightness(1.5); } 100% { filter: brightness(1); } }
@@ -220,9 +221,13 @@
       <div class="game-tile" onclick="window.ouvrirJeu('bingo')"><span class="emoji">🔲</span><span id="txt-tuile-bingo">Bingo</span><div class="game-badge" id="badge-bingo"></div></div>
       <div class="game-tile" onclick="window.ouvrirJeu('roue')"><span class="emoji">🎡</span><span id="txt-tuile-roue">Roue des défis</span><div class="game-badge" id="badge-roue"></div></div>
       <div class="game-tile" onclick="window.ouvrirJeu('enigme')"><span class="emoji">❓</span><span id="txt-tuile-enigme">Énigmes</span><div class="game-badge" id="badge-enigme"></div></div>
-      <div class="game-tile" id="tuile-puzzle-tiberiade" onclick="window.ouvrirJeu('puzzle')" style="background:linear-gradient(135deg,#ffd97a,#ffb347); border-color:#c47f00; position:relative;">
-        <span class="emoji">🧩</span><span id="txt-tuile-puzzle">Spécial Tibériade</span>
+      <div class="game-tile" id="tuile-puzzle-tiberiade" onclick="window.ouvrirJeu('puzzle')" style="background:linear-gradient(135deg,#ffd97a,#ffb347); border-color:#c47f00; position:relative; animation:pulseCadeau 2s infinite;">
+        <span class="emoji">🎁</span><span id="txt-tuile-puzzle">Cadeau surprise !</span>
         <div class="game-badge" id="badge-puzzle" style="background:#c0392b; color:#fff; opacity:1; display:inline-block; padding:2px 8px; border-radius:8px; font-weight:700;">500 pts</div>
+      </div>
+      <div class="game-tile" id="tuile-bowling" onclick="window.ouvrirJeu('bowling')" style="background:linear-gradient(135deg,#7ec8ff,#3d7fc4); border-color:#1a4d7a; position:relative; animation:pulseCadeau 2s infinite .3s;">
+        <span class="emoji">🎳</span><span id="txt-tuile-bowling">Bowling Express !</span>
+        <div class="game-badge" id="badge-bowling" style="background:#c0392b; color:#fff; opacity:1; display:inline-block; padding:2px 8px; border-radius:8px; font-weight:700;">250 pts</div>
       </div>
     </div>
   </div>
@@ -490,13 +495,15 @@
       });
       const btnDiplome = document.getElementById('btn-voir-diplome');
       if (btnDiplome) btnDiplome.textContent = t ? '🏆 התעודה שלי' : '🏆 Voir mon diplôme';
-      const tuiles = { 'txt-tuile-bingo': ['Bingo', 'ביינגו'], 'txt-tuile-roue': ['Roue des défis', 'גלגל האתגרים'], 'txt-tuile-enigme': ['Énigmes', 'חידות'], 'txt-tuile-puzzle': ['Spécial Tibériade', 'מיוחד טבריה'] };
+      const tuiles = { 'txt-tuile-bingo': ['Bingo', 'ביינגו'], 'txt-tuile-roue': ['Roue des défis', 'גלגל האתגרים'], 'txt-tuile-enigme': ['Énigmes', 'חידות'], 'txt-tuile-puzzle': ['Cadeau surprise !', 'מתנה מפתיעה!'], 'txt-tuile-bowling': ['Bowling Express !', 'באולינג אקספרס!'] };
       Object.entries(tuiles).forEach(([id, [fr, he]]) => {
         const el = document.getElementById(id);
         if (el) el.textContent = t ? he : fr;
       });
       const badgePuzzle = document.getElementById('badge-puzzle');
       if (badgePuzzle) badgePuzzle.textContent = t ? "500 נק'" : '500 pts';
+      const badgeBowling = document.getElementById('badge-bowling');
+      if (badgeBowling) badgeBowling.textContent = t ? "250 נק'" : '250 pts';
     }
 
     async function init() {
@@ -2384,6 +2391,155 @@
       }, 500);
     }
 
+    // ------------------------------------------------------------
+    // BOWLING EXPRESS (bonus 250 points, une fois par enfant)
+    // 2 lancers pour faire tomber toutes les quilles.
+    // ------------------------------------------------------------
+    let bowlingEtat = null;
+    let bowlingAnimId = null;
+
+    function configBowling() {
+      const map = {
+        p_elior:     { pins: 10, rayon: 6,  periode: 900 },
+        p_shaitsion: { pins: 8,  rayon: 14, periode: 1200 },
+        p_nava:      { pins: 8,  rayon: 24, periode: 1500, aide: true },
+        p_benaya:    { pins: 6,  rayon: 34, periode: 1800, aide: true }
+      };
+      return map[PROFIL_ID] || { pins: 8, rayon: 14, periode: 1200 };
+    }
+
+    function ouvrirBowling(box) {
+      const cfg = configBowling();
+      const dejaGagne = localStorage.getItem('vq_bowling_' + PROFIL_ID) === '1';
+      bowlingEtat = { pins: cfg.pins, restant: cfg.pins, lancer: 1, position: 50, termine: false };
+
+      const titre = LANGUE === 'he' ? '🎳 באולינג אקספרס' : '🎳 Bowling Express';
+      const aideTxt = cfg.aide
+        ? (LANGUE === 'he' ? ' (עם מגנים בצדדים שעוזרים!)' : ' (avec des protections sur les côtés qui aident !)')
+        : '';
+      const consigne = LANGUE === 'he'
+        ? `הפילו את כל ${cfg.pins} הכדורים ב-2 זריקות!${aideTxt} לחצו על "זרוק!" ברגע הנכון — כמה שיותר קרוב למרכז!`
+        : `Fais tomber les ${cfg.pins} quilles en 2 lancers max !${aideTxt} Clique sur "Lancer !" au bon moment — le plus proche possible du centre !`;
+      const dejaFaitTxt = LANGUE === 'he'
+        ? '✅ כבר ניצחתם במשחק הזה (בלי נקודות נוספות, אבל שחקו כמה שתרצו!)'
+        : '✅ Déjà réussi (rejouer ne redonne plus de points, mais amuse-toi autant que tu veux !)';
+
+      box.innerHTML = `
+        <h3>${titre}</h3>
+        <p class="muted mt-8">${consigne}</p>
+        ${dejaGagne ? `<p class="mt-8" style="font-weight:700; color:#2ecc71;">${dejaFaitTxt}</p>` : ''}
+        <p class="mt-16" style="text-align:center; font-size:13px; font-weight:700;" id="bowling-lancer-txt"></p>
+        <div id="bowling-quilles" style="display:flex; flex-wrap:wrap; justify-content:center; gap:6px; font-size:32px; margin:12px 0; min-height:80px;"></div>
+        <div style="position:relative; height:34px; background:#eee; border-radius:17px; overflow:hidden; border:3px solid var(--bark);">
+          <div style="position:absolute; left:calc(50% - ${cfg.rayon}%); width:${cfg.rayon * 2}%; top:0; bottom:0; background:rgba(46,204,113,.45);"></div>
+          <div id="bowling-marqueur" style="position:absolute; top:2px; bottom:2px; width:6px; background:#c0392b; border-radius:3px; left:50%;"></div>
+        </div>
+        <button class="btn btn--primary btn--block mt-16" id="btn-bowling-lancer">🎯 ${LANGUE === 'he' ? 'זרוק!' : 'Lancer !'}</button>
+        <p class="muted mt-8" id="bowling-resultat" style="text-align:center; font-size:13px;"></p>
+        ${boutonFermer()}`;
+
+      afficherQuillesBowling();
+      majTexteLancerBowling();
+      demarrerAnimationBowling(cfg.periode);
+
+      document.getElementById('btn-bowling-lancer').onclick = () => lancerBowling(cfg);
+    }
+
+    function afficherQuillesBowling() {
+      const zone = document.getElementById('bowling-quilles');
+      if (!zone) return;
+      zone.innerHTML = Array.from({ length: bowlingEtat.restant }).map(() => '🎳').join(' ');
+    }
+
+    function majTexteLancerBowling() {
+      const el = document.getElementById('bowling-lancer-txt');
+      if (!el) return;
+      el.textContent = (LANGUE === 'he' ? 'זריקה ' : 'Lancer ') + bowlingEtat.lancer + '/2 — ' +
+        (LANGUE === 'he' ? `${bowlingEtat.restant} כדורים נשארו` : `${bowlingEtat.restant} quille(s) restante(s)`);
+    }
+
+    function demarrerAnimationBowling(periode) {
+      const debut = Date.now();
+      function step() {
+        const marqueur = document.getElementById('bowling-marqueur');
+        if (!marqueur) { bowlingAnimId = null; return; } // modale fermée : on arrête la boucle
+        const t = (Date.now() - debut) / periode;
+        const position = 50 + 50 * Math.sin(2 * Math.PI * t);
+        bowlingEtat.position = position;
+        marqueur.style.left = position + '%';
+        bowlingAnimId = requestAnimationFrame(step);
+      }
+      bowlingAnimId = requestAnimationFrame(step);
+    }
+
+    function lancerBowling(cfg) {
+      if (bowlingEtat.termine) return;
+      if (bowlingAnimId) cancelAnimationFrame(bowlingAnimId);
+
+      const d = Math.abs(bowlingEtat.position - 50);
+      let abattues;
+      if (d <= cfg.rayon) {
+        abattues = bowlingEtat.restant; // en plein dans la zone verte : toutes les quilles restantes tombent
+      } else {
+        const proportion = Math.max(0, 1 - (d - cfg.rayon) / (50 - cfg.rayon));
+        abattues = Math.floor(bowlingEtat.restant * proportion);
+      }
+      bowlingEtat.restant -= abattues;
+      afficherQuillesBowling();
+
+      const resultat = document.getElementById('bowling-resultat');
+      const btn = document.getElementById('btn-bowling-lancer');
+
+      if (bowlingEtat.restant <= 0) {
+        bowlingEtat.termine = true;
+        resultat.textContent = LANGUE === 'he' ? '🎉 סטרייק! כל הכדורים נפלו!' : '🎉 Strike ! Toutes les quilles sont tombées !';
+        btn.disabled = true;
+        gererVictoireBowling();
+        return;
+      }
+
+      if (bowlingEtat.lancer >= 2) {
+        bowlingEtat.termine = true;
+        resultat.textContent = LANGUE === 'he'
+          ? `נשארו ${bowlingEtat.restant} כדורים... כמעט! נסו שוב.`
+          : `Il reste ${bowlingEtat.restant} quille(s)... presque ! Réessaie.`;
+        btn.textContent = '🔁 ' + (LANGUE === 'he' ? 'שחקו שוב' : 'Rejouer');
+        btn.disabled = false;
+        btn.onclick = () => ouvrirBowling(document.getElementById('modal-box'));
+        return;
+      }
+
+      bowlingEtat.lancer++;
+      majTexteLancerBowling();
+      resultat.textContent = abattues > 0
+        ? (LANGUE === 'he' ? `יפה! ${abattues} כדורים נפלו.` : `Bien joué ! ${abattues} quille(s) tombée(s).`)
+        : (LANGUE === 'he' ? 'פספוס... נסו שוב בזריקה השנייה!' : 'Raté... retente ta chance au 2e lancer !');
+      demarrerAnimationBowling(cfg.periode);
+    }
+
+    function gererVictoireBowling() {
+      const dejaGagne = localStorage.getItem('vq_bowling_' + PROFIL_ID) === '1';
+      if (!dejaGagne) {
+        localStorage.setItem('vq_bowling_' + PROFIL_ID, '1');
+        ajouterScoreProfil(PROFIL_ID, 250);
+      }
+      if ('vibrate' in navigator) navigator.vibrate([300, 100, 300, 100, 500]);
+      lancerConfettis(8000);
+      if (settingsVoyage.MusiqueVictoireURL) {
+        const audio = new Audio(settingsVoyage.MusiqueVictoireURL);
+        audio.play().catch(() => {});
+      }
+      setTimeout(() => {
+        const box = document.getElementById('modal-box');
+        if (!box) return;
+        const titre = LANGUE === 'he' ? '🎉 כל הכבוד!' : '🎉 Bravo !';
+        const texte = dejaGagne
+          ? (LANGUE === 'he' ? 'ניצחתם שוב בבאולינג! 🎳' : 'Tu as encore réussi le bowling ! 🎳')
+          : (LANGUE === 'he' ? 'הפלתם את כל הכדורים וזכיתם ב-250 נקודות! 🏆' : 'Tu as fait tomber toutes les quilles et gagné 250 points ! 🏆');
+        box.innerHTML = `<h2>${titre}</h2><p class="mt-16" style="font-size:16px;">${texte}</p>${boutonFermer()}`;
+      }, 500);
+    }
+
     window.ouvrirJeu = async function(type) {
       const box = document.getElementById('modal-box');
       document.getElementById('modal-bg').style.display = 'flex';
@@ -2400,6 +2556,9 @@
       }
       if (type === 'puzzle') {
         ouvrirPuzzleTiberiade(box);
+      }
+      if (type === 'bowling') {
+        ouvrirBowling(box);
       }
       if (type === 'musique') {
         const chargement = LANGUE === 'he' ? 'טוען...' : 'Chargement...';
@@ -2891,6 +3050,6 @@
 
     init();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 18:40</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 19:00</div>
 </body>
 </html>
