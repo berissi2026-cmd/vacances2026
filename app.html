@@ -1510,22 +1510,23 @@
       const LIMITE_VIDEO_MO = 100; // plafond du plan gratuit ImageKit pour les vidéos
       const LIMITE_PHOTO_MO = 20;  // plafond du plan gratuit ImageKit pour les images
       const items = [];
-      let videoTropGrosse = false, photoTropGrosse = false;
       for (const fichier of liste) {
         const estVideo = fichier.type.startsWith('video/');
+        const limiteMo = estVideo ? LIMITE_VIDEO_MO : LIMITE_PHOTO_MO;
+        const tailleMo = (fichier.size / 1024 / 1024).toFixed(1);
+
+        if (fichier.size > limiteMo * 1024 * 1024) {
+          const message = LANGUE === 'he'
+            ? `⚠️ "${fichier.name}" שוקל ${tailleMo} מגה (המקסימום המומלץ הוא ${limiteMo} מגה). ההעלאה עלולה להיכשל או להיות איטית מאוד. לנסות בכל זאת?`
+            : `⚠️ "${fichier.name}" pèse ${tailleMo} Mo (le maximum recommandé est ${limiteMo} Mo). L'envoi risque d'échouer ou d'être très lent. Essayer quand même ?`;
+          if (!confirm(message)) continue; // l'utilisateur annule cette photo/vidéo précise
+        }
+
         if (estVideo) {
-          if (fichier.size > LIMITE_VIDEO_MO * 1024 * 1024) { videoTropGrosse = true; continue; }
           items.push({ blob: fichier, type: 'video' });
         } else {
-          if (fichier.size > LIMITE_PHOTO_MO * 1024 * 1024) { photoTropGrosse = true; continue; }
           items.push({ blob: fichier, type: 'photo' }); // fichier original envoyé tel quel, sans compression
         }
-      }
-      if (videoTropGrosse) {
-        alert(LANGUE === 'he' ? `סרטון גדול מדי (מקסימום ${LIMITE_VIDEO_MO} מגה)` : `Une vidéo dépasse ${LIMITE_VIDEO_MO} Mo, elle a été ignorée.`);
-      }
-      if (photoTropGrosse) {
-        alert(LANGUE === 'he' ? `תמונה גדולה מדי (מקסימום ${LIMITE_PHOTO_MO} מגה)` : `Une photo dépasse ${LIMITE_PHOTO_MO} Mo, elle a été ignorée.`);
       }
       if (!items.length) {
         alert(LANGUE === 'he' ? 'שגיאה בקריאת הקבצים, נסו קבצים אחרים.' : "Impossible de lire ces fichiers, essaie d'autres photos/vidéos.");
@@ -3677,6 +3678,6 @@
 
     init();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 22:28</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 22:35</div>
 </body>
 </html>
