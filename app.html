@@ -2314,9 +2314,10 @@
       const sauvegarde = chargerSauvegardePuzzle(taille);
       if (sauvegarde) {
         puzzleEtat = sauvegarde;
+        puzzleEtat.hintsUsed = puzzleEtat.hintsUsed || 0; // compatibilité avec une sauvegarde faite avant l'ajout des indices
       } else {
         const { tuiles, videIdx } = melangerPuzzle(taille, profondeurMelangePuzzle());
-        puzzleEtat = { taille, tuiles, videIdx };
+        puzzleEtat = { taille, tuiles, videIdx, hintsUsed: 0 };
       }
 
       const titre = LANGUE === 'he' ? '🧩 מיוחד טבריה' : '🧩 Spécial Tibériade';
@@ -2338,14 +2339,17 @@
         <p class="muted mt-16" style="font-size:12px; text-align:center;">${modeleTxt}</p>
         <img src="assets/tiberiade-puzzle.jpg" style="display:block; width:110px; height:110px; object-fit:cover; border-radius:10px; border:3px solid var(--bark); margin:6px auto 0;">
         <div id="puzzle-grille" style="display:grid; grid-template-columns: repeat(${taille}, 1fr); gap:2px; margin:16px auto; max-width:340px; aspect-ratio:1; border-radius:12px; overflow:hidden; border:3px solid var(--bark);"></div>
+        <p class="mt-8" id="puzzle-recompense-txt" style="text-align:center; font-weight:700; font-size:13px;"></p>
         <div class="field-row mt-8">
           <button class="btn btn--accent btn--block" id="btn-puzzle-sauvegarder">💾 ${LANGUE === 'he' ? 'שמור' : 'Sauvegarder'}</button>
           <button class="btn btn--ghost btn--block" id="btn-puzzle-remelanger">🔀 ${LANGUE === 'he' ? 'התחל מחדש' : 'Recommencer'}</button>
         </div>
+        <button class="btn btn--ghost btn--block mt-8" id="btn-puzzle-indice" style="color:#c47f00;">💡 ${LANGUE === 'he' ? 'רמז (-20 נק\')' : 'Indice (-20 pts)'}</button>
         <p class="muted mt-8" id="puzzle-statut-sauvegarde" style="text-align:center; font-size:12px;"></p>
         ${boutonFermer()}`;
 
       dessinerPuzzle();
+      majRecompensePuzzle();
 
       document.getElementById('btn-puzzle-sauvegarder').onclick = () => {
         sauvegarderPuzzle();
@@ -2356,10 +2360,48 @@
 
       document.getElementById('btn-puzzle-remelanger').onclick = () => {
         const r = melangerPuzzle(taille, profondeurMelangePuzzle());
-        puzzleEtat = { taille, tuiles: r.tuiles, videIdx: r.videIdx };
+        puzzleEtat = { taille, tuiles: r.tuiles, videIdx: r.videIdx, hintsUsed: 0 };
         sauvegarderPuzzle();
         dessinerPuzzle();
+        majRecompensePuzzle();
       };
+
+      document.getElementById('btn-puzzle-indice').onclick = donnerIndicePuzzle;
+    }
+
+    function recompensePuzzleActuelle() {
+      return Math.max(0, 500 - (puzzleEtat.hintsUsed || 0) * 20);
+    }
+
+    function majRecompensePuzzle() {
+      const el = document.getElementById('puzzle-recompense-txt');
+      if (!el) return;
+      const recompense = recompensePuzzleActuelle();
+      const hints = puzzleEtat.hintsUsed || 0;
+      el.textContent = hints > 0
+        ? (LANGUE === 'he' ? `🏆 פרס נוכחי: ${recompense} נק' (${hints} רמזים בשימוש)` : `🏆 Récompense actuelle : ${recompense} pts (${hints} indice(s) utilisé(s))`)
+        : (LANGUE === 'he' ? '🏆 פרס: 500 נק\'' : '🏆 Récompense : 500 pts');
+    }
+
+    function donnerIndicePuzzle() {
+      const { taille, tuiles, videIdx } = puzzleEtat;
+      const cible = videIdx; // la valeur qui doit finir à l'emplacement actuellement vide
+      const posActuelle = tuiles.indexOf(cible);
+      if (posActuelle === -1) return;
+
+      puzzleEtat.hintsUsed = (puzzleEtat.hintsUsed || 0) + 1;
+      sauvegarderPuzzle();
+      majRecompensePuzzle();
+
+      const el = document.querySelector(`#puzzle-grille .puzzle-piece[data-pos="${posActuelle}"]`);
+      if (el) {
+        el.style.outline = '4px solid #ffd700';
+        el.style.outlineOffset = '-4px';
+        el.style.animation = 'pulseCadeau 0.8s infinite';
+        setTimeout(() => {
+          if (el) { el.style.outline = ''; el.style.animation = ''; }
+        }, 3000);
+      }
     }
 
     function dessinerPuzzle() {
@@ -2396,9 +2438,10 @@
 
       try { localStorage.removeItem(cleSauvegardePuzzle()); } catch (e) {}
       const dejaGagne = localStorage.getItem('vq_puzzle_tiberiade_' + PROFIL_ID) === '1';
+      const recompense = recompensePuzzleActuelle();
       if (!dejaGagne) {
         localStorage.setItem('vq_puzzle_tiberiade_' + PROFIL_ID, '1');
-        ajouterScoreProfil(PROFIL_ID, 500);
+        if (recompense > 0) ajouterScoreProfil(PROFIL_ID, recompense);
       }
       if ('vibrate' in navigator) navigator.vibrate([300, 100, 300, 100, 500]);
       lancerConfettis(8000);
@@ -2408,7 +2451,7 @@
         const titre = LANGUE === 'he' ? '🎉 כל הכבוד!' : '🎉 Bravo !';
         const texte = dejaGagne
           ? (LANGUE === 'he' ? 'פתרתם את הפאזל שוב! 🧩' : 'Tu as encore résolu le puzzle ! 🧩')
-          : (LANGUE === 'he' ? 'פתרתם את הפאזל וזכיתם ב-500 נקודות! 🏆' : 'Tu as résolu le puzzle et gagné 500 points ! 🏆');
+          : (LANGUE === 'he' ? `פתרתם את הפאזל וזכיתם ב-${recompense} נקודות! 🏆` : `Tu as résolu le puzzle et gagné ${recompense} points ! 🏆`);
         box.innerHTML = `<h2>${titre}</h2><p class="mt-16" style="font-size:16px;">${texte}</p>${boutonFermer()}`;
       }, 500);
     }
@@ -3096,6 +3139,6 @@
 
     init();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 20:05</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 20:15</div>
 </body>
 </html>
