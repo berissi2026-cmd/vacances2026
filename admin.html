@@ -312,6 +312,15 @@ Mauvaise réponse 2"></textarea>
     <!-- PROGRESSION -->
     <div class="admin-panel" id="p-progression">
       <h3>Progression de la famille</h3>
+      <div class="lieu-item">
+        <b>🏆 Total familial</b>
+        <div class="field-row mt-8" style="align-items:center;">
+          <input type="number" id="input-total-familial" style="width:120px;">
+          <span class="muted" style="font-size:12px;">points</span>
+          <button class="btn btn--primary" id="btn-save-total-familial" style="padding:6px 12px; font-size:12px;">💾 Enregistrer</button>
+        </div>
+        <p class="muted mt-8" style="font-size:11px;">La différence avec le total actuel est répartie également entre tous les profils (le total affiché dans l'app est toujours la somme de tout le monde).</p>
+      </div>
       <div id="liste-progression" class="col mt-16"></div>
       <button class="btn btn--ghost btn--block mt-24" id="btn-reset-points" style="color:#c0392b;">🔄 Réinitialiser points, position voiture ET compteurs de sièges (tests)</button>
     </div>
@@ -438,7 +447,7 @@ Mauvaise réponse 2"></textarea>
       getTypesExcursion, ajouterTypeExcursion, seedTypesExcursionSiVide,
       getMissionsParLieu, ajouterMission, supprimerMission, getToutesMissions,
       getSettings, updateSettings, getPlaylistPourLieu, ajouterVideoPlaylist, supprimerVideoPlaylist,
-      definirScoreProfil,
+      definirScoreProfil, ajouterScoreProfil,
       updateLieuAudio, reinitialiserTousLesPoints, getDefisFaits, supprimerDefiFait,
       getCarSeatTracking, ecouterCarSeatTracking, setCarSeatTracking,
       ajouterTrajetVoiture, getTrajetsVoiture, ecouterTrajetsVoiture, modifierTrajetVoiture, supprimerTrajetVoiture,
@@ -1672,6 +1681,10 @@ Mauvaise réponse 2"></textarea>
       const profils = await getProfils();
       const box = document.getElementById('liste-progression');
       box.innerHTML = '';
+
+      const totalActuel = profils.reduce((s, p) => s + (Number(p.ScorePerso) || 0), 0);
+      document.getElementById('input-total-familial').value = totalActuel;
+
       profils.forEach(p => {
         const scoreActuel = p.ScorePerso || 0;
         const el = document.createElement('div');
@@ -1699,12 +1712,36 @@ Mauvaise réponse 2"></textarea>
             input.dataset.ancien = nouveauScore;
             btn.textContent = '✅';
             setTimeout(() => { btn.textContent = '💾'; btn.disabled = false; }, 1200);
+            chargerProgression();
           } catch (e) {
             alert('Erreur : ' + (e.message || e));
             btn.disabled = false;
           }
         };
       });
+
+      document.getElementById('btn-save-total-familial').onclick = async () => {
+        const btn = document.getElementById('btn-save-total-familial');
+        const nouveauTotal = Math.max(0, Math.round(Number(document.getElementById('input-total-familial').value) || 0));
+        const delta = nouveauTotal - totalActuel;
+        if (delta === 0) return;
+        btn.disabled = true;
+        btn.textContent = '...';
+        try {
+          const n = profils.length;
+          const part = Math.trunc(delta / n);
+          const reste = delta - part * n;
+          for (let i = 0; i < profils.length; i++) {
+            const ajout = part + (i === 0 ? reste : 0); // le reliquat de la division va au premier profil, pour que le total tombe juste
+            if (ajout !== 0) await ajouterScoreProfil(profils[i].ProfilID, ajout);
+          }
+          btn.textContent = '✅ Enregistrer';
+          chargerProgression();
+        } catch (e) {
+          alert('Erreur : ' + (e.message || e));
+        }
+        btn.disabled = false;
+      };
     }
 
     // --- ALBUM PHOTO ---
@@ -1872,6 +1909,6 @@ Mauvaise réponse 2"></textarea>
 
     chargerLieuxPourMissions();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 19:15</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 19:25</div>
 </body>
 </html>
