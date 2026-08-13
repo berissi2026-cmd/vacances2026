@@ -233,9 +233,9 @@
         <span class="emoji">🐍</span><span id="txt-tuile-serpent">Le Serpent !</span>
         <div class="game-badge" id="badge-serpent" style="background:#c0392b; color:#fff; opacity:1; display:inline-block; padding:2px 8px; border-radius:8px; font-weight:700;">50 pts</div>
       </div>
-      <div class="game-tile" id="tuile-pong" onclick="window.ouvrirJeu('pong')" style="background:linear-gradient(135deg,#c9a7ff,#7b5fc7); border-color:#4a2f8c; position:relative;">
+      <div class="game-tile" id="tuile-pong" onclick="window.demanderAccesPong()" style="background:linear-gradient(135deg,#c9a7ff,#7b5fc7); border-color:#4a2f8c; position:relative;">
         <span class="emoji">🏓</span><span id="txt-tuile-pong">Pong à 4 !</span>
-        <div class="game-badge" id="badge-pong" style="background:#2c7be5; color:#fff; opacity:1; display:inline-block; padding:2px 8px; border-radius:8px; font-weight:700;">4 joueurs</div>
+        <div class="game-badge" id="badge-pong" style="background:#999; color:#fff; opacity:1; display:inline-block; padding:2px 8px; border-radius:8px; font-weight:700;">🔒</div>
       </div>
     </div>
   </div>
@@ -535,7 +535,7 @@
       const badgeSerpent = document.getElementById('badge-serpent');
       if (badgeSerpent) badgeSerpent.textContent = t ? "50 נק'" : '50 pts';
       const badgePong = document.getElementById('badge-pong');
-      if (badgePong) badgePong.textContent = t ? '4 שחקנים' : '4 joueurs';
+      if (badgePong) badgePong.textContent = '🔒';
     }
 
     async function init() {
@@ -3140,6 +3140,17 @@
       ctx.fill();
     }
 
+    window.demanderAccesPong = function() {
+      const message = LANGUE === 'he' ? '🔒 המשחק הזה נעול. סיסמה?' : '🔒 Ce jeu est verrouillé. Mot de passe ?';
+      const saisie = prompt(message);
+      if (saisie === null) return; // annulé
+      if (saisie === 'admin') {
+        window.ouvrirJeu('pong');
+      } else {
+        alert(LANGUE === 'he' ? '❌ סיסמה שגויה' : '❌ Mot de passe incorrect');
+      }
+    };
+
     window.ouvrirJeu = async function(type) {
       const box = document.getElementById('modal-box');
       document.getElementById('modal-bg').style.display = 'flex';
@@ -3678,6 +3689,6 @@
 
     init();
   </script>
-  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 22:35</div>
+  <div style="text-align:center;font-size:9px;opacity:.35;padding:8px 0;" id="version-tag">v.2026-08-09 22:45</div>
 </body>
 </html>
